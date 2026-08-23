@@ -45,7 +45,7 @@ export async function dispatchEmail(params: {
   html: string;
 }): Promise<DispatchResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.EMAIL_FROM?.trim() || "AdvocacyHQ <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM?.trim() || "Actyl <onboarding@resend.dev>";
 
   if (!apiKey) {
     console.log(`[email:simulated] to=${params.to} subject="${params.subject}"`);

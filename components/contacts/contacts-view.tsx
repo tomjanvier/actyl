@@ -208,7 +208,7 @@ export function ContactsView({
       format === "csv"
         ? "\uFEFF" + toCSV(rows)
         : JSON.stringify(rows, null, 2),
-      `advocacyhq-contacts-${new Date().toISOString().slice(0, 10)}.${format}`,
+      `actyl-contacts-${new Date().toISOString().slice(0, 10)}.${format}`,
       format === "csv" ? "text/csv" : "application/json",
     );
     toast.success(`${rows.length} contacts exportés (${format.toUpperCase()})`);

@@ -25,7 +25,7 @@ export default function LandingPage() {
             <Landmark className="size-4 text-indigo-700 dark:text-indigo-400" />
           </span>
           <span className="text-[14px] font-semibold tracking-tight text-fg">
-            AdvocacyHQ
+            Actyl
           </span>
         </div>
         <nav className="flex items-center gap-3">
@@ -144,7 +144,7 @@ export default function LandingPage() {
 
         {/* Footer */}
         <footer className="flex flex-col items-center gap-2 border-t border-line py-10 text-[12.5px] text-faint">
-          <p>AdvocacyHQ — construit par et pour les plaidoyers citoyens.</p>
+          <p>Actyl — construit par et pour les plaidoyers citoyens.</p>
           <p>Next.js · Prisma · Tailwind CSS · Licence MIT</p>
         </footer>
       </main>

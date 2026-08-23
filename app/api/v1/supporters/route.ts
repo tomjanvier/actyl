@@ -29,7 +29,7 @@ const bodySchema = z.object({
  * Ingest a person (newsletter signup, membership form…).
  *
  *   curl -X POST https://votre-domaine/api/v1/supporters \
- *     -H "Authorization: Bearer ahq_…" \
+ *     -H "Authorization: Bearer actyl_…" \
  *     -H "Content-Type: application/json" \
  *     -d '{"email":"a@b.fr","fullName":"Jean Martin","city":"Rennes",
  *          "source":"newsletter","tags":["newsletter-2026"]}'

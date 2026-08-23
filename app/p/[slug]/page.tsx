@@ -198,7 +198,7 @@ export default async function PublicCampaignPage({
           <p className="text-[11.5px] leading-relaxed text-faint">
             Propulsé par{" "}
             <Link href="/" className="text-faint hover:text-mut">
-              AdvocacyHQ
+              Actyl
             </Link>{" "}
             — CRM de plaidoyer open-source.
             <br />

@@ -5,11 +5,11 @@ import { db } from "@/lib/db";
 /**
  * Public ingest API auth (/api/v1/*).
  *
- * Tokens look like `ahq_<32 hex chars>`. Only a SHA-256 hash is stored, so a
+ * Tokens look like `actyl_<32 hex chars>`. Only a SHA-256 hash is stored, so a
  * DB leak never leaks usable credentials. Comparison is constant-time and the
  * prefix column lets users identify tokens in the UI without storing secrets.
  */
-const PREFIX = "ahq_";
+const PREFIX = "actyl_";
 
 export function generateApiToken(): { plaintext: string; hash: string; prefix: string } {
   const plaintext = PREFIX + randomBytes(24).toString("hex");

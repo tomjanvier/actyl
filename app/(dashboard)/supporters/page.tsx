@@ -23,7 +23,7 @@ export default async function SupportersPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "AdvocacyHQ" }, { label: "Soutiens" }]}
+        crumbs={[{ label: "Actyl" }, { label: "Soutiens" }]}
         title="Base de soutiens"
         description={`${supporters.length} personnes engagées avec votre organisation — signatures, interpellations, RSVP.`}
       />

@@ -17,7 +17,7 @@ export default function AuthLayout({
           <Landmark className="size-4.5 text-indigo-700 dark:text-indigo-400" />
         </span>
         <span className="text-[15px] font-semibold tracking-tight">
-          AdvocacyHQ
+          Actyl
         </span>
       </Link>
       {children}

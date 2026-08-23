@@ -48,7 +48,7 @@ export function CampaignHeader({
   return (
     <div className="border-b border-line px-6 pb-4 pt-5">
       <nav className="mb-1 flex items-center gap-1 text-[12px] text-faint">
-        <span>AdvocacyHQ</span>
+        <span>Actyl</span>
         <span>/</span>
         <Link href="/campaigns" className="transition-colors hover:text-mut">
           Campagnes

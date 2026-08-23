@@ -82,7 +82,7 @@ export default async function ListsPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "AdvocacyHQ" }, { label: "Listes partagées" }]}
+        crumbs={[{ label: "Actyl" }, { label: "Listes partagées" }]}
         title="Listes de décideurs"
         description="Annuaires vérifiés et partageables avec votre équipe — ou publiés pour toute l'organisation."
       />

@@ -62,7 +62,7 @@ export default async function SettingsPage({
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "AdvocacyHQ" }, { label: "Paramètres" }]}
+        crumbs={[{ label: "Actyl" }, { label: "Paramètres" }]}
         title="Paramètres de l'espace"
         description={`${session.workspaceName} — configurez le schéma de données, les équipes et les accès.`}
       />

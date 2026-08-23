@@ -57,7 +57,7 @@ export async function LandingDemoTable() {
         <span className="size-2.5 rounded-full bg-amber-400/70" />
         <span className="size-2.5 rounded-full bg-emerald-400/70" />
         <span className="ml-3 text-[11.5px] text-faint">
-          AdvocacyHQ — Annuaire des décideurs (démo)
+          Actyl — Annuaire des décideurs (démo)
         </span>
       </div>
       <table className="w-full text-[13px]">

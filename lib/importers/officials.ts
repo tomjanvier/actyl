@@ -13,7 +13,7 @@ export type ImportedContact = {
   level: string; // NATIONAL | EU
 };
 
-const UA = { "User-Agent": "AdvocacyHQ/1.0 (open-source advocacy CRM)" };
+const UA = { "User-Agent": "Actyl/1.0 (open-source advocacy CRM)" };
 
 async function fetchWithTimeout(url: string, init?: RequestInit, ms = 60_000) {
   const controller = new AbortController();

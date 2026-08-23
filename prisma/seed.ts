@@ -18,7 +18,7 @@ function daysAgo(n: number): Date {
 }
 
 async function main() {
-  console.log("🌱 Seeding AdvocacyHQ…");
+  console.log("🌱 Seeding Actyl…");
 
   // Clean slate (FK-safe order)
   await db.sentEmail.deleteMany();
@@ -51,10 +51,10 @@ async function main() {
   const seededUsers = (
     await Promise.all(
       [
-        { email: "admin@advocacyhq.org", name: "Claire Fontaine", jobTitle: "Directrice" },
-        { email: "campagne@advocacyhq.org", name: "Marc Dubois", jobTitle: "Chargé de campagnes" },
-        { email: "militant@advocacyhq.org", name: "Aïcha Benali", jobTitle: "Militante" },
-        { email: "observateur@advocacyhq.org", name: "Thomas Nguyen", jobTitle: "Analyste" },
+        { email: "admin@actyl.org", name: "Claire Fontaine", jobTitle: "Directrice" },
+        { email: "campagne@actyl.org", name: "Marc Dubois", jobTitle: "Chargé de campagnes" },
+        { email: "militant@actyl.org", name: "Aïcha Benali", jobTitle: "Militante" },
+        { email: "observateur@actyl.org", name: "Thomas Nguyen", jobTitle: "Analyste" },
       ].map((u) =>
         db.user.create({
           data: {

@@ -55,8 +55,8 @@ export function SignInForm({ next }: { next?: string }) {
       <div className="mt-6 rounded-lg border border-line bg-hover p-3 text-[12px] leading-relaxed text-faint">
         <span className="font-medium text-faint">Comptes démo</span> (mot de
         passe : <code className="text-faint">password123</code>) —{" "}
-        <span className="text-faint">admin@advocacyhq.org</span>,{" "}
-        <span className="text-faint">campagne@advocacyhq.org</span>…
+        <span className="text-faint">admin@actyl.org</span>,{" "}
+        <span className="text-faint">campagne@actyl.org</span>…
       </div>
     </div>
   );

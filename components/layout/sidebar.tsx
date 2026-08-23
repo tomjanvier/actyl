@@ -78,12 +78,12 @@ export function Sidebar({
   const [switching, setSwitching] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("ahq_sidebar_collapsed");
+    const stored = localStorage.getItem("actyl_sidebar_collapsed");
     if (stored === "1") setCollapsed(true);
   }, []);
   function toggleCollapsed() {
     setCollapsed((c) => {
-      localStorage.setItem("ahq_sidebar_collapsed", c ? "0" : "1");
+      localStorage.setItem("actyl_sidebar_collapsed", c ? "0" : "1");
       return !c;
     });
   }

@@ -1,4 +1,4 @@
-// AdvocacyHQ — Prisma schema
+// Actyl — Prisma schema
 // Portable by design: works on SQLite (zero-config dev) AND PostgreSQL
 // (Supabase / Neon / RDS). To switch to Postgres:
 //   1. change `provider` below to "postgresql"
@@ -201,7 +201,7 @@ model ApiToken {
   workspaceId String
   name        String // e.g. "Site WordPress"
   tokenHash   String    @unique // sha256(plaintext)
-  prefix      String // first 12 chars for identification, e.g. "ahq_abc12345"
+  prefix      String // first 12 chars for identification, e.g. "actyl_abc12345"
   lastUsedAt  DateTime?
   revokedAt   DateTime?
   createdAt   DateTime  @default(now())
