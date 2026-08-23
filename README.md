@@ -70,7 +70,10 @@ Comptes de démo (mot de passe `password123`) :
 
 ## Production
 
-1. `provider = "postgresql"` dans `prisma/schema.prisma` + `DATABASE_URL`
+Le déploiement de référence tourne sur Vercel avec une base Postgres Neon.
+
+1. `DATABASE_URL` (Postgres) — provisionné via l'intégration Marketplace
+   (`vercel integration add neon`), `prisma db push` pour appliquer le schéma
 2. Variables d'environnement (voir `.env.example`) : `AUTH_SECRET` (32+
    caractères), `RESEND_API_KEY`, `EMAIL_FROM`, optionnellement
    `SIGNUP_MODE=APPROVAL`
