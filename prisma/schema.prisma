@@ -1,0 +1,647 @@
+// AdvocacyHQ — Prisma schema
+// Portable by design: works on SQLite (zero-config dev) AND PostgreSQL
+// (Supabase / Neon / RDS). To switch to Postgres:
+//   1. change `provider` below to "postgresql"
+//   2. set DATABASE_URL to your Postgres connection string
+//   3. run `pnpm db:push && pnpm db:seed`
+//
+// NOTE: no enums / native arrays / Json columns are used on purpose so the
+// same schema runs on SQLite and PostgreSQL without modification.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Workspaces, Users & RBAC
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logoEmoji String   @default("🏛️")
+  website   String?
+  phone     String?
+  createdAt DateTime @default(now())
+
+  memberships  Membership[]
+  groups       Group[]
+  contacts     Contact[]
+  campaigns    Campaign[]
+  customFields CustomField[]
+  lists        SharedList[]
+  templates    EmailTemplate[]
+  petitions    Petition[]
+  events       Event[]
+  donations    Donation[]
+  apiTokens    ApiToken[]
+
+  @@map("workspaces")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  jobTitle     String?
+  createdAt    DateTime @default(now())
+
+  memberships     Membership[]
+  groupMembers    GroupMember[]
+  privateNotes    PrivateNote[]
+  privateData     ContactPrivateData[]
+  assignedCards   KanbanCard[]         @relation("CardAssignee")
+  assignedTasks   Task[]               @relation("TaskAssignee")
+  createdTasks    Task[]               @relation("TaskCreator")
+  createdContacts Contact[]            @relation("ContactCreator")
+  sentEmails      SentEmail[]
+  blasts          EmailBlast[]
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  // ADMIN | CAMPAIGNER | MEMBER | OBSERVER
+  role        String   @default("MEMBER")
+  createdAt   DateTime @default(now())
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  groups    GroupMember[]
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@map("memberships")
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  color       String   @default("indigo")
+  createdAt   DateTime @default(now())
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   GroupMember[]
+  campaigns CampaignGroup[]
+
+  @@unique([workspaceId, name])
+  @@map("groups")
+}
+
+model GroupMember {
+  id           String @id @default(cuid())
+  groupId      String
+  membershipId String
+
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  user       User?      @relation(fields: [userId], references: [id])
+  userId     String?
+
+  @@unique([groupId, membershipId])
+  @@map("group_members")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contacts directory (decision-makers)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  title          String?
+  institution    String?
+  party          String?
+  region         String?
+  // EU | NATIONAL | REGIONAL | LOCAL | PRIVATE_SECTOR | MEDIA | CIVIL_SOCIETY
+  level          String   @default("NATIONAL")
+  // ALLY | FAVORABLE | UNDECIDED | TARGET | OPPOSED | UNKNOWN
+  stance         String   @default("UNKNOWN")
+  influenceScore Int      @default(3) // 1..5
+  // Directory segment: DECISION_MAKER | MEMBER | VOLUNTEER | DONOR | SUPPORTER
+  category       String   @default("DECISION_MAKER")
+  bio            String?
+  photoUrl       String?
+  themes         String? // comma-separated policy interest tags
+  twitter        String?
+  linkedin       String?
+  website        String?
+  avatarColor    String   @default("slate")
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy      User?                @relation("ContactCreator", fields: [createdById], references: [id])
+  notes          PrivateNote[]
+  orgNotes       OrgNote[]
+  privateData    ContactPrivateData[]
+  customValues   CustomFieldValue[]
+  cards          KanbanCard[]
+  listItems      ListItem[]
+  receivedEmails SentEmail[]
+  tasks          Task[]
+  donations      Donation[]
+
+  @@unique([workspaceId, firstName, lastName, institution])
+  @@index([workspaceId])
+  @@index([workspaceId, level])
+  @@index([workspaceId, party])
+  @@index([workspaceId, region])
+  @@index([workspaceId, category])
+  @@map("contacts")
+}
+
+/// Directory segment labels (fr) — mirrors Contact.category values.
+/// DECISION_MAKER is the classic lobbying directory; the others are enabled
+/// per-workspace ("annuaire étendu") for associations that also manage
+/// members, volunteers, donors and newsletter supporters.
+model Donation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contactId   String?
+  email       String
+  name        String
+  city        String?
+  // integer cents to avoid float issues (25.00 € → 2500)
+  amountCents Int
+  currency    String   @default("EUR")
+  provider    String? // givoly | helloasso | check | wire…
+  label       String?
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact   Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, occurredAt])
+  @@index([email])
+  @@map("donations")
+}
+
+/// Bearer tokens for the public ingest API (/api/v1/*) used by the WordPress
+/// plugin (newsletter forms, Petitioner signatures, Givoly donations).
+/// Only a SHA-256 hash is stored; the plaintext token is shown once.
+model ApiToken {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String // e.g. "Site WordPress"
+  tokenHash   String    @unique // sha256(plaintext)
+  prefix      String // first 12 chars for identification, e.g. "ahq_abc12345"
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("api_tokens")
+}
+
+model PrivateNote {
+  id        String   @id @default(cuid())
+  contactId String
+  authorId  String
+  body      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@map("private_notes")
+}
+
+/// Per-user overlay visible ONLY to its owner (rating, personal status,
+/// free tags) on any shared contact record.
+model ContactPrivateData {
+  id        String  @id @default(cuid())
+  contactId String
+  userId    String
+  rating    Int? // 1..5 personal star rating
+  tags      String? // comma-separated free tags
+  status    String? // free-form personal pipeline label
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, userId])
+  @@map("contact_private_data")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dynamic custom fields (per-workspace schema extension)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CustomField {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String // machine key e.g. "committee_membership"
+  label       String // display label
+  // TEXT | SELECT | MULTI_SELECT | NUMBER | DATE | RATING | BOOLEAN | URL
+  type        String   @default("TEXT")
+  options     String? // JSON array of options for select types
+  description String?
+  showInTable Boolean  @default(false)
+  position    Int      @default(0)
+  // When set, the attribute is dedicated to one shared list (annuaire étendu).
+  listId      String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  list      SharedList?        @relation(fields: [listId], references: [id], onDelete: Cascade)
+  values    CustomFieldValue[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@index([listId])
+  @@map("custom_fields")
+}
+
+model CustomFieldValue {
+  id        String  @id @default(cuid())
+  fieldId   String
+  contactId String
+  value     String?
+
+  field   CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldId, contactId])
+  @@index([contactId])
+  @@map("custom_field_values")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared decision-maker lists
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SharedList {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  isPublished Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items     ListItem[]
+  fields    CustomField[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("shared_lists")
+}
+
+model ListItem {
+  id        String  @id @default(cuid())
+  listId    String
+  contactId String
+  note      String?
+
+  list    SharedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, contactId])
+  @@index([listId])
+  @@index([contactId])
+  @@map("list_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Campaigns & Kanban pipeline
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Campaign {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  slug        String
+  description String?
+  emoji       String    @default("📣")
+  // PLANNING | ACTIVE | PAUSED | WON | LOST | ARCHIVED
+  status      String    @default("ACTIVE")
+  priority    String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  dueDate     DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stages    PipelineStage[]
+  cards     KanbanCard[]
+  templates EmailTemplate[]
+  blasts    EmailBlast[]
+  squads    CampaignGroup[]
+  petition  Petition?
+  tasks     Task[]
+  events    Event[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+  @@map("campaigns")
+}
+
+model PipelineStage {
+  id         String @id @default(cuid())
+  campaignId String
+  name       String
+  position   Int
+  // NEUTRAL | POSITIVE | NEGATIVE | ACTIVE | WON — controls column accent
+  kind       String @default("NEUTRAL")
+
+  campaign Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  cards    KanbanCard[]
+
+  @@unique([campaignId, name])
+  @@map("pipeline_stages")
+}
+
+model KanbanCard {
+  id             String   @id @default(cuid())
+  campaignId     String
+  stageId        String
+  contactId      String
+  assignedToId   String?
+  role           String? // why they matter in this fight e.g. "Rapporteur"
+  priority       String   @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  expectedAction String?
+  lastTouchAt    DateTime @default(now())
+  position       Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  campaign   Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  stage      PipelineStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  contact    Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedTo User?         @relation("CardAssignee", fields: [assignedToId], references: [id])
+  events     CardEvent[]
+
+  @@unique([campaignId, contactId])
+  @@index([stageId])
+  @@index([campaignId, stageId, position])
+  @@map("kanban_cards")
+}
+
+/// Timeline history: every card move / creation / status change is logged.
+model CardEvent {
+  id          String   @id @default(cuid())
+  cardId      String
+  actorName   String
+  // CREATED | MOVED | PRIORITY_CHANGED
+  kind        String
+  fromStage   String?
+  toStage     String?
+  detail      String?
+  createdAt   DateTime @default(now())
+
+  card KanbanCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@map("card_events")
+}
+
+model CampaignGroup {
+  campaignId String
+  groupId    String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, groupId])
+  @@map("campaign_groups")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interpellation engine (templates → blasts → per-recipient emails)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EmailTemplate {
+  id         String   @id @default(cuid())
+  campaignId String
+  name       String
+  subject    String
+  body       String // supports {{variables}}
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  campaign    Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  blasts      EmailBlast[]
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id])
+  workspaceId String?
+
+  @@map("email_templates")
+}
+
+/// One "interpellation" push: a template dispatched to a set of targets.
+model EmailBlast {
+  id          String   @id @default(cuid())
+  campaignId  String
+  templateId  String
+  subject     String
+  body        String
+  source      String   @default("INTERNAL") // INTERNAL | PUBLIC_PAGE
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  campaign Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  template EmailTemplate @relation(fields: [templateId], references: [id])
+  emails   SentEmail[]
+  creator  User?         @relation(fields: [createdById], references: [id])
+
+  @@map("email_blasts")
+}
+
+/// One email to one decision-maker (or one citizen→target message).
+model SentEmail {
+  id         String    @id @default(cuid())
+  blastId    String?
+  contactId  String
+  senderName String
+  senderCity String?
+  subject    String
+  body       String
+  status     String    @default("QUEUED") // QUEUED | SENT | FAILED | SIMULATED
+  providerId String?
+  openedAt   DateTime?
+  error      String?
+  createdAt  DateTime  @default(now())
+
+  blast   EmailBlast? @relation(fields: [blastId], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user    User?       @relation(fields: [userId], references: [id])
+  userId  String?
+
+  @@index([blastId])
+  @@index([contactId])
+  @@map("sent_emails")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobilization: petitions, events, tasks (NationBuilder-style)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Public petition attached to a campaign (actionbutton.org style).
+model Petition {
+  id          String   @id @default(cuid())
+  workspaceId String
+  campaignId  String   @unique
+  title       String
+  description String
+  goal        Int      @default(1000)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign   Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  signatures PetitionSignature[]
+
+  @@map("petitions")
+}
+
+model PetitionSignature {
+  id         String   @id @default(cuid())
+  petitionId String
+  name       String
+  email      String
+  city       String?
+  createdAt  DateTime @default(now())
+
+  petition Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+
+  @@unique([petitionId, email])
+  @@index([petitionId])
+  @@map("petition_signatures")
+}
+
+/// Field event (meeting, door-knocking, training) with RSVPs.
+model Event {
+  id          String   @id @default(cuid())
+  workspaceId String
+  campaignId  String?
+  title       String
+  description String?
+  location    String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign  Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  rsvps     EventRsvp[]
+
+  @@index([workspaceId, startsAt])
+  @@map("events")
+}
+
+model EventRsvp {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  email     String
+  // YES | NO | MAYBE
+  response  String   @default("YES")
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, email])
+  @@map("event_rsvps")
+}
+
+/// Follow-up task on a contact ("path" in NationBuilder terms).
+model Task {
+  id          String    @id @default(cuid())
+  workspaceId String
+  contactId   String?
+  campaignId  String?
+  assignedToId String?
+  createdById String?
+  title       String
+  notes       String?
+  dueDate     DateTime?
+  done        Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  contact    Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  assignee   User?     @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  creator    User?     @relation("TaskCreator", fields: [createdById], references: [id])
+
+  @@index([workspaceId, done])
+  @@map("tasks")
+}
+
+/// Collective, workspace-visible note on a contact (vs PrivateNote which is per-user).
+model OrgNote {
+  id        String   @id @default(cuid())
+  contactId String
+  workspaceId String
+  authorId  String?
+  authorName String
+  body      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  contact  Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@map("org_notes")
+}
+
+/// Pending account requests (gated signups).
+model AccountRequest {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  passwordHash String
+  orgName     String
+  website     String?
+  phone       String?
+  // PENDING | APPROVED | REJECTED
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+}
+
+/// Simple key-value app settings.
+model AppSetting {
+  key    String @id
+  value  String
+}
+
+/// Unified supporter database (NationBuilder-style "people"):
+/// every citizen who signs, emails a decision-maker or RSVPs.
+model Supporter {
+  id         String   @id @default(cuid())
+  workspaceId String?
+  email      String
+  name       String
+  city       String?
+  // interpellation | petition | event (first touchpoint; updated on re-engagement)
+  source     String?
+  // comma-separated manual tags for segmentation (NationBuilder-style lists)
+  tags       String?
+  touchCount Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([email])
+  @@index([workspaceId])
+  @@index([workspaceId, source])
+  @@index([lastSeenAt])
+  @@map("supporters")
+}
