@@ -60,7 +60,7 @@ export default async function CampaignsPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "AdvocacyHQ" }, { label: "Campagnes" }]}
+        crumbs={[{ label: "Actyl" }, { label: "Campagnes" }]}
         title="Campagnes de plaidoyer"
         description="Chaque campagne dispose d'un pipeline kanban et d'un moteur d'interpellation citoyenne."
         actions={

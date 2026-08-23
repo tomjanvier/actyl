@@ -1033,7 +1033,7 @@ function ExtendedDirectoryCard({
 
 function ApiDocsCard() {
   const snippet = `curl -X POST https://votre-domaine.fr/api/v1/supporters \\
-  -H "Authorization: Bearer ahq_…" \\
+  -H "Authorization: Bearer actyl_…" \\
   -H "Content-Type: application/json" \\
   -d '{"email":"jean@exemple.fr","fullName":"Jean Martin",
        "city":"Rennes","source":"newsletter",

@@ -1,4 +1,4 @@
-# AdvocacyHQ — by [PLAID·ACT](https://plaidact.org)
+# Actyl — by [PLAID·ACT](https://plaidact.org)
 
 CRM de plaidoyer open-source pour associations et ONG : campagnes de lobbying,
 suivi des décideurs et mobilisation citoyenne.
@@ -66,7 +66,7 @@ pnpm dev          # http://localhost:3000
 ```
 
 Comptes de démo (mot de passe `password123`) :
-`admin@advocacyhq.org` · `campagne@advocacyhq.org` · `militant@advocacyhq.org` · `observateur@advocacyhq.org`
+`admin@actyl.org` · `campagne@actyl.org` · `militant@actyl.org` · `observateur@actyl.org`
 
 ## Production
 

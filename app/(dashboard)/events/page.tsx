@@ -21,7 +21,7 @@ export default async function EventsPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "AdvocacyHQ" }, { label: "Événements" }]}
+        crumbs={[{ label: "Actyl" }, { label: "Événements" }]}
         title="Événements & mobilisation terrain"
         description="Réunions, porte-à-porte, formations — publiez et suivez les inscriptions."
       />

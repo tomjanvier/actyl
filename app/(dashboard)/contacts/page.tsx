@@ -104,7 +104,7 @@ export default async function ContactsPage({
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "AdvocacyHQ" }, { label: "Contacts" }]}
+        crumbs={[{ label: "Actyl" }, { label: "Contacts" }]}
         title={
           activeCategory ? CATEGORY_LABELS[activeCategory]! : "Annuaire des décideurs"
         }

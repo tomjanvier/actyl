@@ -11,7 +11,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[AdvocacyHQ]", error);
+    console.error("[Actyl]", error);
   }, [error]);
 
   return (

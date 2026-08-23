@@ -10,13 +10,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: { default: "AdvocacyHQ", template: "%s · AdvocacyHQ" },
+  title: { default: "Actyl", template: "%s · Actyl" },
   description:
     "CRM de plaidoyer open-source : campagnes de lobbying, suivi des décideurs et mobilisation citoyenne.",
-  applicationName: "AdvocacyHQ",
+  applicationName: "Actyl",
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem("ahq_theme");if(t==="light"){document.documentElement.classList.remove("dark")}else{document.documentElement.classList.add("dark")}}catch(e){document.documentElement.classList.add("dark")}})()`;
+const themeScript = `(function(){try{var t=localStorage.getItem("actyl_theme");if(t==="light"){document.documentElement.classList.remove("dark")}else{document.documentElement.classList.add("dark")}}catch(e){document.documentElement.classList.add("dark")}})()`;
 
 export default function RootLayout({
   children,

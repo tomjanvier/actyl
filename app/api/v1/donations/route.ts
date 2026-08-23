@@ -35,7 +35,7 @@ const bodySchema = z.object({
  * ledger for receipts / tax certificates.
  *
  *   curl -X POST https://votre-domaine/api/v1/donations \
- *     -H "Authorization: Bearer ahq_…" -H "Content-Type: application/json" \
+ *     -H "Authorization: Bearer actyl_…" -H "Content-Type: application/json" \
  *     -d '{"email":"a@b.fr","fullName":"Jean Martin","amount":50,
  *          "provider":"givoly","label":"Don campagne"}'
  */

@@ -39,7 +39,7 @@ export default async function TasksPage() {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: "AdvocacyHQ" }, { label: "Tâches" }]}
+        crumbs={[{ label: "Actyl" }, { label: "Tâches" }]}
         title="Tâches & relances"
         description="Suivi opérationnel de l'équipe : qui relance qui, et pour quand."
       />

@@ -13,8 +13,8 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/constants";
 
-const SESSION_COOKIE = "ahq_session";
-const WORKSPACE_COOKIE = "ahq_ws";
+const SESSION_COOKIE = "actyl_session";
+const WORKSPACE_COOKIE = "actyl_ws";
 const SESSION_DAYS = 30;
 
 function secret(): Uint8Array {

@@ -21,11 +21,11 @@ const bodySchema = z.object({
 });
 
 /**
- * Remote petition signature (WordPress Petitioner → AdvocacyHQ).
+ * Remote petition signature (WordPress Petitioner → Actyl).
  * The petition is identified by its campaign slug; it must be published.
  *
  *   curl -X POST https://votre-domaine/api/v1/petitions/{slug}/signatures \
- *     -H "Authorization: Bearer ahq_…" -H "Content-Type: application/json" \
+ *     -H "Authorization: Bearer actyl_…" -H "Content-Type: application/json" \
  *     -d '{"name":"Jean Martin","email":"a@b.fr","city":"Rennes"}'
  */
 export async function POST(
