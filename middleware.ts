@@ -14,7 +14,7 @@ import { jwtVerify } from "jose";
  *      iframed on third-party sites (WordPress…) — those get an open
  *      `frame-ancestors` CSP and `noindex` instead.
  */
-const SESSION_COOKIE = "ahq_session";
+const SESSION_COOKIE = "actyl_session";
 
 const PROTECTED_PREFIXES = [
   "/contacts",
