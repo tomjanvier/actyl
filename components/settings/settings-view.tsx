@@ -14,6 +14,11 @@ import {
   Download,
   Plug,
   Copy,
+  Users,
+  Landmark,
+  HeartHandshake,
+  Gift,
+  Megaphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, timeAgo } from "@/lib/utils";
@@ -133,12 +138,18 @@ export function SettingsView({
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="champs"><SlidersHorizontal /> Champs personnalisés</TabsTrigger>
+          <TabsTrigger value="annuaire"><Users /> Annuaire étendu</TabsTrigger>
           <TabsTrigger value="equipes"><UsersRound /> Équipes</TabsTrigger>
           <TabsTrigger value="membres"><ShieldCheck /> Membres & accès</TabsTrigger>
           <TabsTrigger value="import"><Download /> Importer les élus</TabsTrigger>
           <TabsTrigger value="api"><Plug /> API & intégrations</TabsTrigger>
           <TabsTrigger value="profil"><KeyRound /> Mon profil</TabsTrigger>
         </TabsList>
+
+        {/* ── Extended directory ── */}
+        <TabsContent value="annuaire" className="mt-5 outline-none">
+          <ExtendedDirectoryCard enabled={extendedDirectory} isAdmin={isAdmin} onChanged={refresh} />
+        </TabsContent>
 
         {/* ── Custom fields ── */}
         <TabsContent value="champs" className="mt-5 outline-none">
@@ -386,10 +397,7 @@ export function SettingsView({
         <TabsContent value="api" className="mt-5 outline-none">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
             <ApiTokensCard tokens={apiTokens} isAdmin={isAdmin} onChanged={refresh} />
-            <div className="flex flex-col gap-4">
-              <ExtendedDirectoryCard enabled={extendedDirectory} isAdmin={isAdmin} onChanged={refresh} />
-              <ApiDocsCard />
-            </div>
+            <ApiDocsCard />
           </div>
         </TabsContent>
 
@@ -998,7 +1006,7 @@ function ExtendedDirectoryCard({
   const [busy, setBusy] = useState(false);
 
   async function toggle() {
-    if (busy) return;
+    if (busy || !isAdmin) return;
     setBusy(true);
     const { setExtendedDirectoryAction } = await import("@/app/actions/settings");
     await setExtendedDirectoryAction(!enabled);
@@ -1007,26 +1015,75 @@ function ExtendedDirectoryCard({
     onChanged();
   }
 
+  const segments = [
+    { icon: <Landmark className="size-4 text-indigo-700 dark:text-indigo-400" />, label: "Décideur·e·ses", desc: "Parlementaires, exécutifs, presse — le cœur lobbying (toujours actif)" },
+    { icon: <Users className="size-4 text-emerald-600 dark:text-emerald-400" />, label: "Adhérent·e·s", desc: "Membres de votre association, avec date et mode d'adhésion" },
+    { icon: <HeartHandshake className="size-4 text-rose-500 dark:text-rose-400" />, label: "Bénévoles", desc: "Engagés sur le terrain : disponibilités, missions, coordonnées" },
+    { icon: <Gift className="size-4 text-amber-600 dark:text-amber-400" />, label: "Donateur·ice·s", desc: "Historique des dons (API Givoly / HelloAsso) pour les reçus fiscaux" },
+    { icon: <Megaphone className="size-4 text-sky-600 dark:text-sky-400" />, label: "Soutiens", desc: "Newsletter, signataires de pétitions — alimentés via l'API WordPress" },
+  ];
+
   return (
-    <div className="rounded-xl border border-line bg-card p-4">
-      <h3 className="text-[13.5px] font-semibold text-fg">Annuaire étendu</h3>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-faint">
-        Pour les associations qui gèrent aussi leurs adhérent·e·s, bénévoles,
-        donateur·ice·s et soutiens : ajoute un filtre par segment dans le menu
-        latéral et la catégorie lors des créations.
-      </p>
-      <label className="mt-3 flex cursor-pointer items-center gap-2.5">
-        <input
-          type="checkbox"
-          checked={enabled}
+    <div className={cn(
+      "rounded-xl border bg-card transition-colors",
+      enabled ? "border-indigo-500/40 ring-1 ring-inset ring-indigo-500/20" : "border-line",
+    )}>
+      <div className="flex items-start justify-between gap-4 border-b border-line p-5">
+        <div className="max-w-xl">
+          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-fg">
+            <Users className="size-4.5 text-indigo-700 dark:text-indigo-400" />
+            Annuaire étendu
+            {enabled && (
+              <span className="rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-300">
+                Actif
+              </span>
+            )}
+          </h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-mut">
+            Transformez Actyl en véritable CRM associatif : gérez vos
+            adhérent·e·s, bénévoles, donateur·ice·s et soutiens au même endroit
+            que vos décideurs. Le menu latéral affiche un filtre par segment,
+            et les inscriptions WordPress arrivent automatiquement dans la
+            bonne catégorie.
+          </p>
+        </div>
+        {/* Big switch */}
+        <button
+          role="switch"
+          aria-checked={enabled}
           disabled={!isAdmin || busy}
-          onChange={() => void toggle()}
-          className="size-4 accent-indigo-500"
-        />
-        <span className="text-[12.5px] font-medium text-mut">
-          Activer les segments (adhérents, bénévoles, donateurs, soutiens)
-        </span>
-      </label>
+          onClick={() => void toggle()}
+          className={cn(
+            "relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50",
+            enabled ? "bg-indigo-600" : "bg-elev ring-1 ring-inset ring-line",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-1 size-5 rounded-full bg-white shadow transition-all",
+              enabled ? "left-6" : "left-1",
+            )}
+          />
+        </button>
+      </div>
+
+      <ul className="grid grid-cols-1 gap-x-6 gap-y-3 p-5 sm:grid-cols-2">
+        {segments.map((s) => (
+          <li key={s.label} className="flex items-start gap-3">
+            <span className="mt-0.5 rounded-lg bg-elev p-1.5">{s.icon}</span>
+            <div>
+              <p className="text-[13px] font-medium text-fg">{s.label}</p>
+              <p className="text-[11.5px] leading-relaxed text-faint">{s.desc}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {!isAdmin && (
+        <p className="border-t border-line px-5 py-3 text-[12px] text-faint">
+          Seuls les administrateurs peuvent modifier ce réglage.
+        </p>
+      )}
     </div>
   );
 }

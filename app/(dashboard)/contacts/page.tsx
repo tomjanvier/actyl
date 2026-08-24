@@ -106,12 +106,18 @@ export default async function ContactsPage({
       <PageHeader
         crumbs={[{ label: "Actyl" }, { label: "Contacts" }]}
         title={
-          activeCategory ? CATEGORY_LABELS[activeCategory]! : "Annuaire des décideurs"
+          activeCategory
+            ? CATEGORY_LABELS[activeCategory]!
+            : extendedDirectory
+              ? "Répertoire"
+              : "Annuaire des décideurs"
         }
         description={
           activeCategory
-            ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} de votre répertoire étendu.`
-            : "Base centralisée et partagée : parlementaires, exécutifs, secteur privé, presse. Vos notes et évaluations personnelles restent privées."
+            ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} de votre répertoire.`
+            : extendedDirectory
+              ? "Toute votre base — décideurs, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées."
+              : "Base centralisée et partagée : parlementaires, exécutifs, secteur privé, presse. Vos notes et évaluations personnelles restent privées."
         }
       />
       <ContactsView

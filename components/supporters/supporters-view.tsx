@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Download,
@@ -11,6 +11,8 @@ import {
   CalendarDays,
   Tag,
   X,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, timeAgo, toCSV, downloadFile } from "@/lib/utils";
@@ -23,7 +25,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
 import { setSupporterTagsAction } from "@/app/actions/mobilization";
+import {
+  sendBroadcastAction,
+  countBroadcastAudienceAction,
+} from "@/app/actions/broadcast";
 
 const SOURCE_META: Record<string, { label: string; badge: string; icon: typeof Mail }> = {
   interpellation: {
@@ -72,6 +79,7 @@ export function SupportersView({
   const [sourceF, setSourceF] = useState("");
   const [tagF, setTagF] = useState("");
   const [editing, setEditing] = useState<SupporterRow | null>(null);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
   const router = useRouter();
 
   const allTags = useMemo(
@@ -175,6 +183,12 @@ export function SupportersView({
           </select>
         )}
         <Buttonish onClick={exportCsv} disabled={!filtered.length} />
+        <button
+          onClick={() => setBroadcastOpen(true)}
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-indigo-500"
+        >
+          <Send className="size-3.5" /> Emailing
+        </button>
       </div>
 
       {/* Table */}
@@ -261,7 +275,148 @@ export function SupportersView({
         onClose={() => setEditing(null)}
         onSaved={() => router.refresh()}
       />
+
+      {/* Broadcast emailing */}
+      <BroadcastDialog
+        open={broadcastOpen}
+        onClose={() => setBroadcastOpen(false)}
+        supporters={supporters.map((s) => ({
+          email: s.email,
+          source: s.source,
+          tags: parseTags(s.tags),
+        }))}
+      />
     </div>
+  );
+}
+
+function BroadcastDialog({
+  open,
+  onClose,
+  supporters,
+}: {
+  open: boolean;
+  onClose: () => void;
+  supporters: Array<{ email: string; source: string | null; tags: string[] }>;
+}) {
+  const [sourceF, setSourceF] = useState("");
+  const [tagF, setTagF] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [count, setCount] = useState<number | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const sources = useMemo(
+    () => [...new Set(supporters.map((s) => s.source).filter(Boolean))] as string[],
+    [supporters],
+  );
+  const tags = useMemo(
+    () => [...new Set(supporters.flatMap((s) => s.tags))].sort(),
+    [supporters],
+  );
+
+  // Server-side count (source of truth) whenever the audience changes.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void countBroadcastAudienceAction({
+      source: sourceF || undefined,
+      tag: tagF || undefined,
+    }).then((r) => {
+      if (!cancelled && "count" in r && r.count !== undefined) setCount(r.count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, sourceF, tagF]);
+
+  async function send() {
+    if (sending || !subject.trim() || !body.trim()) return;
+    if (
+      !confirm(
+        `Envoyer cet email à ${count ?? "?"} soutien(s) ? L'action est immédiate.`,
+      )
+    )
+      return;
+    setSending(true);
+    const res = await sendBroadcastAction({
+      subject,
+      body,
+      audience: { source: sourceF || undefined, tag: tagF || undefined },
+    });
+    setSending(false);
+    if ("ok" in res && res.ok) {
+      toast.success(
+        `${res.sent} email(s) envoyé(s)` +
+          (res.failed ? `, ${res.failed} en échec` : "") +
+          (res.simulated ? " — mode démo, aucun envoi réel" : ""),
+      );
+      onClose();
+      setSubject("");
+      setBody("");
+    } else if ("error" in res && res.error) {
+      toast.error(res.error);
+    }
+  }
+
+  const selCls =
+    "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised";
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Emailing aux soutiens</DialogTitle>
+          <DialogDescription>
+            Annonce, appel à mobilisation ou remerciements — envoyé au segment
+            choisi depuis la base de soutiens.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={sourceF} onChange={(e) => setSourceF(e.target.value)} className={cn(selCls, sourceF && "border-indigo-500/40")}>
+            <option value="">Toutes origines</option>
+            {sources.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {tags.length > 0 && (
+            <select value={tagF} onChange={(e) => setTagF(e.target.value)} className={cn(selCls, tagF && "border-indigo-500/40")}>
+              <option value="">Tous les tags</option>
+              {tags.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          )}
+          <span className="ml-auto text-[12px] tabular-nums text-faint">
+            {count === null ? "…" : `${count} destinataire(s)`}
+          </span>
+        </div>
+        <Input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Objet de votre annonce"
+          maxLength={200}
+        />
+        <Textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={7}
+          maxLength={8000}
+          placeholder={"Chère équipe,\n\n…\n\nÀ très vite !"}
+        />
+        <p className="text-[11px] leading-relaxed text-faint">
+          Une signature «&nbsp;— votre organisation · Vous recevez cet email en
+          tant que soutien&nbsp;» est ajoutée automatiquement.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose}>Annuler</Button>
+          <Button
+            size="sm"
+            disabled={sending || !subject.trim() || !body.trim() || count === 0}
+            onClick={() => void send()}
+          >
+            {sending ? <Loader2 className="animate-spin" /> : <Send />}
+            {sending ? "Envoi…" : `Envoyer${count ? ` (${count})` : ""}`}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
