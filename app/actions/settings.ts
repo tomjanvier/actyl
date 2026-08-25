@@ -370,3 +370,90 @@ export async function setExtendedDirectoryAction(enabled: boolean) {
   revalidatePath("/settings");
   revalidatePath("/contacts");
 }
+
+// ── Newsletter module (EmailOctopus) ─────────────────────────────────────────
+
+export async function setNewsletterModuleAction(enabled: boolean) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  await db.appSetting.upsert({
+    where: { key: "newsletter_enabled" },
+    create: { key: "newsletter_enabled", value: enabled ? "on" : "off" },
+    update: { value: enabled ? "on" : "off" },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/contacts");
+}
+
+/**
+ * Persist EmailOctopus credentials. When apiKey is blank the stored one is
+ * kept (so admins can change just the list). Validates against the API and,
+ * when a listId is provided, that this list exists on the account.
+ */
+export async function saveNewsletterSettingsAction(input: {
+  apiKey?: string;
+  listId?: string;
+}): Promise<{ ok?: true; error?: string; listName?: string }> {
+  const session = await getSession();
+  if (!session) return { error: "Non authentifié" };
+  if (session.role !== "ADMIN") return { error: "Réservé aux administrateurs" };
+
+  const current = await db.appSetting.findMany({
+    where: {
+      key: { in: ["newsletter_api_key", "newsletter_list_id", "newsletter_enabled"] },
+    },
+  });
+  const map = Object.fromEntries(current.map((r) => [r.key, r.value]));
+  const apiKey = input.apiKey?.trim() || map.newsletter_api_key || "";
+  const listId = input.listId?.trim() || map.newsletter_list_id || "";
+
+  const { testNewsletterConnection } = await import("@/lib/newsletter");
+  const test = await testNewsletterConnection({ apiKey, ...(listId ? { listId } : {}) });
+  if (!test.ok) return { error: test.error };
+
+  await db.$transaction([
+    db.appSetting.upsert({
+      where: { key: "newsletter_api_key" },
+      create: { key: "newsletter_api_key", value: apiKey },
+      update: { value: apiKey },
+    }),
+    db.appSetting.upsert({
+      where: { key: "newsletter_list_id" },
+      create: { key: "newsletter_list_id", value: listId },
+      update: { value: listId },
+    }),
+    // A successful save implies the module can be used.
+    db.appSetting.upsert({
+      where: { key: "newsletter_enabled" },
+      create: { key: "newsletter_enabled", value: "on" },
+      update: { value: "on" },
+    }),
+  ]);
+  revalidatePath("/settings");
+  revalidatePath("/contacts");
+  return { ok: true, listName: test.listName };
+}
+
+/** Lists of the connected EmailOctopus account (settings dropdown). */
+export async function fetchNewsletterListsAction(input: {
+  apiKey?: string;
+}): Promise<{ lists?: Array<{ id: string; name: string; count: number }>; error?: string }> {
+  const session = await getSession();
+  if (!session) return { error: "Non authentifié" };
+  if (session.role !== "ADMIN") return { error: "Réservé aux administrateurs" };
+
+  let apiKey = input.apiKey?.trim() ?? "";
+  if (!apiKey) {
+    const row = await db.appSetting.findUnique({ where: { key: "newsletter_api_key" } });
+    apiKey = row?.value ?? "";
+  }
+  if (!apiKey) return { error: "Renseignez d'abord une clé API." };
+
+  const { fetchNewsletterLists } = await import("@/lib/newsletter");
+  const res = await fetchNewsletterLists(apiKey);
+  if (!res.ok) return { error: res.error };
+  return {
+    lists: res.lists.map((l) => ({ id: l.id, name: l.name, count: l.count })),
+  };
+}

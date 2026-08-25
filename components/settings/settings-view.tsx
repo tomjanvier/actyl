@@ -19,6 +19,8 @@ import {
   HeartHandshake,
   Gift,
   Megaphone,
+  Mail,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, timeAgo } from "@/lib/utils";
@@ -40,6 +42,9 @@ import {
   approveAccountRequestAction,
   rejectAccountRequestAction,
   setExtendedDirectoryAction,
+  setNewsletterModuleAction,
+  saveNewsletterSettingsAction,
+  fetchNewsletterListsAction,
 } from "@/app/actions/settings";
 import { CUSTOM_FIELD_TYPES, CUSTOM_FIELD_TYPE_LABELS, type CustomFieldType } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -73,6 +78,7 @@ export function SettingsView({
   pendingRequests,
   apiTokens,
   extendedDirectory,
+  newsletter,
 }: {
   initialTab: string | null;
   role: string;
@@ -124,6 +130,11 @@ export function SettingsView({
     createdAt: string;
   }>;
   extendedDirectory: boolean;
+  newsletter: {
+    enabled: boolean;
+    apiKeyMasked: string | null;
+    listId: string;
+  };
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -139,6 +150,7 @@ export function SettingsView({
         <TabsList>
           <TabsTrigger value="champs"><SlidersHorizontal /> Champs personnalisés</TabsTrigger>
           <TabsTrigger value="annuaire"><Users /> Annuaire étendu</TabsTrigger>
+          <TabsTrigger value="newsletter"><Mail /> Newsletter</TabsTrigger>
           <TabsTrigger value="equipes"><UsersRound /> Équipes</TabsTrigger>
           <TabsTrigger value="membres"><ShieldCheck /> Membres & accès</TabsTrigger>
           <TabsTrigger value="import"><Download /> Importer les élus</TabsTrigger>
@@ -149,6 +161,17 @@ export function SettingsView({
         {/* ── Extended directory ── */}
         <TabsContent value="annuaire" className="mt-5 outline-none">
           <ExtendedDirectoryCard enabled={extendedDirectory} isAdmin={isAdmin} onChanged={refresh} />
+        </TabsContent>
+
+        {/* ── Newsletter module ── */}
+        <TabsContent value="newsletter" className="mt-5 outline-none">
+          <NewsletterCard
+            enabled={newsletter.enabled}
+            apiKeyMasked={newsletter.apiKeyMasked}
+            listId={newsletter.listId}
+            isAdmin={isAdmin}
+            onChanged={refresh}
+          />
         </TabsContent>
 
         {/* ── Custom fields ── */}
@@ -677,7 +700,7 @@ function ImportOfficials({ isAdmin }: { isAdmin: boolean }) {
     if (res.ok) {
       setResult((r) => ({
         ...r,
-        [key]: `✅ ${res.created} créés · ${res.updated} mis à jour · ${res.skipped} ignorés`,
+        [key]: `✅ ${res.created ?? 0} créés · ${res.already ?? 0} déjà présents (conservés) · ${res.skipped ?? 0} ignorés`,
       }));
       toast.success("Import terminé");
       router.refresh();
@@ -691,8 +714,8 @@ function ImportOfficials({ isAdmin }: { isAdmin: boolean }) {
     <div className="max-w-3xl">
       <p className="mb-4 text-[13px] leading-relaxed text-mut">
         Importez les annuaires officiels des parlements directement dans votre
-        espace. Les contacts existants (même nom + institution) sont mis à jour,
-        jamais dupliqués.
+        espace. Fusion sans écrasement : les contacts existants (même nom +
+        institution) sont conservés tels quels, jamais dupliqués ni modifiés.
       </p>
       <div className="grid grid-cols-1 gap-3">
         {SOURCES.map((s) => (
@@ -1082,6 +1105,178 @@ function ExtendedDirectoryCard({
       {!isAdmin && (
         <p className="border-t border-line px-5 py-3 text-[12px] text-faint">
           Seuls les administrateurs peuvent modifier ce réglage.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Newsletter module (EmailOctopus) ─────────────────────────────────────────
+
+function NewsletterCard({
+  enabled,
+  apiKeyMasked,
+  listId,
+  isAdmin,
+  onChanged,
+}: {
+  enabled: boolean;
+  apiKeyMasked: string | null;
+  listId: string;
+  isAdmin: boolean;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [selectedListId, setSelectedListId] = useState(listId);
+  const [lists, setLists] = useState<Array<{ id: string; name: string; count: number }>>([]);
+  const [loadingLists, setLoadingLists] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function toggle() {
+    if (busy || !isAdmin) return;
+    if (!enabled && (!apiKeyMasked || !listId)) {
+      toast.error("Renseignez d'abord la clé API et la liste, puis enregistrez.");
+      return;
+    }
+    setBusy(true);
+    await setNewsletterModuleAction(!enabled);
+    setBusy(false);
+    toast.success(enabled ? "Module newsletter désactivé" : "Module newsletter activé");
+    onChanged();
+  }
+
+  async function loadLists() {
+    if (loadingLists) return;
+    setLoadingLists(true);
+    const res = await fetchNewsletterListsAction({ apiKey });
+    setLoadingLists(false);
+    if ("error" in res && res.error) {
+      toast.error(res.error);
+      return;
+    }
+    if (res.lists) {
+      setLists(res.lists);
+      if (res.lists.length === 0) toast.info("Aucune liste sur ce compte EmailOctopus.");
+    }
+  }
+
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    const res = await saveNewsletterSettingsAction({
+      apiKey: apiKey || undefined,
+      listId: selectedListId || undefined,
+    });
+    setSaving(false);
+    if ("ok" in res && res.ok) {
+      toast.success(
+        res.listName
+          ? `Connexion enregistrée — liste « ${res.listName} »`
+          : "Connexion EmailOctopus enregistrée",
+      );
+      setApiKey("");
+      onChanged();
+    } else if ("error" in res && res.error) {
+      toast.error(res.error);
+    }
+  }
+
+  return (
+    <div className={cn(
+      "max-w-3xl rounded-xl border bg-card transition-colors",
+      enabled ? "border-indigo-500/40 ring-1 ring-inset ring-indigo-500/20" : "border-line",
+    )}>
+      <div className="flex items-start justify-between gap-4 border-b border-line p-5">
+        <div className="max-w-xl">
+          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-fg">
+            <Mail className="size-4.5 text-sky-600 dark:text-sky-400" />
+            Module newsletter — EmailOctopus
+            {enabled && (
+              <span className="rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-300">
+                Actif
+              </span>
+            )}
+          </h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-mut">
+            Suivez l&apos;inscription à la newsletter directement sur les fiches
+            contacts et inscrivez plusieurs contacts en un clic depuis le
+            répertoire. La synchronisation utilise l&apos;API v2 d&apos;EmailOctopus.
+          </p>
+        </div>
+        {/* Big switch */}
+        <button
+          role="switch"
+          aria-checked={enabled}
+          disabled={!isAdmin || busy}
+          onClick={() => void toggle()}
+          title={
+            !apiKeyMasked
+              ? "Enregistrez d'abord la clé API et la liste"
+              : undefined
+          }
+          className={cn(
+            "relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50",
+            enabled ? "bg-indigo-600" : "bg-elev ring-1 ring-inset ring-line",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-1 size-5 rounded-full bg-white shadow transition-all",
+              enabled ? "left-6" : "left-1",
+            )}
+          />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-[1fr_240px]">
+        <div>
+          <Label className="mb-1 block">Clé API EmailOctopus</Label>
+          <Input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={apiKeyMasked ? `Clé enregistrée (${apiKeyMasked}) — laisser vide pour conserver` : "eo_…"}
+            autoComplete="off"
+          />
+          <p className="mt-1 text-[11px] text-faint">
+            Créez-la sur emailoctopus.com → Account → Developer → API keys (API v2).
+          </p>
+        </div>
+        <div>
+          <Label className="mb-1 block">Liste de diffusion</Label>
+          <select
+            value={selectedListId}
+            onChange={(e) => setSelectedListId(e.target.value)}
+            className="h-9 w-full rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-fg outline-none [&>option]:bg-raised"
+          >
+            <option value="">{lists.length ? "Choisir une liste…" : "— charger les listes —"}</option>
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name} ({l.count})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+        <Button variant="outline" size="sm" disabled={!isAdmin || loadingLists} onClick={() => void loadLists()}>
+          {loadingLists ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+          Charger les listes
+        </Button>
+        <Button size="sm" disabled={!isAdmin || saving || !apiKey.trim() && !!apiKeyMasked && !selectedListId} onClick={() => void save()}>
+          {saving ? <Loader2 className="animate-spin" /> : <Plug />}
+          Tester & enregistrer
+        </Button>
+        <span className="ml-auto text-[11px] text-faint">
+          Le test valide la clé et la liste avant enregistrement.
+        </span>
+      </div>
+
+      {!isAdmin && (
+        <p className="border-t border-line px-5 py-3 text-[12px] text-faint">
+          Seuls les administrateurs peuvent modifier cette intégration.
         </p>
       )}
     </div>

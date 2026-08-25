@@ -7,9 +7,11 @@ import {
   Download,
   Search,
   Star,
-  Trash2,
   StickyNote,
   Mail,
+  MailCheck,
+  MailX,
+  RefreshCw,
   Phone,
   Globe,
   Twitter,
@@ -17,6 +19,7 @@ import {
   X,
   Pencil,
   Vote,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -41,6 +44,35 @@ import { EntityAvatar } from "@/components/ui/badge";
 import { CreateContactDialog } from "@/components/contacts/create-contact-dialog";
 import { ImportTeamDialog } from "@/components/contacts/import-team-dialog";
 import { PaginationBar } from "@/components/ui/pagination";
+import {
+  subscribeContactsAction,
+  unsubscribeContactsAction,
+  syncContactsNewsletterStatusAction,
+} from "@/app/actions/newsletter";
+
+export const NEWSLETTER_META: Record<string, { label: string; badge: string; dot: string }> = {
+  SUBSCRIBED: {
+    label: "Inscrit",
+    badge:
+      "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400",
+    dot: "bg-emerald-500",
+  },
+  PENDING: {
+    label: "En attente",
+    badge: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-400",
+    dot: "bg-amber-500",
+  },
+  UNSUBSCRIBED: {
+    label: "Désinscrit",
+    badge: "bg-zinc-500/10 text-zinc-600 ring-zinc-500/20 dark:text-zinc-400",
+    dot: "bg-zinc-400",
+  },
+  UNKNOWN: {
+    label: "Hors liste",
+    badge: "bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:text-violet-400",
+    dot: "bg-violet-500",
+  },
+};
 
 export function ContactsView({
   contacts,
@@ -51,7 +83,9 @@ export function ContactsView({
   privateData,
   canEdit,
   canDelete,
+  canNewsletter = false,
   extendedDirectory = false,
+  newsletterEnabled = false,
   pagination,
 }: {
   contacts: ContactRow[];
@@ -78,7 +112,9 @@ export function ContactsView({
   >;
   canEdit: boolean;
   canDelete: boolean;
+  canNewsletter?: boolean;
   extendedDirectory?: boolean;
+  newsletterEnabled?: boolean;
   pagination?: { page: number; pageCount: number; total: number };
 }) {
   const router = useRouter();
@@ -89,6 +125,9 @@ export function ContactsView({
   const [institutionFilter, setInstitutionFilter] = useState<string>("");
   const [commissionFilter, setCommissionFilter] = useState<string>("");
   const [themeQuery, setThemeQuery] = useState<string>("");
+  const [newsletterFilter, setNewsletterFilter] = useState<string>("");
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [nlBusy, setNlBusy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -145,6 +184,15 @@ export function ContactsView({
       if (stanceFilter && c.stance !== stanceFilter) return false;
       if (partyFilter && c.party !== partyFilter) return false;
       if (institutionFilter && c.institution !== institutionFilter) return false;
+      if (newsletterFilter) {
+        // "SYNCED" matches any known status; otherwise exact match.
+        if (
+          newsletterFilter === "SYNCED"
+            ? !c.newsletterStatus
+            : (c.newsletterStatus ?? "") !== newsletterFilter
+        )
+          return false;
+      }
       if (
         commissionFilter &&
         commissionField &&
@@ -176,8 +224,58 @@ export function ContactsView({
     });
   }, [
     contacts, query, levelFilter, stanceFilter, partyFilter,
-    institutionFilter, commissionFilter, themeQuery, commissionField,
+    institutionFilter, commissionFilter, themeQuery, newsletterFilter,
+    commissionField,
   ]);
+
+  // ── Newsletter bulk actions (module actif) ──
+  const selectableIds = filtered.filter((c) => !!c.email).map((c) => c.id);
+  const allChecked = selectableIds.length > 0 && selectableIds.every((id) => checked.has(id));
+
+  function toggleAllNewsletter() {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (allChecked) selectableIds.forEach((id) => next.delete(id));
+      else selectableIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  async function runNewsletter(
+    kind: "subscribe" | "unsubscribe" | "sync",
+    ids?: string[],
+  ) {
+    const targetIds = ids ?? [...checked];
+    if (!targetIds.length || nlBusy) return;
+    if (
+      kind !== "sync" &&
+      !confirm(
+        `${kind === "subscribe" ? "Inscrire" : "Désinscrire"} ${targetIds.length} contact(s) ${kind === "subscribe" ? "à" : "de"} la newsletter sur EmailOctopus ?`,
+      )
+    )
+      return;
+    setNlBusy(kind);
+    const res =
+      kind === "subscribe"
+        ? await subscribeContactsAction({ contactIds: targetIds })
+        : kind === "unsubscribe"
+          ? await unsubscribeContactsAction({ contactIds: targetIds })
+          : await syncContactsNewsletterStatusAction({ contactIds: targetIds });
+    setNlBusy(null);
+    if ("ok" in res && res.ok) {
+      const done =
+        "subscribed" in res
+          ? res.subscribed
+          : "unsubscribed" in res
+            ? res.unsubscribed
+            : res.synced;
+      toast.success(`${done} contact(s) traité(s)` + ("missing" in res && res.missing ? ` · ${res.missing} absent(s) de la liste` : ""));
+      setChecked(new Set());
+      startTransition(() => router.refresh());
+    } else if ("errors" in res && res.errors?.length) {
+      toast.error(res.errors[0]!);
+    }
+  }
 
   const selected = contacts.find((c) => c.id === selectedId) ?? null;
 
@@ -310,6 +408,52 @@ export function ContactsView({
           className="h-9 w-32 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-indigo-500/60"
         />
 
+        {newsletterEnabled && (
+          <select
+            value={newsletterFilter}
+            onChange={(e) => setNewsletterFilter(e.target.value)}
+            className={cn(filterCls, newsletterFilter && activeCls)}
+          >
+            <option value="">Newsletter : tous</option>
+            <option value="SUBSCRIBED">Inscrits</option>
+            <option value="PENDING">En attente</option>
+            <option value="UNSUBSCRIBED">Désinscrits</option>
+            <option value="UNKNOWN">Hors liste</option>
+            <option value="SYNCED">Non synchronisés</option>
+          </select>
+        )}
+
+        {newsletterEnabled && checked.size > 0 && (
+          <span className="flex flex-wrap items-center gap-2 rounded-lg bg-indigo-500/[0.06] px-2 py-1 ring-1 ring-inset ring-indigo-500/20">
+            <span className="text-[12px] tabular-nums text-mut">
+              {checked.size} sélection
+            </span>
+            {canNewsletter && (
+              <>
+                <Button size="sm" disabled={!!nlBusy} onClick={() => void runNewsletter("subscribe")}>
+                  {nlBusy === "subscribe" ? <Loader2 className="animate-spin" /> : <MailCheck />}
+                  Inscrire
+                </Button>
+                <Button variant="outline" size="sm" disabled={!!nlBusy} onClick={() => void runNewsletter("unsubscribe")}>
+                  {nlBusy === "unsubscribe" ? <Loader2 className="animate-spin" /> : <MailX />}
+                  Désinscrire
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="sm" disabled={!!nlBusy} onClick={() => void runNewsletter("sync")}>
+              {nlBusy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+              Rafraîchir
+            </Button>
+            <button
+              onClick={() => setChecked(new Set())}
+              title="Vider la sélection"
+              className="text-faint hover:text-mut"
+            >
+              <X className="size-3.5" />
+            </button>
+          </span>
+        )}
+
         <span className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => exportData("csv")}>
             <Download /> CSV
@@ -349,12 +493,24 @@ export function ContactsView({
           <Table>
             <THead>
               <tr>
+                {newsletterEnabled && (
+                  <th className="w-[36px]">
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      onChange={toggleAllNewsletter}
+                      className="size-3.5 accent-indigo-600"
+                      aria-label="Tout sélectionner (avec email)"
+                    />
+                  </th>
+                )}
                 <th className="w-[240px]">Décideur</th>
                 <th>Fonction / Institution</th>
                 <th className="w-[150px]">Parti</th>
                 <th className="w-[110px]">Niveau</th>
                 <th className="w-[140px]">Position</th>
                 <th className="w-[90px]">Influence</th>
+                {newsletterEnabled && <th className="w-[110px]">Newsletter</th>}
                 <th className="w-[70px]">✉️ reçus</th>
                 {fields.filter((f) => f.id).slice(0, 1).map((f) => (
                   <th key={f.id} className="w-[160px]">{f.label}</th>
@@ -370,8 +526,27 @@ export function ContactsView({
                   <tr
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
-                    className="cursor-pointer"
+                    className={cn("cursor-pointer", checked.has(c.id) && "bg-indigo-500/[0.04]")}
                   >
+                    {newsletterEnabled && (
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={checked.has(c.id)}
+                          disabled={!c.email}
+                          onChange={() =>
+                            setChecked((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(c.id)) next.delete(c.id);
+                              else next.add(c.id);
+                              return next;
+                            })
+                          }
+                          title={c.email ? "" : "Pas d'email sur cette fiche"}
+                          className="size-3.5 accent-indigo-600 disabled:opacity-30"
+                        />
+                      </td>
+                    )}
                     <td>
                       <div className="flex items-center gap-2.5">
                         <EntityAvatar name={fullName(c)} color={c.avatarColor} size="sm" photoUrl={c.photoUrl} />
@@ -412,6 +587,11 @@ export function ContactsView({
                     <td>
                       <InfluenceDots score={c.influenceScore} />
                     </td>
+                    {newsletterEnabled && (
+                      <td>
+                        <NewsletterBadge status={c.newsletterStatus ?? null} />
+                      </td>
+                    )}
                     <td>
                       <span className="tabular-nums text-faint">{c.emailsReceived || "—"}</span>
                     </td>
@@ -474,6 +654,28 @@ export function ContactsView({
 }
 
 // ── Small pieces ─────────────────────────────────────────────────────────────
+
+function NewsletterBadge({ status }: { status: string | null }) {
+  if (!status)
+    return (
+      <span className="text-[11px] text-faint" title="Jamais synchronisé avec EmailOctopus">
+        —
+      </span>
+    );
+  const meta = NEWSLETTER_META[status];
+  return (
+    <span
+      title={meta?.label ?? status}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        meta?.badge,
+      )}
+    >
+      <span className={cn("size-1.5 rounded-full", meta?.dot)} />
+      {meta?.label ?? status}
+    </span>
+  );
+}
 
 function Avatar({ name, color }: { name: string; color: string }) {
   return (

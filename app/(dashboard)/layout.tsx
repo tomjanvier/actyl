@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { getExtendedDirectory } from "@/lib/flags";
+import { PRESIDENTIELLE_SETTING_KEY } from "@/lib/datasets/presidentielle-2027";
 import { TooltipProvider } from "@/components/ui/controls";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -11,14 +12,16 @@ export default async function DashboardLayout({
 }) {
   const session = await requireSession();
 
-  const [memberships, extendedDirectory] = await Promise.all([
+  const [memberships, extendedDirectory, presidentielleFlag] = await Promise.all([
     db.membership.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
       include: { workspace: { select: { id: true, name: true, slug: true, logoEmoji: true } } },
     }),
     getExtendedDirectory(),
+    db.appSetting.findUnique({ where: { key: PRESIDENTIELLE_SETTING_KEY } }),
   ]);
+  const presidentielleEnabled = presidentielleFlag?.value === "on";
   const workspaces = memberships.map((m) => ({
     id: m.workspace.id,
     name: m.workspace.name,
@@ -52,6 +55,7 @@ export default async function DashboardLayout({
           }}
           workspaces={workspaces}
           userName={session.user.name}
+          presidentielleEnabled={presidentielleEnabled}
           directorySegments={
             extendedDirectory
               ? [

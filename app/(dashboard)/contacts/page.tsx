@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { getExtendedDirectory } from "@/lib/flags";
+import { getNewsletterConfig } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
 import { ContactsView } from "@/components/contacts/contacts-view";
 
@@ -31,6 +32,8 @@ export default async function ContactsPage({
 
   // Server-side pagination keeps the payload light (100 contacts per page).
   const page = Math.max(1, Number(pageParam) || 1);
+  const newsletter = await getNewsletterConfig();
+  const newsletterEnabled = newsletter.enabled;
   const where = {
     workspaceId: session.workspaceId,
     ...(activeCategory ? { category: activeCategory } : {}),
@@ -65,6 +68,8 @@ export default async function ContactsPage({
           avatarColor: true,
           createdAt: true,
           updatedAt: true,
+          newsletterStatus: newsletterEnabled ? true : false,
+          newsletterSyncedAt: newsletterEnabled ? true : false,
           customValues: {
             select: { fieldId: true, value: true, field: { select: { name: true } } },
           },
@@ -103,6 +108,9 @@ export default async function ContactsPage({
     ...c,
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
+    newsletterStatus: (c as { newsletterStatus?: string | null }).newsletterStatus ?? null,
+    newsletterSyncedAt:
+      (c as { newsletterSyncedAt?: Date | null }).newsletterSyncedAt?.toISOString() ?? null,
     customValues: Object.fromEntries(
       c.customValues.map((cv) => [cv.fieldId, cv.value ?? ""]),
     ),
@@ -161,7 +169,9 @@ export default async function ContactsPage({
         )}
         canEdit={can(session.role, "contact:create")}
         canDelete={can(session.role, "campaign:delete")}
+        canNewsletter={can(session.role, "email:send")}
         extendedDirectory={extendedDirectory}
+        newsletterEnabled={newsletterEnabled}
         pagination={{ page, pageCount, total }}
       />
     </>
