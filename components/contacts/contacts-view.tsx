@@ -40,9 +40,11 @@ import { ContactDrawer } from "@/components/contacts/contact-drawer";
 import { EntityAvatar } from "@/components/ui/badge";
 import { CreateContactDialog } from "@/components/contacts/create-contact-dialog";
 import { ImportTeamDialog } from "@/components/contacts/import-team-dialog";
+import { PaginationBar } from "@/components/ui/pagination";
 
 export function ContactsView({
   contacts,
+  total,
   fields,
   notes,
   orgNotes,
@@ -50,8 +52,10 @@ export function ContactsView({
   canEdit,
   canDelete,
   extendedDirectory = false,
+  pagination,
 }: {
   contacts: ContactRow[];
+  total: number;
   fields: CustomFieldLite[];
   notes: Array<{
     id: string;
@@ -75,6 +79,7 @@ export function ContactsView({
   canEdit: boolean;
   canDelete: boolean;
   extendedDirectory?: boolean;
+  pagination?: { page: number; pageCount: number; total: number };
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -420,6 +425,16 @@ export function ContactsView({
               })}
             </TBody>
           </Table>
+        )}
+        {pagination && (
+          <div className="mt-4 border-t border-linesoft pt-3">
+            <PaginationBar
+              page={pagination.page}
+              pageCount={pagination.pageCount}
+              total={pagination.total}
+              label="fiches"
+            />
+          </div>
         )}
       </div>
 

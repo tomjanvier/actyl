@@ -7,6 +7,8 @@ import { ContactsView } from "@/components/contacts/contacts-view";
 
 export const metadata = { title: "Contacts" };
 
+const PAGE_SIZE = 100;
+
 const CATEGORY_LABELS: Record<string, string> = {
   DECISION_MAKER: "Décideur·e·ses",
   MEMBER: "Adhérent·e·s",
@@ -18,23 +20,29 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; page?: string }>;
 }) {
   const session = await requireSession();
-  const { category } = await searchParams;
+  const { category, page: pageParam } = await searchParams;
   const extendedDirectory = await getExtendedDirectory();
   // Only honor the filter when the feature is on and the value is known.
   const activeCategory =
     extendedDirectory && category && CATEGORY_LABELS[category] ? category : null;
 
-  const [contacts, fields, myNotes, myPrivateData, orgNoteRows, emailCounts] =
+  // Server-side pagination keeps the payload light (100 contacts per page).
+  const page = Math.max(1, Number(pageParam) || 1);
+  const where = {
+    workspaceId: session.workspaceId,
+    ...(activeCategory ? { category: activeCategory } : {}),
+  };
+
+  const [contacts, total, fields, myNotes, myPrivateData, orgNoteRows, emailCounts] =
     await Promise.all([
       db.contact.findMany({
-        where: {
-          workspaceId: session.workspaceId,
-          ...(activeCategory ? { category: activeCategory } : {}),
-        },
+        where,
         orderBy: [{ lastName: "asc" }],
+        take: PAGE_SIZE,
+        skip: (page - 1) * PAGE_SIZE,
         select: {
           id: true,
           firstName: true,
@@ -62,6 +70,7 @@ export default async function ContactsPage({
           },
         },
       }),
+      db.contact.count({ where }),
       db.customField.findMany({
         where: { workspaceId: session.workspaceId },
         orderBy: { position: "asc" },
@@ -101,6 +110,8 @@ export default async function ContactsPage({
       emailCounts.find((e) => e.contactId === c.id)?._count.id ?? 0,
   }));
 
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   return (
     <>
       <PageHeader
@@ -114,14 +125,15 @@ export default async function ContactsPage({
         }
         description={
           activeCategory
-            ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} de votre répertoire.`
+            ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} — ${total.toLocaleString("fr-FR")} fiche(s). Vos notes et évaluations personnelles restent privées.`
             : extendedDirectory
-              ? "Toute votre base — décideurs, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées."
-              : "Base centralisée et partagée : parlementaires, exécutifs, secteur privé, presse. Vos notes et évaluations personnelles restent privées."
+              ? `Toute votre base (${total.toLocaleString("fr-FR")} fiches) — décideurs, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées.`
+              : `Base centralisée et partagée (${total.toLocaleString("fr-FR")} fiches) : parlementaires, exécutifs, secteur privé, presse. Vos notes et évaluations personnelles restent privées.`
         }
       />
       <ContactsView
         contacts={serialized}
+        total={total}
         fields={fields.map((f) => ({
           id: f.id,
           label: f.label,
@@ -150,6 +162,7 @@ export default async function ContactsPage({
         canEdit={can(session.role, "contact:create")}
         canDelete={can(session.role, "campaign:delete")}
         extendedDirectory={extendedDirectory}
+        pagination={{ page, pageCount, total }}
       />
     </>
   );

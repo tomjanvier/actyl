@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { PaginationBar } from "@/components/ui/pagination";
 import { setSupporterTagsAction } from "@/app/actions/mobilization";
 import {
   sendBroadcastAction,
@@ -70,10 +71,20 @@ function parseTags(tags: string | null | undefined): string[] {
 
 export function SupportersView({
   supporters,
+  total,
+  engaged,
   globalCount,
+  allTags,
+  sources,
+  pagination,
 }: {
   supporters: SupporterRow[];
+  total: number;
+  engaged: number;
   globalCount: number;
+  allTags: string[];
+  sources: string[];
+  pagination: { page: number; pageCount: number; total: number };
 }) {
   const [query, setQuery] = useState("");
   const [sourceF, setSourceF] = useState("");
@@ -81,14 +92,6 @@ export function SupportersView({
   const [editing, setEditing] = useState<SupporterRow | null>(null);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const router = useRouter();
-
-  const allTags = useMemo(
-    () =>
-      [
-        ...new Set(supporters.flatMap((s) => parseTags(s.tags))),
-      ].sort(),
-    [supporters],
-  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -117,10 +120,8 @@ export function SupportersView({
       `soutiens-${new Date().toISOString().slice(0, 10)}.csv`,
       "text/csv",
     );
+    toast.success(`${filtered.length} soutien(s) exporté(s) (page courante)`);
   }
-
-  // Engagement segments (NationBuilder-style)
-  const engaged = supporters.filter((s) => s.touchCount >= 3).length;
 
   return (
     <div className="flex min-h-[calc(100vh-89px)] flex-col">
@@ -130,16 +131,16 @@ export function SupportersView({
           <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Soutiens</p>
           <p className="mt-1 flex items-center gap-2 text-2xl font-semibold tabular-nums text-fg">
             <Users className="size-4.5 text-indigo-700 dark:text-indigo-400" />
-            {supporters.length}
+            {total.toLocaleString("fr-FR")}
           </p>
         </div>
         <div className="rounded-xl border border-line bg-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Multi-engagés (3+)</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{engaged}</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{engaged.toLocaleString("fr-FR")}</p>
         </div>
         <div className="rounded-xl border border-line bg-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Plateforme entière</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{globalCount + supporters.length}</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{(globalCount + total).toLocaleString("fr-FR")}</p>
         </div>
       </div>
 
@@ -163,8 +164,8 @@ export function SupportersView({
           )}
         >
           <option value="">Toutes origines</option>
-          {Object.entries(SOURCE_META).map(([k, m]) => (
-            <option key={k} value={k}>{m.label}</option>
+          {sources.map((k) => (
+            <option key={k} value={k}>{SOURCE_META[k]?.label ?? k}</option>
           ))}
         </select>
         {allTags.length > 0 && (
@@ -267,6 +268,14 @@ export function SupportersView({
             </li>
           )}
         </ul>
+        <div className="mt-4 border-t border-linesoft pt-3">
+          <PaginationBar
+            page={pagination.page}
+            pageCount={pagination.pageCount}
+            total={pagination.total}
+            label="soutiens"
+          />
+        </div>
       </div>
 
       {/* Tag editor */}
@@ -280,11 +289,8 @@ export function SupportersView({
       <BroadcastDialog
         open={broadcastOpen}
         onClose={() => setBroadcastOpen(false)}
-        supporters={supporters.map((s) => ({
-          email: s.email,
-          source: s.source,
-          tags: parseTags(s.tags),
-        }))}
+        sources={sources}
+        tags={allTags}
       />
     </div>
   );
@@ -293,11 +299,13 @@ export function SupportersView({
 function BroadcastDialog({
   open,
   onClose,
-  supporters,
+  sources,
+  tags,
 }: {
   open: boolean;
   onClose: () => void;
-  supporters: Array<{ email: string; source: string | null; tags: string[] }>;
+  sources: string[];
+  tags: string[];
 }) {
   const [sourceF, setSourceF] = useState("");
   const [tagF, setTagF] = useState("");
@@ -305,15 +313,6 @@ function BroadcastDialog({
   const [body, setBody] = useState("");
   const [count, setCount] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
-
-  const sources = useMemo(
-    () => [...new Set(supporters.map((s) => s.source).filter(Boolean))] as string[],
-    [supporters],
-  );
-  const tags = useMemo(
-    () => [...new Set(supporters.flatMap((s) => s.tags))].sort(),
-    [supporters],
-  );
 
   // Server-side count (source of truth) whenever the audience changes.
   useEffect(() => {
@@ -375,7 +374,7 @@ function BroadcastDialog({
         <div className="flex flex-wrap items-center gap-2">
           <select value={sourceF} onChange={(e) => setSourceF(e.target.value)} className={cn(selCls, sourceF && "border-indigo-500/40")}>
             <option value="">Toutes origines</option>
-            {sources.map((s) => <option key={s} value={s}>{s}</option>)}
+            {sources.map((s) => <option key={s} value={s}>{SOURCE_META[s]?.label ?? s}</option>)}
           </select>
           {tags.length > 0 && (
             <select value={tagF} onChange={(e) => setTagF(e.target.value)} className={cn(selCls, tagF && "border-indigo-500/40")}>

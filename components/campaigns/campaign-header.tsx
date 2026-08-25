@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -134,24 +135,23 @@ export function CampaignHeader({
 
         {/* Tabs */}
         <nav className="flex items-center gap-1 rounded-lg bg-elev p-1 ring-1 ring-inset ring-line">
-          <TabLink href={`/campaigns/${campaign.id}/kanban`} active label="Kanban" />
+          <TabLink href={`/campaigns/${campaign.id}/kanban`} label="Kanban" />
           <TabLink href={`/campaigns/${campaign.id}/emails`} label="Interpellation" />
           <TabLink href={`/campaigns/${campaign.id}/mobilization`} label="Mobilisation" />
+          <TabLink href={`/campaigns/${campaign.id}/signatures`} label="Signataires" />
         </nav>
       </div>
     </div>
   );
 }
 
-function TabLink({
-  href,
-  label,
-  active,
-}: {
-  href: string;
-  label: string;
-  active?: boolean;
-}) {
+function TabLink({ href, label }: { href: string; label: string }) {
+  const pathname = usePathname();
+  // Active while the current path starts with the tab route (keeps the state
+  // on sub-segments like /campaigns/{id}/signatures?page=2).
+  const active =
+    pathname === href ||
+    (pathname.startsWith(`${href}/`) && !pathname.slice(href.length + 1).includes("/"));
   return (
     <a
       href={href}
