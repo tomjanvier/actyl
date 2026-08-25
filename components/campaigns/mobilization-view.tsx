@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Megaphone, Globe, Users, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn, timeAgo } from "@/lib/utils";
@@ -79,7 +80,7 @@ export function MobilizationView({
                 Derniers signataires
               </h3>
               {petition.recentSigners.length === 0 ? (
-                <p className="text-[12.5px] text-faint">Aucune signature pour l&apos;instant.</p>
+                <p className="text-[12px] text-faint">Aucune signature pour l&apos;instant.</p>
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {petition.recentSigners.map((s) => (
@@ -92,6 +93,15 @@ export function MobilizationView({
                     </li>
                   ))}
                 </ul>
+              )}
+              {canManage && (
+                <Link
+                  href={`/campaigns/${campaignId}/signatures`}
+                  className="mt-3 flex items-center justify-between rounded-lg bg-elev px-2.5 py-2 text-[12.5px] font-medium text-mut transition-colors hover:text-indigo-700 dark:hover:text-indigo-400"
+                >
+                  Gérer les signataires
+                  <Users className="size-3.5" />
+                </Link>
               )}
             </section>
           </>
