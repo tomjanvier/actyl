@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -17,6 +17,7 @@ import {
   CheckCircle,
   CalendarDays,
   HeartHandshake,
+  Vote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { switchWorkspaceAction, signOutAction } from "@/app/actions/auth";
@@ -48,27 +49,31 @@ export type DirectorySegment = {
   count: number;
 };
 
-const NAV = [
-  { href: "/contacts", label: "Contacts", icon: Users, hint: "Annuaire des décideurs" },
-  { href: "/campaigns", label: "Campagnes", icon: KanbanSquare, hint: "Pipelines & interpellations" },
-  { href: "/tasks", label: "Tâches", icon: CheckCircle, hint: "Relances & suivis" },
-  { href: "/supporters", label: "Soutiens", icon: HeartHandshake, hint: "Base citoyenne engagée" },
-  { href: "/events", label: "Événements", icon: CalendarDays, hint: "Réunions & RSVP" },
-  { href: "/lists", label: "Listes partagées", icon: ListChecks, hint: "Annuaires publiés" },
-  { href: "/settings", label: "Paramètres", icon: Settings, hint: "Champs, équipes, membres" },
-] as const;
+const HINTS: Record<string, string> = {
+  "/contacts": "Annuaire des décideurs",
+  "/campaigns": "Pipelines & interpellations",
+  "/tasks": "Relances & suivis",
+  "/supporters": "Base citoyenne engagée",
+  "/events": "Réunions & RSVP",
+  "/presidentielle": "Candidat·e·s & liste publique",
+  "/lists": "Annuaires publiés",
+  "/settings": "Champs, équipes, membres",
+};
 
 export function Sidebar({
   workspace,
   workspaces,
   userName,
   directorySegments,
+  presidentielleEnabled = false,
 }: {
   workspace: WorkspaceOption;
   workspaces: WorkspaceOption[];
   userName: string;
   /** Present when the extended directory flag is on (associations). */
   directorySegments?: DirectorySegment[];
+  /** Présidentielle 2027 pack module is active for this workspace. */
+  presidentielleEnabled?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -76,6 +81,24 @@ export function Sidebar({
   const searchCategory = searchParams.get("category") ?? "";
   const [collapsed, setCollapsed] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
+
+  // Nav is built per-render so optional modules slot in at the right place.
+  const nav = useMemo(() => {
+    const base: Array<{ href: string; label: string; icon: typeof Users }> = [
+      { href: "/contacts", label: "Contacts", icon: Users },
+      { href: "/campaigns", label: "Campagnes", icon: KanbanSquare },
+      { href: "/tasks", label: "Tâches", icon: CheckCircle },
+      { href: "/supporters", label: "Soutiens", icon: HeartHandshake },
+      { href: "/events", label: "Événements", icon: CalendarDays },
+    ];
+    if (presidentielleEnabled)
+      base.push({ href: "/presidentielle", label: "Présidentielle 2027", icon: Vote });
+    base.push(
+      { href: "/lists", label: "Listes partagées", icon: ListChecks },
+      { href: "/settings", label: "Paramètres", icon: Settings },
+    );
+    return base;
+  }, [presidentielleEnabled]);
 
   useEffect(() => {
     const stored = localStorage.getItem("actyl_sidebar_collapsed");
@@ -148,7 +171,7 @@ export function Sidebar({
 
       {/* Nav */}
       <nav className={cn("mt-2 flex flex-col gap-0.5 px-3", collapsed && "items-center px-0")}>
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const showSegments =
@@ -210,6 +233,7 @@ export function Sidebar({
       <div className="flex flex-col gap-1 border-t border-line p-3">
         <div className={cn("flex items-center justify-between gap-2", collapsed && "flex-col")}>
           <CommandMenu
+            presidentielle={presidentielleEnabled}
             trigger={
               collapsed ? (
                 <Button variant="ghost" size="icon-sm" title="Recherche (⌘K)">

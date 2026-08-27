@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { ROLE_META, ROLES, can } from "@/lib/constants";
 import { getSignupMode } from "@/lib/signup-mode";
 import { getExtendedDirectory } from "@/lib/flags";
+import { getNewsletterConfig, maskApiKey } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
 import { SettingsView } from "@/components/settings/settings-view";
 
@@ -51,12 +52,13 @@ export default async function SettingsPage({
       getExtendedDirectory(),
     ]);
 
-  const [requests, signupMode] = await Promise.all([
+  const [requests, signupMode, newsletter] = await Promise.all([
     db.accountRequest.findMany({
       where: { status: "PENDING" },
       orderBy: { createdAt: "desc" },
     }),
     getSignupMode(),
+    getNewsletterConfig(),
   ]);
 
   return (
@@ -130,6 +132,11 @@ export default async function SettingsPage({
           createdAt: t.createdAt.toISOString(),
         }))}
         extendedDirectory={extendedDirectory}
+        newsletter={{
+          enabled: newsletter.enabled,
+          apiKeyMasked: maskApiKey(newsletter.apiKey),
+          listId: newsletter.listId,
+        }}
       />
     </>
   );

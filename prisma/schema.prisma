@@ -145,6 +145,11 @@ model Contact {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Newsletter module (optional, EmailOctopus). Null = never synced.
+  // SUBSCRIBED | PENDING | UNSUBSCRIBED | UNKNOWN (absent from the list)
+  newsletterStatus   String?
+  newsletterSyncedAt DateTime?
+
   workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy      User?                @relation("ContactCreator", fields: [createdById], references: [id])
   notes          PrivateNote[]
@@ -163,6 +168,7 @@ model Contact {
   @@index([workspaceId, party])
   @@index([workspaceId, region])
   @@index([workspaceId, category])
+  @@index([workspaceId, newsletterStatus])
   @@map("contacts")
 }
 
@@ -297,6 +303,9 @@ model SharedList {
   name        String
   description String?
   isPublished Boolean  @default(false)
+  // When set, the list comes from a curated reference pack (e.g.
+  // "presidentielle-2027") and can be re-synced without clobbering edits.
+  sourcePack  String?
   createdById String?
   createdAt   DateTime @default(now())
 
@@ -306,6 +315,7 @@ model SharedList {
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
+  @@index([sourcePack])
   @@map("shared_lists")
 }
 

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Globe, Trash2, Users, X, Search, Code2, Tag } from "lucide-react";
+import { Plus, Globe, Trash2, Users, X, Search, Code2, Tag, Download } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { fullName } from "@/components/lists/shared";
@@ -17,6 +17,7 @@ import {
   deleteListFieldAction,
   setListItemAttrAction,
 } from "@/app/actions/lists";
+import { ImportListDialog } from "@/components/lists/import-list-dialog";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ export function ListsView({
   const [isPending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
   const [addOpenFor, setAddOpenFor] = useState<string | null>(null);
+  const [importOpenFor, setImportOpenFor] = useState<string | null>(null);
 
   function refresh() {
     startTransition(() => router.refresh());
@@ -114,6 +116,7 @@ export function ListsView({
                     .then(() => toast.success("Code d'intégration copié !"))
                     .catch(() => toast.error(url));
                 }}
+                onImport={() => setImportOpenFor(list.id)}
               />
             )}
           </header>
@@ -217,6 +220,18 @@ export function ListsView({
         onAdded={refresh}
       />
 
+      {/* CSV import (merge-only, never overwrites existing items) */}
+      {lists.filter((l) => l.id === importOpenFor).map((l) => (
+        <ImportListDialog
+          key={l.id}
+          listId={l.id}
+          listName={l.name}
+          open
+          onClose={() => setImportOpenFor(null)}
+          onImported={refresh}
+        />
+      ))}
+
       {isPending && (
         <div className="fixed bottom-4 right-4 rounded-full bg-white/10 px-3 py-1.5 text-xs text-mut backdrop-blur">
           Mise à jour…
@@ -235,6 +250,7 @@ function Dropdownish({
   onTogglePublish,
   onDelete,
   onEmbed,
+  onImport,
 }: {
   canManage: boolean;
   canPublish: boolean;
@@ -242,6 +258,7 @@ function Dropdownish({
   onTogglePublish: () => void;
   onDelete: () => void;
   onEmbed: () => void;
+  onImport: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -274,6 +291,17 @@ function Dropdownish({
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-mut hover:bg-hoverstrong"
               >
                 <Code2 className="size-4 text-faint" /> Code d&apos;intégration
+              </button>
+            )}
+            {canManage && (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onImport();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-mut hover:bg-hoverstrong"
+              >
+                <Download className="size-4 text-faint" /> Importer CSV
               </button>
             )}
             {canManage && (
