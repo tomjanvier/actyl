@@ -14,8 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 
 /**
- * CSV paste/file import for ONE shared list.
- * Merge semantics: existing contacts are linked, never modified or deleted.
+ * Import CSV collé ou téléversé dans une seule liste partagée.
+ * Les contacts existants sont rattachés sans être modifiés ni supprimés.
  */
 export function ImportListDialog({
   listId,

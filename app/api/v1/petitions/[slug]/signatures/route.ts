@@ -22,7 +22,7 @@ const bodySchema = z.object({
 
 /**
  * Remote petition signature (WordPress Petitioner → Actyl).
- * The petition is identified by its campaign slug; it must be published.
+ * La pétition est identifiée par le slug de sa campagne et doit être publiée.
  *
  *   curl -X POST https://votre-domaine/api/v1/petitions/{slug}/signatures \
  *     -H "Authorization: Bearer actyl_…" -H "Content-Type: application/json" \

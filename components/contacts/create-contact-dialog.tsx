@@ -55,7 +55,7 @@ export function CreateContactDialog({
       router.refresh();
     }
     if (state?.error && open) toast.error(state.error);
-  }, [state]);
+  }, [state, onOpenChange, open, router]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,9 +68,9 @@ export function CreateContactDialog({
             Ajoutez une personne à l&apos;annuaire partagé de l&apos;espace de travail.
           </DialogDescription>
         </DialogHeader>
-        <form action={action} className="grid grid-cols-2 gap-x-3 gap-y-3.5">
+        <form action={action} className="grid grid-cols-1 gap-x-3 gap-y-3.5 sm:grid-cols-2">
           {extendedDirectory && (
-            <div className="col-span-2 flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label>Catégorie</Label>
               <Select name="category" defaultValue="DECISION_MAKER">
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -136,11 +136,11 @@ export function CreateContactDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="col-span-2 flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label>Bio / contexte</Label>
             <Textarea name="bio" rows={2} placeholder="Commissions, dossiers suivis, sensibilités…" />
           </div>
-          <div className="col-span-2 flex justify-end gap-2">
+          <div className="flex justify-end gap-2 sm:col-span-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>

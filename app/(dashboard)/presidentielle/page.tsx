@@ -1,7 +1,9 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { can } from "@/lib/constants";
-import { PRESIDENTIELLE_PACK_KEY, PRESIDENTIELLE_SETTING_KEY } from "@/lib/datasets/presidentielle-2027";
+import { getPresidentielleEnabled } from "@/lib/flags";
+import { PRESIDENTIELLE_PACK_KEY } from "@/lib/datasets/presidentielle-2027";
 import { PageHeader } from "@/components/layout/page-header";
 import { PresidentielleView } from "@/components/presidentielle/presidentielle-view";
 
@@ -10,12 +12,10 @@ export const metadata = { title: "Présidentielle 2027" };
 export default async function PresidentiellePage() {
   const session = await requireSession();
 
-  const flag = await db.appSetting.findUnique({
-    where: { key: PRESIDENTIELLE_SETTING_KEY },
-  });
-  const moduleEnabled = flag?.value === "on";
+  const moduleEnabled = await getPresidentielleEnabled(session.workspaceId);
+  if (!moduleEnabled) redirect("/lists");
 
-  // Pack lists live in the workspace as regular SharedLists tagged sourcePack.
+  // Les listes du pack restent des listes partagées ordinaires identifiées par sourcePack.
   const packLists = moduleEnabled
     ? await db.sharedList.findMany({
         where: {

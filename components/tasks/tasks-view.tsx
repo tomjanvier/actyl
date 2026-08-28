@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Check, Trash2, CalendarDays, UserRound, ListTodo } from "lucide-react";
@@ -41,11 +41,11 @@ export function TasksView({
   const [, startTransition] = useTransition();
   const [filter, setFilter] = useState<"mine" | "open" | "all">("mine");
 
-  function refresh() {
+  const refresh = useCallback(() => {
     startTransition(() => router.refresh());
-  }
+  }, [router]);
 
-  // For "mine": match assignee to current user's name
+  // Pour « mes tâches », compare l'assignation au nom de l'utilisateur courant.
   const me = members.find((m) => m.userId === currentUserId)?.name;
   const visible =
     filter === "mine"
@@ -190,9 +190,12 @@ function QuickAddForm({
     FormData
   >(createTaskAction, undefined);
   useEffect(() => {
-    if (state?.ok) toast.success("Tâche créée");
+    if (state?.ok) {
+      toast.success("Tâche créée");
+      onCreated();
+    }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onCreated]);
 
   return (
     <form action={action} className="h-fit rounded-xl border border-dashed border-line bg-card p-4">

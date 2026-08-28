@@ -1,16 +1,17 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { workspaceSettingKey } from "@/lib/workspace-settings";
 
 /**
- * Newsletter module — optional integration with EmailOctopus (API v2).
- * Config lives in AppSetting so it can be managed from the Settings UI:
+ * Module newsletter : intégration facultative avec EmailOctopus (API v2).
+ * La configuration est stockée dans AppSetting et isolée par espace :
  *   newsletter_enabled  "on" | "off"
- *   newsletter_api_key  plaintext key (masked in the UI)
- *   newsletter_list_id  selected audience list
+ *   newsletter_api_key  clé en clair, masquée dans l'interface
+ *   newsletter_list_id  liste d'audience sélectionnée
  *
- * v2 API: https://api.emailoctopus.com, Bearer auth.
- * Contact status values: subscribed | pending | unsubscribed.
+ * API v2 : https://api.emailoctopus.com, authentification Bearer.
+ * Statuts : subscribed | pending | unsubscribed.
  */
 
 const BASE_URL = "https://api.emailoctopus.com";
@@ -24,11 +25,14 @@ export type NewsletterConfig = {
 
 export type NewsletterStatus = "SUBSCRIBED" | "PENDING" | "UNSUBSCRIBED";
 
-export async function getNewsletterConfig(): Promise<NewsletterConfig> {
+export async function getNewsletterConfig(workspaceId: string): Promise<NewsletterConfig> {
+  const keys = ["newsletter_enabled", "newsletter_api_key", "newsletter_list_id"];
   const rows = await db.appSetting.findMany({
-    where: { key: { in: ["newsletter_enabled", "newsletter_api_key", "newsletter_list_id"] } },
+    where: { key: { in: keys.map((key) => workspaceSettingKey(workspaceId, key)) } },
   });
-  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const map = Object.fromEntries(
+    rows.map((row) => [row.key.slice(workspaceId.length + 1), row.value]),
+  );
   return {
     enabled: map.newsletter_enabled === "on",
     apiKey: map.newsletter_api_key ?? "",
@@ -36,7 +40,7 @@ export async function getNewsletterConfig(): Promise<NewsletterConfig> {
   };
 }
 
-/** Masked hint for the settings UI — never send the full key to the client. */
+/** Produit l'aperçu masqué affiché dans les réglages sans exposer la clé. */
 export function maskApiKey(key: string): string | null {
   if (!key) return null;
   const tail = key.slice(-4);
@@ -77,7 +81,7 @@ async function eoFetch<T>(
   try {
     data = await res.json();
   } catch {
-    // Non-JSON error body — fall through to generic message.
+    // Un corps non JSON est remplacé par le message générique ci-dessous.
   }
   if (!res.ok) {
     const d = data as { detail?: string; title?: string; errors?: Array<{ detail?: string }> } | null;
@@ -91,16 +95,16 @@ async function eoFetch<T>(
   return { ok: true, status: res.status, data: data as T };
 }
 
-/** Contact id can be an MD5 hash of the lowercase email address. */
+/** EmailOctopus accepte le MD5 de l'adresse normalisée comme identifiant. */
 function contactIdFor(email: string): string {
   return createHash("md5").update(email.trim().toLowerCase()).digest("hex");
 }
 
-// ── Public operations ────────────────────────────────────────────────────────
+// ── Opérations publiques du module ───────────────────────────────────────────
 
 export type EoList = { id: string; name: string; count: number };
 
-/** Fetch account lists (up to 300) for the settings dropdown. */
+/** Charge jusqu'à 300 listes pour le sélecteur des réglages. */
 export async function fetchNewsletterLists(apiKey: string): Promise<
   { ok: true; lists: EoList[] } | { ok: false; error: string }
 > {
@@ -127,7 +131,7 @@ export async function fetchNewsletterLists(apiKey: string): Promise<
   return { ok: true, lists };
 }
 
-/** Validate credentials + optionally that the configured list exists. */
+/** Valide les accès et, si nécessaire, l'existence de la liste configurée. */
 export async function testNewsletterConnection(input: {
   apiKey: string;
   listId?: string;
@@ -144,8 +148,8 @@ export async function testNewsletterConnection(input: {
 }
 
 /**
- * Subscribe (or update) a contact via the upsert endpoint.
- * Status is forced to "subscribed" for direct opt-ins from the CRM.
+ * Inscrit ou met à jour un contact via le point d'entrée d'upsert.
+ * Le statut est forcé à « subscribed » pour un consentement direct dans le CRM.
  */
 export async function subscribeToNewsletter(
   config: Pick<NewsletterConfig, "apiKey" | "listId">,
@@ -190,8 +194,8 @@ export async function unsubscribeFromNewsletter(
 }
 
 /**
- * Live status lookup by MD5-of-email. Returns null when the contact is not
- * on the list (404) so the caller can store UNKNOWN.
+ * Consulte le statut avec le MD5 de l'adresse. Retourne null lorsque le contact
+ * est absent de la liste afin que l'appelant puisse enregistrer UNKNOWN.
  */
 export async function getContactNewsletterStatus(
   config: Pick<NewsletterConfig, "apiKey" | "listId">,

@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * Petition signature management (back office): delete, export CSV, convert to
- * directory contacts, and broadcast emailing to the petition's signers.
- * Every action is scoped to the caller's workspace via the campaign id.
+ * Gestion des signatures : suppression, export CSV, conversion en
+ * contacts d'annuaire et envoi groupé aux signataires. Chaque action est isolée
+ * dans l'espace de l'appelant au moyen de l'identifiant de campagne.
  */
 
 import { revalidatePath } from "next/cache";
@@ -43,7 +43,7 @@ function revalidateSignatures(campaignId: string) {
   revalidatePath(`/campaigns/${campaignId}/mobilization`);
 }
 
-/** Delete the selected signatures (or all when ids is omitted). */
+/** Supprime les signatures choisies, ou toutes si ids est absent. */
 export async function deleteSignaturesAction(input: {
   campaignId: string;
   ids?: string[];
@@ -62,8 +62,8 @@ export async function deleteSignaturesAction(input: {
 }
 
 /**
- * Convert signatures into extended-directory contacts (SUPPORTER segment).
- * Idempotent: existing contacts are enriched, never duplicated.
+ * Convertit les signatures en contacts du segment SUPPORTER.
+ * L'opération est idempotente : l'existant est enrichi sans être dupliqué.
  */
 export async function convertSignaturesToContactsAction(input: {
   campaignId: string;
@@ -97,7 +97,7 @@ export async function convertSignaturesToContactsAction(input: {
   return { ok: true, created, updated };
 }
 
-/** Full CSV export (all signatures of the petition, not just the page). */
+/** Exporte toutes les signatures de la pétition en CSV. */
 export async function exportSignaturesCsvAction(input: {
   campaignId: string;
 }): Promise<{ csv?: string; count?: number; error?: string }> {
@@ -123,7 +123,7 @@ export async function exportSignaturesCsvAction(input: {
   return { csv, count: rows.length };
 }
 
-/** Recipient preview for the emailing dialog. */
+/** Produit l'aperçu des destinataires de la fenêtre d'envoi. */
 export async function countPetitionSignersAction(input: {
   campaignId: string;
 }): Promise<{ count?: number; error?: string }> {
@@ -136,7 +136,7 @@ export async function countPetitionSignersAction(input: {
   return { count: new Set(signers.map((s) => s.email)).size };
 }
 
-/** Broadcast an announcement to every distinct signer of the petition. */
+/** Envoie une annonce à chaque signataire distinct de la pétition. */
 export async function emailPetitionSignersAction(input: {
   campaignId: string;
   subject: string;
@@ -162,7 +162,7 @@ export async function emailPetitionSignersAction(input: {
   if (!recipients.length) return { error: "Aucun signataire à contacter." };
 
   const workspaceName = ctx.workspaceName;
-  // Cap per dispatch round; larger petitions need several sends.
+  // Limite chaque vague ; les pétitions plus grandes nécessitent plusieurs envois.
   const batch = recipients.slice(0, MAX_BATCH);
 
   const results = await Promise.allSettled(

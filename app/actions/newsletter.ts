@@ -1,9 +1,8 @@
 "use server";
 
 /**
- * Newsletter bulk operations on directory contacts (EmailOctopus).
- * Subscribe / unsubscribe / status resync for a selection of contacts,
- * with the local newsletterStatus kept in sync after each API result.
+ * Opérations groupées EmailOctopus sur les contacts de l'annuaire.
+ * Le statut local est actualisé après chaque réponse du fournisseur.
  */
 
 import { revalidatePath } from "next/cache";
@@ -18,7 +17,7 @@ import {
 } from "@/lib/newsletter";
 
 const MAX_BATCH = 200;
-// EmailOctopus rate limits: small concurrent chunks stay well under them.
+// De petits lots concurrents restent sous les limites d'EmailOctopus.
 const CONCURRENCY = 5;
 
 async function requireContext() {
@@ -30,7 +29,7 @@ async function requireContext() {
       ok: false as const,
       error: "Permission refusée — rôle Responsable campagne requis.",
     };
-  const config = await getNewsletterConfig();
+  const config = await getNewsletterConfig(session.workspaceId);
   if (!config.enabled)
     return { ok: false as const, error: "Module newsletter désactivé." };
   if (!config.apiKey || !config.listId)
@@ -38,7 +37,7 @@ async function requireContext() {
       ok: false as const,
       error: "Configurez d'abord la connexion EmailOctopus (Réglages → Newsletter).",
     };
-  return { ok: true as const, config };
+  return { ok: true as const, config, workspaceId: session.workspaceId };
 }
 
 type ContactTarget = {
@@ -48,15 +47,15 @@ type ContactTarget = {
   lastName: string | null;
 };
 
-async function loadTargets(contactIds: string[]): Promise<ContactTarget[]> {
+async function loadTargets(workspaceId: string, contactIds: string[]): Promise<ContactTarget[]> {
   const rows = await db.contact.findMany({
-    where: { id: { in: contactIds.slice(0, MAX_BATCH) } },
+    where: { workspaceId, id: { in: contactIds.slice(0, MAX_BATCH) } },
     select: { id: true, email: true, firstName: true, lastName: true },
   });
   return rows;
 }
 
-/** Run async work in chunks to respect provider rate limits. */
+/** Exécute les appels par lots pour respecter les limites du fournisseur. */
 async function mapChunked<T, R>(
   items: T[],
   fn: (item: T) => Promise<R>,
@@ -78,8 +77,7 @@ async function persistStatus(
     .update({
       where: { id: contactId },
       data: {
-        // On failure, keep the previous value but mark the sync time so the
-        // UI can show staleness without lying about the state.
+        // En cas d'échec, conserve le statut mais date la tentative de synchronisation.
         ...(error ? {} : { newsletterStatus: status }),
         newsletterSyncedAt: new Date(),
       },
@@ -98,7 +96,7 @@ export async function subscribeContactsAction(input: {
   const ctx = await requireContext();
   if (!ctx.ok) return { subscribed: 0, failed: 0, errors: [ctx.error] };
 
-  const targets = await loadTargets(input.contactIds);
+  const targets = await loadTargets(ctx.workspaceId, input.contactIds);
   const withEmail = targets.filter((t): t is ContactTarget & { email: string } => !!t.email);
   if (!withEmail.length)
     return { subscribed: 0, failed: 0, errors: ["Aucun contact sélectionné avec une adresse email."] };
@@ -139,7 +137,7 @@ export async function unsubscribeContactsAction(input: {
   if (!ctx.ok)
     return { unsubscribed: 0, failed: 0, errors: [ctx.error] };
 
-  const targets = await loadTargets(input.contactIds);
+  const targets = await loadTargets(ctx.workspaceId, input.contactIds);
   const withEmail = targets.filter((t): t is ContactTarget & { email: string } => !!t.email);
   if (!withEmail.length)
     return { unsubscribed: 0, failed: 0, errors: ["Aucun contact sélectionné avec une adresse email."] };
@@ -150,7 +148,7 @@ export async function unsubscribeContactsAction(input: {
       await persistStatus(t.id, res.status);
       return true;
     }
-    // Not on the list → treat as unsubscribed locally anyway.
+    // Une absence de la liste équivaut localement à une désinscription.
     if (res.status === 404) {
       await persistStatus(t.id, "UNSUBSCRIBED");
       return true;
@@ -170,8 +168,8 @@ export async function unsubscribeContactsAction(input: {
 }
 
 /**
- * Refresh local statuses from EmailOctopus for the given contacts.
- * Read-only — safe for MEMBER roles too.
+ * Actualise les statuts EmailOctopus des contacts sélectionnés.
+ * La lecture reste accessible aux membres autorisés à consulter l'annuaire.
  */
 export async function syncContactsNewsletterStatusAction(input: {
   contactIds: string[];
@@ -182,11 +180,11 @@ export async function syncContactsNewsletterStatusAction(input: {
   if (!can(session.role, "contact:create"))
     return { synced: 0, missing: 0, failed: 0 };
 
-  const config = await getNewsletterConfig();
+  const config = await getNewsletterConfig(session.workspaceId);
   if (!config.enabled || !config.apiKey || !config.listId)
     return { synced: 0, missing: 0, failed: 0 };
 
-  const targets = await loadTargets(input.contactIds);
+  const targets = await loadTargets(session.workspaceId, input.contactIds);
   const withEmail = targets.filter((t): t is ContactTarget & { email: string } => !!t.email);
 
   let synced = 0;

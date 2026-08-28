@@ -4,15 +4,14 @@ import { jwtVerify } from "jose";
 /**
  * Edge middleware: two jobs.
  *
- * 1. Gate every dashboard route behind a valid session cookie.
- *    - The JWT signature is verified here (not just presence of the cookie).
+ * 1. Protège chaque route du tableau de bord par un cookie de session valide.
+ *    - La signature JWT est vérifiée, pas seulement la présence du cookie.
  *    - A missing or short AUTH_SECRET fails closed: all protected routes
- *      redirect to /sign-in rather than being accidentally exposed.
+ *      redirigées vers /sign-in afin de ne jamais être exposées par erreur.
  *
  * 2. Framing policy.
- *    - Everything is frame-DENY except `/embed/*`, which is meant to be
- *      iframed on third-party sites (WordPress…) — those get an open
- *      `frame-ancestors` CSP and `noindex` instead.
+ *    - Toutes les pages refusent l'intégration, sauf `/embed/*`, conçu pour les
+ *      sites tiers comme WordPress, avec une politique CSP dédiée et `noindex`.
  */
 const SESSION_COOKIE = "actyl_session";
 
@@ -30,7 +29,7 @@ const PROTECTED_PREFIXES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public embeds: allow framing from anywhere, keep them out of search indexes.
+  // Autorise l'intégration des contenus publics et les exclut des moteurs de recherche.
   if (pathname.startsWith("/embed/")) {
     const res = NextResponse.next();
     res.headers.set("Content-Security-Policy", "frame-ancestors *");
@@ -42,13 +41,13 @@ export async function middleware(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 
-  let response = NextResponse.next();
+  const response = NextResponse.next();
 
   if (needsAuth) {
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     const secret = process.env.AUTH_SECRET;
 
-    // Fail closed when the app is misconfigured.
+    // Refuse l'accès si la configuration de l'application est incomplète.
     const isValid =
       !!token &&
       !!secret &&
@@ -68,7 +67,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Remaining public app pages (/, /p/*, /sign-in…): deny framing too.
+  // Interdit aussi l'intégration des autres pages publiques de l'application.
   response.headers.set("X-Frame-Options", "DENY");
   return response;
 }

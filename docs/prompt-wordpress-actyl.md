@@ -1,6 +1,6 @@
 # Prompt prêt à coller — Intégrer l'API Actyl dans l'extension WordPress `campagneplaidact`
 
-> Ouvre le dépôt `tomjanvier/campagneplaidact` (ou un agent Codex/Claude dedans) et colle ce prompt tel quel.
+> Ouvre le dépôt `tomjanvier/campagneplaidact` et applique ce cahier des charges.
 > Il décrit exactement le contrat d'implémenté côté Actyl, donc aucune supposition n'est nécessaire.
 
 ---

@@ -20,14 +20,14 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 
-type CampaignOption = { id: string; name: string; emoji: string };
+type CampaignOption = { id: string; slug: string; name: string; emoji: string; pinned: boolean };
 
 export function CommandMenu({
   trigger,
   presidentielle = false,
 }: {
   trigger: React.ReactNode;
-  /** Show the Présidentielle 2027 shortcut (module active). */
+  /** Affiche le raccourci lorsque le module Présidentielle 2027 est actif. */
   presidentielle?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -45,7 +45,7 @@ export function CommandMenu({
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  // Lazy-load campaign list the first time the palette opens
+  // Charge les campagnes à la première ouverture de la palette.
   useEffect(() => {
     if (!open || campaigns.length) return;
     void fetch("/api/command/campaigns")
@@ -92,9 +92,9 @@ export function CommandMenu({
               Paramètres
             </CommandItem>
           </CommandGroup>
-          <CommandGroup heading="Campagnes">
-            {campaigns.map((c) => (
-              <CommandItem key={c.id} onSelect={() => go(`/campaigns/${c.id}/kanban`)}>
+          <CommandGroup heading="Campagnes épinglées">
+            {campaigns.filter((c) => c.pinned).map((c) => (
+              <CommandItem key={c.id} onSelect={() => go(`/campaigns/${c.slug}`)}>
                 <span>{c.emoji}</span>
                 {c.name}
                 <CommandShortcut>Kanban</CommandShortcut>

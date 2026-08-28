@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 export const PAGE_SIZE = 100;
 
 /**
- * Server-pagination footer (100 rows per page). Links preserve the current
- * query string (category, q, city…) and only swap the `page` param.
+ * Pied de pagination serveur par cent lignes. Les liens conservent les filtres
+ * courants et remplacent uniquement le paramètre `page`.
  */
 export function PaginationBar({
   page,
@@ -33,7 +33,7 @@ export function PaginationBar({
     return `${pathname}?${sp.toString()}`;
   }
 
-  // Window of numbered pages around the current one.
+  // Fenêtre de pages numérotées autour de la page courante.
   const window = 2;
   const pages: Array<number | "…"> = [];
   for (let p = 1; p <= pageCount; p++) {

@@ -1,28 +1,20 @@
 "use server";
 
 /**
- * Interpellation engine (ActionButton-style).
- *
- * Three entry points share the same pipeline:
- *   - createTemplate/updateTemplate — team-managed message templates with
- *     {{variable}} substitution
- *   - launchBlastAction — authenticated team sends to selected targets
- *   - citizenSendAction — PUBLIC endpoint used by campaign pages; rate-limited
- *     per IP, records each email individually for analytics, and registers the
- *     citizen as a Supporter.
- *
- * Without RESEND_API_KEY everything runs in simulated mode so the full
- * pipeline is testable locally.
+ * Moteur d'interpellation partagé entre les modèles d'équipe, les envois
+ * internes et les messages citoyens publics. Sans clé Resend, le pipeline
+ * fonctionne en mode simulé tout en conservant sa traçabilité.
  */
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { can, EMAIL_VARIABLES } from "@/lib/constants";
+import { can } from "@/lib/constants";
 import { dispatchEmail, renderTemplate, wrapEmailHtml } from "@/lib/email";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { upsertSupporter } from "@/lib/supporters";
 import { normalizeFr } from "@/lib/utils";
+import { getCampaignAccess } from "@/lib/campaign-access";
 
 type Result = { ok?: boolean; error?: string; sent?: number; failed?: number };
 
@@ -44,10 +36,8 @@ export async function createTemplateAction(
   if (!subject) return { error: "Objet requis" };
   if (body.length < 20) return { error: "Corps du message trop court" };
 
-  const campaign = await db.campaign.findFirst({
-    where: { id: campaignId, workspaceId: session.workspaceId },
-  });
-  if (!campaign) return { error: "Campagne introuvable" };
+  const access = await getCampaignAccess(campaignId, session.workspaceId);
+  if (!access?.canContribute) return { error: "Campagne introuvable ou en lecture seule" };
 
   const tpl = await db.emailTemplate.create({
     data: { campaignId, name, subject, body },
@@ -67,7 +57,12 @@ export async function updateTemplateAction(input: {
   const tpl = await db.emailTemplate.findFirst({
     where: {
       id: input.templateId,
-      campaign: { workspaceId: session.workspaceId },
+      campaign: {
+        OR: [
+          { workspaceId: session.workspaceId },
+          { shares: { some: { workspaceId: session.workspaceId, access: "CONTRIBUTE" } } },
+        ],
+      },
     },
   });
   if (!tpl) return { error: "Modèle introuvable" };
@@ -88,7 +83,12 @@ export async function deleteTemplateAction(templateId: string) {
   const tpl = await db.emailTemplate.findFirst({
     where: {
       id: templateId,
-      campaign: { workspaceId: session.workspaceId },
+      campaign: {
+        OR: [
+          { workspaceId: session.workspaceId },
+          { shares: { some: { workspaceId: session.workspaceId, access: "CONTRIBUTE" } } },
+        ],
+      },
     },
   });
   if (!tpl) throw new Error("Modèle introuvable");
@@ -98,7 +98,7 @@ export async function deleteTemplateAction(templateId: string) {
   revalidatePath(`/campaigns/${tpl.campaignId}/emails`);
 }
 
-// ── Internal blast (team → targets) ─────────────────────────────────────────
+// ── Envoi interne de l'équipe vers les cibles ────────────────────────────────
 
 function contactContext(c: {
   firstName: string;
@@ -124,9 +124,11 @@ export async function launchBlastAction(input: {
   if (!session) return { error: "Non authentifié" };
   if (!can(session.role, "email:send")) return { error: "Permission refusée" };
 
-  const campaign = await db.campaign.findFirst({
-    where: { id: input.campaignId, workspaceId: session.workspaceId },
-    select: { id: true, name: true },
+  const access = await getCampaignAccess(input.campaignId, session.workspaceId);
+  if (!access?.canContribute) return { error: "Campagne introuvable ou en lecture seule" };
+  const campaign = await db.campaign.findUnique({
+    where: { id: input.campaignId },
+    select: { id: true, name: true, workspaceId: true },
   });
   if (!campaign) return { error: "Campagne introuvable" };
 
@@ -136,7 +138,7 @@ export async function launchBlastAction(input: {
   if (!template) return { error: "Modèle introuvable" };
 
   const targets = await db.contact.findMany({
-    where: { id: { in: input.targetContactIds }, workspaceId: session.workspaceId },
+    where: { id: { in: input.targetContactIds }, workspaceId: campaign.workspaceId },
     select: {
       id: true,
       firstName: true,
@@ -164,8 +166,7 @@ export async function launchBlastAction(input: {
   let sent = 0;
   let failed = 0;
 
-  // Dispatch concurrently — one slow SMTP/provider round-trip per email
-  // would otherwise serialize the whole blast.
+  // Envoie en parallèle pour ne pas sérialiser les délais du fournisseur.
   const results = await Promise.allSettled(
     targets
       .filter((t) => t.email)
@@ -205,7 +206,7 @@ export async function launchBlastAction(input: {
   return { ok: true, sent, failed };
 }
 
-// ── Public citizen interpellation (no auth) ─────────────────────────────────
+// ── Interpellation citoyenne publique ────────────────────────────────────────
 
 const CITIZEN_LIMIT_PER_DAY = 40;
 const MAX_NAME = 80;
@@ -227,7 +228,7 @@ export async function citizenSendAction(input: {
   | { ok: true; simulated: boolean; recipientCount: number }
   | { error: string }
 > {
-  // Anti-abuse: 5 interpellations per minute per IP
+  // Limite chaque adresse IP à cinq interpellations par minute.
   const rl = rateLimit(`citizen-send:${await clientIp()}`, 5);
   if (!rl.allowed)
     return { error: `Trop d'envois. Réessayez dans ${rl.retryAfterSec}s.` };
@@ -240,7 +241,7 @@ export async function citizenSendAction(input: {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email))
     return { error: "Adresse email invalide." };
 
-  // Cap free-form overrides (they end up in the DB and in emails).
+  // Limite les textes libres stockés en base et envoyés par email.
   const subjectOverride = input.subjectOverride?.trim().slice(0, MAX_SUBJECT) || undefined;
   const bodyOverride = input.bodyOverride?.trim().slice(0, MAX_BODY) || undefined;
 
@@ -251,7 +252,7 @@ export async function citizenSendAction(input: {
   if (!campaign || campaign.status === "ARCHIVED")
     return { error: "Campagne introuvable." };
 
-  // Simple anti-abuse throttle per author email over the last 24h
+  // Limite également les envois par auteur sur vingt-quatre heures.
   const recent = await db.sentEmail.count({
     where: {
       senderName: name,
@@ -268,9 +269,8 @@ export async function citizenSendAction(input: {
   const template = templates[0];
   if (!template) return { error: "Aucun modèle configuré pour cette campagne." };
 
-  // Targets: explicit pick, otherwise every contact with an email on the board.
-  // With a region provided (ActionButton-style "your representatives"), prefer
-  // the contacts whose territory matches; fall back to everyone if none does.
+  // Utilise la cible choisie ou les contacts joignables du tableau. Une région
+  // privilégie les territoires correspondants, avec repli sur toutes les cibles.
   const cards = await db.kanbanCard.findMany({
     where: { campaignId: campaign.id },
     include: {
@@ -313,7 +313,7 @@ export async function citizenSendAction(input: {
     },
   });
 
-  // Concurrent dispatch (same rationale as internal blasts).
+  // Applique le même parallélisme que pour les envois internes.
   const sendable = targets.filter((t) => t.email);
   await Promise.allSettled(
     sendable.map(async (t) => {
@@ -354,13 +354,12 @@ export async function citizenSendAction(input: {
     }),
   );
 
-  // Remember the citizen as a supporter (NationBuilder-style people DB),
-  // auto-tagged with the campaign topic area for later segmentation.
+  // Enregistre le citoyen comme soutien et ajoute son territoire aux tags.
   await upsertSupporter({
     email: input.email,
     name,
     city,
-    workspaceId: campaign.workspaceId ?? undefined,
+    workspaceId: campaign.workspaceId,
     source: "interpellation",
     tags: region ? [`region:${region.replace(/,/g, " ")}`] : undefined,
   }).catch(() => {});

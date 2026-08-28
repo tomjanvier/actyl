@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { db } from "@/lib/db";
 import {
   authenticateApiRequest,
   apiJson,
@@ -9,6 +10,7 @@ import {
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { upsertSupporter } from "@/lib/supporters";
 import { upsertContactByEmail, validEmail, cleanStr, cleanTags } from "@/lib/ingest";
+import { getNewsletterConfig, subscribeToNewsletter } from "@/lib/newsletter";
 
 export const dynamic = "force-dynamic";
 
@@ -19,23 +21,13 @@ const bodySchema = z.object({
   lastName: z.string().optional(),
   city: z.string().optional(),
   phone: z.string().optional(),
-  // Where the signup came from, e.g. "newsletter", "wordpress:accueil"
+  // Origine déclarée par le formulaire appelant.
   source: z.string().max(60).optional(),
   category: z.enum(["SUPPORTER", "MEMBER", "VOLUNTEER", "DONOR"]).optional(),
   tags: z.array(z.string()).or(z.string()).optional(),
 });
 
-/**
- * Ingest a person (newsletter signup, membership form…).
- *
- *   curl -X POST https://votre-domaine/api/v1/supporters \
- *     -H "Authorization: Bearer actyl_…" \
- *     -H "Content-Type: application/json" \
- *     -d '{"email":"a@b.fr","fullName":"Jean Martin","city":"Rennes",
- *          "source":"newsletter","tags":["newsletter-2026"]}'
- *
- * Idempotent: re-posting the same email updates instead of duplicating.
- */
+/** Enregistre ou actualise une personne de manière idempotente. */
 export async function POST(request: Request) {
   const ctx = await authenticateApiRequest(request);
   if (!ctx) return apiError(401, "Token API invalide ou révoqué.");
@@ -56,7 +48,7 @@ export async function POST(request: Request) {
 
   const tags = cleanTags(parsed.data.tags);
 
-  // Unified supporter registry (touch tracking / Soutiens page).
+  // Registre unifié des soutiens et de leurs interactions.
   await upsertSupporter({
     email,
     name: parsed.data.fullName || [parsed.data.firstName, parsed.data.lastName].filter(Boolean).join(" ") || email.split("@")[0]!,
@@ -66,7 +58,7 @@ export async function POST(request: Request) {
     tags,
   }).catch(() => {});
 
-  // Extended directory (annuaire étendu): mirror as a Contact.
+  // Réplique la personne dans le segment correspondant de l'annuaire.
   const contact = await upsertContactByEmail({
     workspaceId: ctx.workspaceId,
     email,
@@ -79,8 +71,31 @@ export async function POST(request: Request) {
     themes: tags,
   });
 
+  let newsletterStatus: string | null = null;
+  const source = parsed.data.source?.toLowerCase() ?? "newsletter";
+  const newsletterConsent = source.includes("newsletter") || tags.some((tag) =>
+    tag.toLowerCase().includes("newsletter"),
+  );
+  if (newsletterConsent) {
+    const config = await getNewsletterConfig(ctx.workspaceId);
+    if (config.enabled && config.apiKey && config.listId) {
+      const subscription = await subscribeToNewsletter(config, {
+        email,
+        firstName: cleanStr(parsed.data.firstName, 80),
+        lastName: cleanStr(parsed.data.lastName, 80),
+      });
+      if (subscription.ok) {
+        newsletterStatus = subscription.status;
+        await db.contact.updateMany({
+          where: { id: contact.id, workspaceId: ctx.workspaceId },
+          data: { newsletterStatus, newsletterSyncedAt: new Date() },
+        });
+      }
+    }
+  }
+
   return apiJson(
-    { ok: true, contactId: contact.id, created: contact.created },
+    { ok: true, contactId: contact.id, created: contact.created, newsletterStatus },
     contact.created ? 201 : 200,
   );
 }

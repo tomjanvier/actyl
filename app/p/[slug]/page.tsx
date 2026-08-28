@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { CitizenForm } from "@/components/public/citizen-form";
-import { PlaidActCredit } from "@/components/layout/plaidact-credit";
 import { PetitionSignForm, ShareSection } from "@/components/public/petition-and-share";
 
 export const metadata = { title: "Interpellation citoyenne" };

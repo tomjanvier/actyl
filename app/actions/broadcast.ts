@@ -1,10 +1,9 @@
 "use server";
 
 /**
- * Broadcast emailing to the people database (NationBuilder-style).
- * Sends a plain announcement to supporters filtered by source/tag, strictly
- * scoped to the caller's workspace, with the same dispatch pipeline as the
- * interpellation engine (Resend or simulated mode).
+ * Envoi groupé vers la base des soutiens, filtrée par source ou étiquette et
+ * strictement limitée à l'espace de l'appelant. Le pipeline est commun avec le
+ * moteur d'interpellation, via Resend ou le mode simulé.
  */
 
 import { db } from "@/lib/db";
@@ -17,9 +16,9 @@ const MAX_SUBJECT = 200;
 const MAX_BODY = 8000;
 
 export type BroadcastAudience = {
-  /** Filter by first-touchpoint source, e.g. "newsletter", "petition". */
+  /** Filtre par première source, par exemple « newsletter » ou « petition ». */
   source?: string;
-  /** Filter by tag present in the supporter's comma-separated tags. */
+  /** Filtre par étiquette présente dans les tags du soutien. */
   tag?: string;
 };
 
@@ -36,7 +35,7 @@ async function resolveRecipients(workspaceId: string, audience: BroadcastAudienc
   });
 }
 
-/** Recipient preview so the UI can show "N destinataires" before sending. */
+/** Aperçu permettant d'afficher le nombre de destinataires avant l'envoi. */
 export async function countBroadcastAudienceAction(
   audience: BroadcastAudience,
 ): Promise<{ count?: number; error?: string }> {

@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 
-/** Directory segments accepted by the public API. */
+/** Segments d'annuaire acceptés par l'API publique. */
 export const API_CATEGORIES = [
   "SUPPORTER",
   "MEMBER",
@@ -37,8 +37,8 @@ export function cleanTags(value: unknown): string[] {
 }
 
 /**
- * Find-or-create a directory contact by email inside a workspace, updating
- * profile fields when provided. Used by the WordPress ingest endpoints.
+ * Recherche ou crée un contact par email dans un espace et actualise les champs
+ * fournis. Utilisé par les points d'entrée d'ingestion WordPress.
  * Merges tags instead of replacing them.
  */
 export async function upsertContactByEmail(input: {
@@ -54,7 +54,7 @@ export async function upsertContactByEmail(input: {
   institution?: string | null;
   themes?: string[] | null;
 }): Promise<{ id: string; created: boolean }> {
-  // Split names when only a full name is given.
+  // Sépare le prénom et le nom lorsqu'un nom complet est fourni.
   let first = input.firstName?.trim() || "";
   let last = input.lastName?.trim() || "";
   if ((!first && !last) && input.fullName) {
@@ -78,7 +78,7 @@ export async function upsertContactByEmail(input: {
         ...(input.phone ? { phone: input.phone.slice(0, 40) } : {}),
         ...(input.title ? { title: input.title.slice(0, 120) } : {}),
         ...(input.institution ? { institution: input.institution.slice(0, 160) } : {}),
-        // Category escalation: never downgrade (DONOR beats SUPPORTER).
+        // Ne réduit jamais le segment : DONOR reste prioritaire sur SUPPORTER.
         ...(input.category &&
         categoryRank(input.category) > categoryRank(existing.category)
           ? { category: input.category }

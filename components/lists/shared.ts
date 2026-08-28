@@ -22,9 +22,10 @@ export type ListWithItems = {
   name: string;
   description: string | null;
   isPublished: boolean;
+  sourcePack?: string | null;
   items: Array<{ itemId: string; contact: ContactLite }>;
-  /** Attributes dedicated to this list (list-scoped custom fields). */
+  /** Attributs propres à cette liste. */
   attributes?: ListAttribute[];
-  /** "contactId:fieldId" → value. */
+  /** Associe la clé « contactId:fieldId » à sa valeur. */
   values?: Record<string, string>;
 };

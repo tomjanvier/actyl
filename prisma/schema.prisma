@@ -1,12 +1,6 @@
-// Actyl — Prisma schema
-// Portable by design: works on SQLite (zero-config dev) AND PostgreSQL
-// (Supabase / Neon / RDS). To switch to Postgres:
-//   1. change `provider` below to "postgresql"
-//   2. set DATABASE_URL to your Postgres connection string
-//   3. run `pnpm db:push && pnpm db:seed`
-//
-// NOTE: no enums / native arrays / Json columns are used on purpose so the
-// same schema runs on SQLite and PostgreSQL without modification.
+// Schéma Prisma d'Actyl.
+// PostgreSQL est requis en local comme en production (Neon, Supabase ou RDS).
+// Renseigner DATABASE_URL puis exécuter `pnpm db:push` et `pnpm db:seed`.
 
 generator client {
   provider = "prisma-client-js"
@@ -18,7 +12,7 @@ datasource db {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Workspaces, Users & RBAC
+// Espaces de travail, utilisateurs et rôles
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Workspace {
@@ -34,13 +28,16 @@ model Workspace {
   groups       Group[]
   contacts     Contact[]
   campaigns    Campaign[]
+  campaignSharesReceived SharedCampaignRef[] @relation("CampaignShareTarget")
   customFields CustomField[]
   lists        SharedList[]
+  listChangeProposals ListChangeProposal[]
   templates    EmailTemplate[]
   petitions    Petition[]
   events       Event[]
   donations    Donation[]
   apiTokens    ApiToken[]
+  supporters   Supporter[]
 
   @@map("workspaces")
 }
@@ -63,6 +60,8 @@ model User {
   createdContacts Contact[]            @relation("ContactCreator")
   sentEmails      SentEmail[]
   blasts          EmailBlast[]
+  listChangeProposals         ListChangeProposal[] @relation("ProposalAuthor")
+  reviewedListChangeProposals ListChangeProposal[] @relation("ProposalReviewer")
 }
 
 model Membership {
@@ -113,7 +112,7 @@ model GroupMember {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Contacts directory (decision-makers)
+// Annuaire des contacts et décideurs
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Contact {
@@ -132,11 +131,11 @@ model Contact {
   // ALLY | FAVORABLE | UNDECIDED | TARGET | OPPOSED | UNKNOWN
   stance         String   @default("UNKNOWN")
   influenceScore Int      @default(3) // 1..5
-  // Directory segment: DECISION_MAKER | MEMBER | VOLUNTEER | DONOR | SUPPORTER
+  // Segment d'annuaire : DECISION_MAKER | MEMBER | VOLUNTEER | DONOR | SUPPORTER
   category       String   @default("DECISION_MAKER")
   bio            String?
   photoUrl       String?
-  themes         String? // comma-separated policy interest tags
+  themes         String? // Thématiques séparées par des virgules
   twitter        String?
   linkedin       String?
   website        String?
@@ -145,8 +144,8 @@ model Contact {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // Newsletter module (optional, EmailOctopus). Null = never synced.
-  // SUBSCRIBED | PENDING | UNSUBSCRIBED | UNKNOWN (absent from the list)
+  // Module newsletter facultatif. Null signifie « jamais synchronisé ».
+  // SUBSCRIBED | PENDING | UNSUBSCRIBED | UNKNOWN (absent de la liste)
   newsletterStatus   String?
   newsletterSyncedAt DateTime?
 
@@ -161,6 +160,7 @@ model Contact {
   receivedEmails SentEmail[]
   tasks          Task[]
   donations      Donation[]
+  listChangeProposals ListChangeProposal[]
 
   @@unique([workspaceId, firstName, lastName, institution])
   @@index([workspaceId])
@@ -172,10 +172,8 @@ model Contact {
   @@map("contacts")
 }
 
-/// Directory segment labels (fr) — mirrors Contact.category values.
-/// DECISION_MAKER is the classic lobbying directory; the others are enabled
-/// per-workspace ("annuaire étendu") for associations that also manage
-/// members, volunteers, donors and newsletter supporters.
+/// Les valeurs de segment suivent Contact.category. DECISION_MAKER correspond
+/// à l'annuaire de plaidoyer ; les autres segments sont activés par espace.
 model Donation {
   id          String   @id @default(cuid())
   workspaceId String
@@ -183,10 +181,10 @@ model Donation {
   email       String
   name        String
   city        String?
-  // integer cents to avoid float issues (25.00 € → 2500)
+  // Montant entier en centimes pour éviter les imprécisions (25,00 € → 2500).
   amountCents Int
   currency    String   @default("EUR")
-  provider    String? // givoly | helloasso | check | wire…
+  provider    String? // givoly | helloasso | chèque | virement…
   label       String?
   occurredAt  DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -199,15 +197,15 @@ model Donation {
   @@map("donations")
 }
 
-/// Bearer tokens for the public ingest API (/api/v1/*) used by the WordPress
-/// plugin (newsletter forms, Petitioner signatures, Givoly donations).
-/// Only a SHA-256 hash is stored; the plaintext token is shown once.
+/// Jetons Bearer de l'API publique d'ingestion (/api/v1/*), notamment utilisée
+/// par WordPress. Seul le condensat SHA-256 est conservé ; le jeton n'est affiché
+/// en clair qu'une seule fois.
 model ApiToken {
   id          String    @id @default(cuid())
   workspaceId String
-  name        String // e.g. "Site WordPress"
-  tokenHash   String    @unique // sha256(plaintext)
-  prefix      String // first 12 chars for identification, e.g. "actyl_abc12345"
+  name        String // Exemple : « Site WordPress »
+  tokenHash   String    @unique // sha256 du jeton en clair
+  prefix      String // Douze premiers caractères, par exemple « actyl_abc12345 »
   lastUsedAt  DateTime?
   revokedAt   DateTime?
   createdAt   DateTime  @default(now())
@@ -233,15 +231,15 @@ model PrivateNote {
   @@map("private_notes")
 }
 
-/// Per-user overlay visible ONLY to its owner (rating, personal status,
-/// free tags) on any shared contact record.
+/// Données personnelles superposées à une fiche partagée et visibles uniquement
+/// par leur propriétaire : note, statut et étiquettes libres.
 model ContactPrivateData {
   id        String  @id @default(cuid())
   contactId String
   userId    String
-  rating    Int? // 1..5 personal star rating
-  tags      String? // comma-separated free tags
-  status    String? // free-form personal pipeline label
+  rating    Int? // Note personnelle de 1 à 5
+  tags      String? // Étiquettes libres séparées par des virgules
+  status    String? // Statut personnel libre
 
   contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -251,21 +249,21 @@ model ContactPrivateData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Dynamic custom fields (per-workspace schema extension)
+// Champs personnalisés dynamiques par espace
 // ─────────────────────────────────────────────────────────────────────────────
 
 model CustomField {
   id          String   @id @default(cuid())
   workspaceId String
-  name        String // machine key e.g. "committee_membership"
-  label       String // display label
+  name        String // Clé technique, par exemple « committee_membership »
+  label       String // Libellé affiché
   // TEXT | SELECT | MULTI_SELECT | NUMBER | DATE | RATING | BOOLEAN | URL
   type        String   @default("TEXT")
-  options     String? // JSON array of options for select types
+  options     String? // Tableau JSON des choix proposés
   description String?
   showInTable Boolean  @default(false)
   position    Int      @default(0)
-  // When set, the attribute is dedicated to one shared list (annuaire étendu).
+  // Lorsqu'elle est renseignée, la propriété est réservée à une liste partagée.
   listId      String?
   createdAt   DateTime @default(now())
 
@@ -294,7 +292,7 @@ model CustomFieldValue {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared decision-maker lists
+// Listes partagées de décideurs
 // ─────────────────────────────────────────────────────────────────────────────
 
 model SharedList {
@@ -303,8 +301,8 @@ model SharedList {
   name        String
   description String?
   isPublished Boolean  @default(false)
-  // When set, the list comes from a curated reference pack (e.g.
-  // "presidentielle-2027") and can be re-synced without clobbering edits.
+  // Une valeur indique que la liste vient d'un pack de référence et peut être
+  // resynchronisée en soumettant les écarts à validation.
   sourcePack  String?
   createdById String?
   createdAt   DateTime @default(now())
@@ -312,11 +310,39 @@ model SharedList {
   workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   items     ListItem[]
   fields    CustomField[]
+  proposals ListChangeProposal[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
   @@index([sourcePack])
   @@map("shared_lists")
+}
+
+/// Proposition d'un membre ou d'une source publique soumise à un administrateur.
+model ListChangeProposal {
+  id          String   @id @default(cuid())
+  listId      String
+  workspaceId String
+  authorId    String?
+  reviewerId  String?
+  contactId   String?
+  action      String   // ADD | UPDATE | REMOVE | ATTRIBUTE
+  origin      String   @default("MEMBER") // MEMBER | PUBLIC_SOURCE
+  payload     String   // Instantané JSON des données proposées
+  reason      String?
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  list      SharedList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author    User?     @relation("ProposalAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  reviewer  User?     @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  contact   Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([listId, status])
+  @@map("list_change_proposals")
 }
 
 model ListItem {
@@ -335,7 +361,7 @@ model ListItem {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Campaigns & Kanban pipeline
+// Campagnes et pipeline kanban
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Campaign {
@@ -349,6 +375,7 @@ model Campaign {
   status      String    @default("ACTIVE")
   priority    String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
   dueDate     DateTime?
+  pinned      Boolean   @default(false)
   createdById String?
   createdAt   DateTime  @default(now())
 
@@ -361,10 +388,28 @@ model Campaign {
   petition  Petition?
   tasks     Task[]
   events    Event[]
+  shares    SharedCampaignRef[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId])
   @@map("campaigns")
+}
+
+/// Accès accordé par l'espace propriétaire à une autre organisation.
+model SharedCampaignRef {
+  id          String   @id @default(cuid())
+  campaignId  String
+  workspaceId String
+  access      String   @default("VIEW") // VIEW | CONTRIBUTE
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  campaign  Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation("CampaignShareTarget", fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, workspaceId])
+  @@index([workspaceId])
+  @@map("shared_campaign_refs")
 }
 
 model PipelineStage {
@@ -372,7 +417,7 @@ model PipelineStage {
   campaignId String
   name       String
   position   Int
-  // NEUTRAL | POSITIVE | NEGATIVE | ACTIVE | WON — controls column accent
+  // NEUTRAL | POSITIVE | NEGATIVE | ACTIVE | WON — détermine l'accent de colonne
   kind       String @default("NEUTRAL")
 
   campaign Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -388,7 +433,7 @@ model KanbanCard {
   stageId        String
   contactId      String
   assignedToId   String?
-  role           String? // why they matter in this fight e.g. "Rapporteur"
+  role           String? // Rôle dans la campagne, par exemple « Rapporteur »
   priority       String   @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
   expectedAction String?
   lastTouchAt    DateTime @default(now())
@@ -407,7 +452,7 @@ model KanbanCard {
   @@map("kanban_cards")
 }
 
-/// Timeline history: every card move / creation / status change is logged.
+/// Historique des créations, déplacements et changements de statut des cartes.
 model CardEvent {
   id          String   @id @default(cuid())
   cardId      String
@@ -436,7 +481,7 @@ model CampaignGroup {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Interpellation engine (templates → blasts → per-recipient emails)
+// Moteur d'interpellation : modèles, envois et emails par destinataire
 // ─────────────────────────────────────────────────────────────────────────────
 
 model EmailTemplate {
@@ -444,7 +489,7 @@ model EmailTemplate {
   campaignId String
   name       String
   subject    String
-  body       String // supports {{variables}}
+  body       String // Accepte les {{variables}}
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -456,7 +501,7 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
-/// One "interpellation" push: a template dispatched to a set of targets.
+/// Envoi d'un modèle d'interpellation vers un ensemble de cibles.
 model EmailBlast {
   id          String   @id @default(cuid())
   campaignId  String
@@ -475,7 +520,7 @@ model EmailBlast {
   @@map("email_blasts")
 }
 
-/// One email to one decision-maker (or one citizen→target message).
+/// Email adressé à un décideur ou message d'un citoyen vers une cible.
 model SentEmail {
   id         String    @id @default(cuid())
   blastId    String?
@@ -501,10 +546,10 @@ model SentEmail {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mobilization: petitions, events, tasks (NationBuilder-style)
+// Mobilisation : pétitions, événements et tâches
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Public petition attached to a campaign (actionbutton.org style).
+/// Pétition publique rattachée à une campagne.
 model Petition {
   id          String   @id @default(cuid())
   workspaceId String
@@ -537,7 +582,7 @@ model PetitionSignature {
   @@map("petition_signatures")
 }
 
-/// Field event (meeting, door-knocking, training) with RSVPs.
+/// Événement de terrain avec suivi des participations.
 model Event {
   id          String   @id @default(cuid())
   workspaceId String
@@ -573,7 +618,7 @@ model EventRsvp {
   @@map("event_rsvps")
 }
 
-/// Follow-up task on a contact ("path" in NationBuilder terms).
+/// Tâche de suivi liée à un contact.
 model Task {
   id          String    @id @default(cuid())
   workspaceId String
@@ -596,7 +641,7 @@ model Task {
   @@map("tasks")
 }
 
-/// Collective, workspace-visible note on a contact (vs PrivateNote which is per-user).
+/// Note collective visible dans l'espace, à la différence d'une PrivateNote.
 model OrgNote {
   id        String   @id @default(cuid())
   contactId String
@@ -613,7 +658,7 @@ model OrgNote {
   @@map("org_notes")
 }
 
-/// Pending account requests (gated signups).
+/// Demandes de compte soumises à modération.
 model AccountRequest {
   id          String   @id @default(cuid())
   name        String
@@ -627,29 +672,31 @@ model AccountRequest {
   createdAt   DateTime @default(now())
 }
 
-/// Simple key-value app settings.
+/// Réglages applicatifs simples sous forme clé-valeur.
 model AppSetting {
   key    String @id
   value  String
 }
 
-/// Unified supporter database (NationBuilder-style "people"):
-/// every citizen who signs, emails a decision-maker or RSVPs.
+/// Base unifiée des soutiens : signataires, auteurs d'interpellations et personnes
+/// inscrites à un événement.
 model Supporter {
   id         String   @id @default(cuid())
-  workspaceId String?
+  workspaceId String
   email      String
   name       String
   city       String?
-  // interpellation | petition | event (first touchpoint; updated on re-engagement)
+  // interpellation | petition | event (premier point de contact)
   source     String?
-  // comma-separated manual tags for segmentation (NationBuilder-style lists)
+  // Étiquettes manuelles séparées par des virgules pour la segmentation
   tags       String?
   touchCount Int      @default(1)
   firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @default(now())
 
-  @@unique([email])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, email])
   @@index([workspaceId])
   @@index([workspaceId, source])
   @@index([lastSeenAt])

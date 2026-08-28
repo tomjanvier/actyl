@@ -1,9 +1,9 @@
 /**
  * Session management: signed JWT (jose) stored in an httpOnly cookie,
- * bcrypt password hashing, and multi-workspace session context.
+ * condensat bcrypt des mots de passe et contexte de session multi-espace.
  *
- * The middleware verifies the same JWT at the edge before any dashboard route;
- * `requireSession()` is the defense-in-depth guard inside server components.
+ * Le middleware vérifie le même JWT avant toute route privée ; `requireSession()`
+ * apporte une seconde protection dans les composants serveur.
  */
 import "server-only";
 import { cookies } from "next/headers";
@@ -80,7 +80,7 @@ export type SessionContext = {
   logoEmoji: string;
 };
 
-/** Returns the signed-in user + active workspace context, or null. */
+/** Retourne l'utilisateur connecté et son espace actif, ou null. */
 export async function getSession(): Promise<SessionContext | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
@@ -121,7 +121,7 @@ export async function getSession(): Promise<SessionContext | null> {
   };
 }
 
-/** Server-component guard: redirects to /sign-in when unauthenticated. */
+/** Protection serveur redirigeant vers /sign-in sans authentification. */
 export async function requireSession(): Promise<SessionContext> {
   const session = await getSession();
   if (!session) redirect("/sign-in");

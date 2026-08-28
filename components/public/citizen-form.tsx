@@ -16,7 +16,7 @@ export function CitizenForm({
   campaignSlug: string;
   defaultSubject: string;
   defaultBody: string;
-  /** Distinct territories of the campaign targets — powers region matching. */
+  /** Territoires distincts des cibles, utilisés pour rapprocher les régions. */
   regions?: string[];
 }) {
   const [name, setName] = useState("");

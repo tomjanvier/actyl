@@ -73,7 +73,6 @@ export function SupportersView({
   supporters,
   total,
   engaged,
-  globalCount,
   allTags,
   sources,
   pagination,
@@ -81,7 +80,6 @@ export function SupportersView({
   supporters: SupporterRow[];
   total: number;
   engaged: number;
-  globalCount: number;
   allTags: string[];
   sources: string[];
   pagination: { page: number; pageCount: number; total: number };
@@ -139,8 +137,10 @@ export function SupportersView({
           <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{engaged.toLocaleString("fr-FR")}</p>
         </div>
         <div className="rounded-xl border border-line bg-card p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Plateforme entière</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{(globalCount + total).toLocaleString("fr-FR")}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Taux multi-engagés</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">
+            {total ? Math.round((engaged / total) * 100) : 0}%
+          </p>
         </div>
       </div>
 
@@ -314,7 +314,7 @@ function BroadcastDialog({
   const [count, setCount] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
 
-  // Server-side count (source of truth) whenever the audience changes.
+  // Recompte côté serveur, source de vérité, après un changement d'audience.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -432,7 +432,7 @@ function TagEditor({
   const [saving, setSaving] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
-  // Sync the input when a different supporter is opened.
+  // Synchronise le champ lorsqu'un autre soutien est ouvert.
   if (supporter && supporter.id !== loadedFor) {
     setLoadedFor(supporter.id);
     setValue(parseTags(supporter.tags).join(", "));

@@ -2,8 +2,8 @@
  * Prisma client singleton.
  *
  * Next.js hot-reloads modules in development, which would otherwise create a
- * new database connection pool on every reload until Postgres refuses
- * connections. Storing the client on `globalThis` avoids that classic pitfall.
+ * créerait un nouveau groupe de connexions à chaque rechargement. Le stockage
+ * du client dans `globalThis` évite d'épuiser les connexions PostgreSQL.
  */
 import { PrismaClient } from "@prisma/client";
 

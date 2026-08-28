@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { CampaignHeader } from "@/components/campaigns/campaign-header";
 import { EmailsView } from "@/components/emails/emails-view";
+import { getCampaignAccess } from "@/lib/campaign-access";
 
 export const metadata = { title: "Interpellation" };
 
@@ -15,9 +16,14 @@ export default async function EmailsPage({
   const session = await requireSession();
   const { id } = await params;
 
-  const campaign = await db.campaign.findFirst({
-    where: { id, workspaceId: session.workspaceId },
-    include: { squads: { include: { group: true } } },
+  const access = await getCampaignAccess(id, session.workspaceId);
+  if (!access) notFound();
+  const campaign = await db.campaign.findUnique({
+    where: { id },
+    include: {
+      squads: { include: { group: true } },
+      shares: { include: { workspace: { select: { name: true } } } },
+    },
   });
   if (!campaign) notFound();
 
@@ -54,12 +60,12 @@ export default async function EmailsPage({
       },
     }),
     db.sentEmail.findMany({
-      where: { contact: { cards: { some: { id: campaign.id } } } },
+      where: { contact: { cards: { some: { campaignId: campaign.id } } } },
       select: { contactId: true, status: true, openedAt: true, senderName: true },
     }),
   ]);
 
-  // Per-target stats
+  // Agrège les statistiques par cible.
   const targetStats = new Map<
     string,
     { total: number; opened: number; citizens: Set<string> }
@@ -96,9 +102,16 @@ export default async function EmailsPage({
           status: campaign.status,
           priority: campaign.priority,
           dueDate: campaign.dueDate?.toISOString() ?? null,
+          pinned: access.owner ? campaign.pinned : (access.pinned ?? false),
           squads: campaign.squads.map((s) => ({ name: s.group.name, color: s.group.color })),
+          shares: campaign.shares.map((share) => ({
+            id: share.id,
+            workspaceName: share.workspace.name,
+            access: share.access,
+          })),
         }}
-        canEdit={can(session.role, "campaign:edit")}
+        canEdit={access.canContribute && can(session.role, "campaign:edit")}
+        canShare={access.owner && session.role === "ADMIN"}
       />
       <EmailsView
         campaignId={campaign.id}
@@ -135,8 +148,8 @@ export default async function EmailsPage({
           openRate: totals.sent ? Math.round((totals.opened / totals.sent) * 100) : 0,
           uniqueCitizens,
         }}
-        canSend={can(session.role, "email:send")}
-        canManageTemplates={can(session.role, "template:manage")}
+        canSend={access.canContribute && can(session.role, "email:send")}
+        canManageTemplates={access.canContribute && can(session.role, "template:manage")}
       />
     </>
   );

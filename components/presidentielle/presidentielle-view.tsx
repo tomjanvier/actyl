@@ -125,7 +125,7 @@ export function PresidentielleView({
   async function syncPack() {
     if (busy) return;
     setBusy("sync");
-    // Merge-only: adds missing candidates, never overwrites or removes.
+    // Ajoute les candidatures absentes sans écraser ni supprimer l'existant.
     const res = await syncPresidentiellePackAction();
     setBusy(null);
     if ("error" in res && res.error) {

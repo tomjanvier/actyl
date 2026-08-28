@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   SlidersHorizontal,
@@ -14,11 +14,6 @@ import {
   Download,
   Plug,
   Copy,
-  Users,
-  Landmark,
-  HeartHandshake,
-  Gift,
-  Megaphone,
   Mail,
   RefreshCw,
 } from "lucide-react";
@@ -41,7 +36,8 @@ import {
   setSignupModeAction,
   approveAccountRequestAction,
   rejectAccountRequestAction,
-  setExtendedDirectoryAction,
+  setSegmentFlagAction,
+  setPresidentielleEnabledAction,
   setNewsletterModuleAction,
   saveNewsletterSettingsAction,
   fetchNewsletterListsAction,
@@ -77,7 +73,8 @@ export function SettingsView({
   signupMode,
   pendingRequests,
   apiTokens,
-  extendedDirectory,
+  segments,
+  presidentielleEnabled,
   newsletter,
 }: {
   initialTab: string | null;
@@ -129,7 +126,8 @@ export function SettingsView({
     lastUsedAt: string | null;
     createdAt: string;
   }>;
-  extendedDirectory: boolean;
+  segments: { decisionMaker: boolean; members: boolean; volunteers: boolean; donors: boolean; supporters: boolean };
+  presidentielleEnabled: boolean;
   newsletter: {
     enabled: boolean;
     apiKeyMasked: string | null;
@@ -138,19 +136,17 @@ export function SettingsView({
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const [tab, setTab] = useState(initialTab === "profil" ? "profil" : "champs");
+  const [tab, setTab] = useState(initialTab === "profil" ? "profil" : initialTab ?? "modules");
 
-  function refresh() {
+  const refresh = useCallback(() => {
     startTransition(() => router.refresh());
-  }
+  }, [router]);
 
   return (
     <div className="px-6 py-4">
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="champs"><SlidersHorizontal /> Champs personnalisés</TabsTrigger>
-          <TabsTrigger value="annuaire"><Users /> Annuaire étendu</TabsTrigger>
-          <TabsTrigger value="newsletter"><Mail /> Newsletter</TabsTrigger>
+        <TabsList className="max-w-full overflow-x-auto">
+          <TabsTrigger value="modules"><SlidersHorizontal /> Modules</TabsTrigger>
           <TabsTrigger value="equipes"><UsersRound /> Équipes</TabsTrigger>
           <TabsTrigger value="membres"><ShieldCheck /> Membres & accès</TabsTrigger>
           <TabsTrigger value="import"><Download /> Importer les élus</TabsTrigger>
@@ -158,13 +154,15 @@ export function SettingsView({
           <TabsTrigger value="profil"><KeyRound /> Mon profil</TabsTrigger>
         </TabsList>
 
-        {/* ── Extended directory ── */}
-        <TabsContent value="annuaire" className="mt-5 outline-none">
-          <ExtendedDirectoryCard enabled={extendedDirectory} isAdmin={isAdmin} onChanged={refresh} />
-        </TabsContent>
-
-        {/* ── Newsletter module ── */}
-        <TabsContent value="newsletter" className="mt-5 outline-none">
+        <TabsContent value="modules" className="mt-5 space-y-6 outline-none">
+          <ModulesCard
+            segments={segments}
+            presidentielleEnabled={presidentielleEnabled}
+            newsletterEnabled={newsletter.enabled}
+            newsletterConfigured={!!newsletter.apiKeyMasked && !!newsletter.listId}
+            isAdmin={isAdmin}
+            onChanged={refresh}
+          />
           <NewsletterCard
             enabled={newsletter.enabled}
             apiKeyMasked={newsletter.apiKeyMasked}
@@ -172,10 +170,8 @@ export function SettingsView({
             isAdmin={isAdmin}
             onChanged={refresh}
           />
-        </TabsContent>
-
-        {/* ── Custom fields ── */}
-        <TabsContent value="champs" className="mt-5 outline-none">
+          <div>
+            <h2 className="mb-3 text-[15px] font-semibold text-fg">Champs personnalisés</h2>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
             <div className="overflow-hidden rounded-xl border border-line">
               <div className="flex h-10 items-center justify-between border-b border-line px-4">
@@ -227,9 +223,10 @@ export function SettingsView({
 
             {isAdmin && <CreateFieldForm onCreated={refresh} />}
           </div>
+          </div>
         </TabsContent>
 
-        {/* ── Groups ── */}
+        {/* ── Groupes ── */}
         <TabsContent value="equipes" className="mt-5 outline-none">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -294,11 +291,11 @@ export function SettingsView({
               )}
             </div>
 
-            {canManageGroups && <CreateGroupForm members={members} onCreated={refresh} />}
+            {canManageGroups && <CreateGroupForm onCreated={refresh} />}
           </div>
         </TabsContent>
 
-        {/* ── Members ── */}
+        {/* ── Membres ── */}
         <TabsContent value="membres" className="mt-5 outline-none">
           <AccountRequestsSection
             isAdmin={isAdmin}
@@ -378,7 +375,7 @@ export function SettingsView({
 
             <div className="flex flex-col gap-4">
               {isAdmin && <InviteMemberForm onInvited={refresh} />}
-              {/* Role legend */}
+              {/* Légende des rôles. */}
               <section className="rounded-xl border border-line bg-card p-4">
                 <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-faint">
                   Matrice des rôles
@@ -411,20 +408,19 @@ export function SettingsView({
           )}
         </TabsContent>
 
-        {/* ── Import officials ── */}
+        {/* ── Import des élus ── */}
         <TabsContent value="import" className="mt-5 outline-none">
           <ImportOfficials isAdmin={isAdmin} />
         </TabsContent>
 
-        {/* ── API & integrations ── */}
+        {/* ── API et intégrations ── */}
         <TabsContent value="api" className="mt-5 outline-none">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
             <ApiTokensCard tokens={apiTokens} isAdmin={isAdmin} onChanged={refresh} />
-            <ApiDocsCard />
           </div>
         </TabsContent>
 
-        {/* ── Profile ── */}
+        {/* ── Profil ── */}
         <TabsContent value="profil" className="mt-5 outline-none">
           <ProfileForm user={currentUser} />
         </TabsContent>
@@ -433,7 +429,125 @@ export function SettingsView({
   );
 }
 
-// ── Create custom field ─────────────────────────────────────────────────────
+function ModulesCard({
+  segments,
+  presidentielleEnabled,
+  newsletterEnabled,
+  newsletterConfigured,
+  isAdmin,
+  onChanged,
+}: {
+  segments: { decisionMaker: boolean; members: boolean; volunteers: boolean; donors: boolean; supporters: boolean };
+  presidentielleEnabled: boolean;
+  newsletterEnabled: boolean;
+  newsletterConfigured: boolean;
+  isAdmin: boolean;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const segmentLabels = [
+    ["members", "Adhérent·e·s"],
+    ["volunteers", "Bénévoles"],
+    ["donors", "Donateur·ice·s"],
+    ["supporters", "Soutiens"],
+  ] as const;
+
+  async function toggleSegment(segment: (typeof segmentLabels)[number][0]) {
+    if (!isAdmin) return;
+    setBusy(segment);
+    await setSegmentFlagAction(segment, !segments[segment]);
+    setBusy(null);
+    onChanged();
+  }
+
+  async function togglePack() {
+    if (!isAdmin) return;
+    if (presidentielleEnabled && !window.confirm(
+      "Désactiver le module Présidentielle 2027 ? Les contacts seront conservés et la liste ne sera plus publique.",
+    )) return;
+    setBusy("presidentielle");
+    const result = await setPresidentielleEnabledAction(!presidentielleEnabled);
+    setBusy(null);
+    if (result.error) toast.error(result.error);
+    else onChanged();
+  }
+
+  async function toggleNewsletter() {
+    if (!isAdmin) return;
+    setBusy("newsletter");
+    try {
+      await setNewsletterModuleAction(!newsletterEnabled);
+      onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Modification impossible");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="max-w-3xl overflow-hidden rounded-xl border border-line bg-card">
+      <div className="border-b border-line p-5">
+        <h2 className="text-[15px] font-semibold text-fg">Modules de l’espace</h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-mut">
+          Activez uniquement les briques utiles à votre équipe. Les décideurs restent toujours visibles.
+        </p>
+      </div>
+      <div className="divide-y divide-line">
+        <div className="p-5">
+          <p className="text-[13px] font-semibold text-fg">Champs personnalisés & annuaire</p>
+          <p className="mt-1 text-[12px] text-faint">Le schéma de contact commun reste disponible pour tous les espaces.</p>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="flex min-h-11 items-center justify-between rounded-lg border border-line bg-elev/30 px-3 text-[12.5px] text-mut">
+              Décideur·e·ses
+              <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-[10.5px] font-medium text-emerald-700 dark:text-emerald-300">
+                Toujours actif
+              </span>
+            </div>
+            {segmentLabels.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="switch"
+                aria-checked={segments[key]}
+                disabled={!isAdmin || busy !== null}
+                onClick={() => void toggleSegment(key)}
+                className="flex min-h-11 items-center justify-between rounded-lg border border-line px-3 text-left text-[12.5px] text-mut hover:bg-hover disabled:opacity-50"
+              >
+                {label}
+                <span className={cn("h-5 w-9 rounded-full p-0.5 transition-colors", segments[key] ? "bg-indigo-600" : "bg-elev ring-1 ring-inset ring-line")}>
+                  <span className={cn("block size-4 rounded-full bg-white transition-transform", segments[key] ? "translate-x-4" : "translate-x-0")} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex min-h-16 items-center justify-between gap-4 p-5">
+          <div>
+            <p className="text-[13px] font-semibold text-fg">Présidentielle 2027</p>
+            <p className="mt-1 text-[12px] text-faint">Installe et synchronise la liste de référence des candidat·e·s.</p>
+          </div>
+          <Button variant={presidentielleEnabled ? "default" : "outline"} size="sm" disabled={!isAdmin || busy !== null} onClick={() => void togglePack()}>
+            {busy === "presidentielle" ? <Loader2 className="animate-spin" /> : presidentielleEnabled ? "Activé" : "Activer"}
+          </Button>
+        </div>
+        <div className="flex min-h-16 items-center justify-between gap-4 p-5">
+          <div>
+            <p className="text-[13px] font-semibold text-fg">Newsletter / EmailOctopus</p>
+            <p className="mt-1 text-[12px] text-faint">
+              {newsletterConfigured ? "Connexion configurée." : "Configurez d’abord la clé API et la liste."}
+            </p>
+          </div>
+          <Button variant={newsletterEnabled ? "default" : "outline"} size="sm" disabled={!isAdmin || busy !== null || (!newsletterConfigured && !newsletterEnabled)} onClick={() => void toggleNewsletter()}>
+            {busy === "newsletter" ? <Loader2 className="animate-spin" /> : newsletterEnabled ? "Activée" : "Activer"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Création d'un champ personnalisé ─────────────────────────────────────────
 
 function CreateFieldForm({ onCreated }: { onCreated: () => void }) {
   const [state, action, pending] = useActionState<
@@ -446,7 +560,7 @@ function CreateFieldForm({ onCreated }: { onCreated: () => void }) {
       onCreated();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onCreated]);
 
   return (
     <form
@@ -478,13 +592,11 @@ function CreateFieldForm({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-// ── Create group + assign members ───────────────────────────────────────────
+// ── Création d'un groupe ─────────────────────────────────────────────────────
 
 function CreateGroupForm({
-  members,
   onCreated,
 }: {
-  members: Array<{ membershipId: string; userId: string; name: string; email: string; role: Role; groups: string[] }>;
   onCreated: () => void;
 }) {
   const [state, action, pending] = useActionState<
@@ -497,7 +609,7 @@ function CreateGroupForm({
       onCreated();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onCreated]);
 
   return (
     <form
@@ -532,7 +644,7 @@ function CreateGroupForm({
   );
 }
 
-// ── Invite member ───────────────────────────────────────────────────────────
+// ── Invitation d'un membre ───────────────────────────────────────────────────
 
 function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
   const [state, action, pending] = useActionState<
@@ -545,7 +657,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
       onInvited();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onInvited]);
 
   return (
     <form
@@ -555,7 +667,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
         <UserPlus className="size-4 text-indigo-700 dark:text-indigo-400" /> Inviter un membre
       </h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label className="mb-1 block">Email *</Label>
           <Input name="email" type="email" required />
@@ -593,7 +705,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
   );
 }
 
-// ── Profile ─────────────────────────────────────────────────────────────────
+// ── Profil ───────────────────────────────────────────────────────────────────
 
 function ProfileForm({
   user,
@@ -612,7 +724,7 @@ function ProfileForm({
       router.refresh();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, router]);
 
   return (
     <form action={action} className="max-w-md rounded-xl border border-line bg-card p-5">
@@ -651,7 +763,7 @@ const GROUP_DOT: Record<string, string> = {
   rose: "bg-rose-500",
 };
 
-// ── Import official directories ─────────────────────────────────────────────
+// ── Import des annuaires officiels ───────────────────────────────────────────
 
 const SOURCES: Array<{
   key: "an" | "senat" | "pe";
@@ -762,7 +874,7 @@ function ImportOfficials({ isAdmin }: { isAdmin: boolean }) {
 }
 
 
-// ── Account requests & signup mode ───────────────────────────────────────────
+// ── Demandes de compte et mode d'inscription ─────────────────────────────────
 
 function AccountRequestsSection({
   isAdmin,
@@ -883,7 +995,7 @@ function AccountRequestsSection({
   );
 }
 
-// ── API tokens ───────────────────────────────────────────────────────────────
+// ── Tokens API ───────────────────────────────────────────────────────────────
 
 function ApiTokensCard({
   tokens,
@@ -933,9 +1045,6 @@ function ApiTokensCard({
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
           <h3 className="text-[13.5px] font-semibold text-fg">Tokens API</h3>
-          <p className="text-[12px] text-faint">
-            Authentifient votre site WordPress (newsletter, pétitions, dons).
-          </p>
         </div>
       </div>
 
@@ -944,7 +1053,7 @@ function ApiTokensCard({
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nom du token (ex : Site WordPress)"
+            placeholder="Nom du token"
             maxLength={60}
           />
           <Button size="sm" disabled={busy || name.trim().length < 2} onClick={() => void create()}>
@@ -1017,101 +1126,7 @@ function ApiTokensCard({
   );
 }
 
-function ExtendedDirectoryCard({
-  enabled,
-  isAdmin,
-  onChanged,
-}: {
-  enabled: boolean;
-  isAdmin: boolean;
-  onChanged: () => void;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  async function toggle() {
-    if (busy || !isAdmin) return;
-    setBusy(true);
-    const { setExtendedDirectoryAction } = await import("@/app/actions/settings");
-    await setExtendedDirectoryAction(!enabled);
-    setBusy(false);
-    toast.success(enabled ? "Annuaire étendu désactivé" : "Annuaire étendu activé");
-    onChanged();
-  }
-
-  const segments = [
-    { icon: <Landmark className="size-4 text-indigo-700 dark:text-indigo-400" />, label: "Décideur·e·ses", desc: "Parlementaires, exécutifs, presse — le cœur lobbying (toujours actif)" },
-    { icon: <Users className="size-4 text-emerald-600 dark:text-emerald-400" />, label: "Adhérent·e·s", desc: "Membres de votre association, avec date et mode d'adhésion" },
-    { icon: <HeartHandshake className="size-4 text-rose-500 dark:text-rose-400" />, label: "Bénévoles", desc: "Engagés sur le terrain : disponibilités, missions, coordonnées" },
-    { icon: <Gift className="size-4 text-amber-600 dark:text-amber-400" />, label: "Donateur·ice·s", desc: "Historique des dons (API Givoly / HelloAsso) pour les reçus fiscaux" },
-    { icon: <Megaphone className="size-4 text-sky-600 dark:text-sky-400" />, label: "Soutiens", desc: "Newsletter, signataires de pétitions — alimentés via l'API WordPress" },
-  ];
-
-  return (
-    <div className={cn(
-      "rounded-xl border bg-card transition-colors",
-      enabled ? "border-indigo-500/40 ring-1 ring-inset ring-indigo-500/20" : "border-line",
-    )}>
-      <div className="flex items-start justify-between gap-4 border-b border-line p-5">
-        <div className="max-w-xl">
-          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-fg">
-            <Users className="size-4.5 text-indigo-700 dark:text-indigo-400" />
-            Annuaire étendu
-            {enabled && (
-              <span className="rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-300">
-                Actif
-              </span>
-            )}
-          </h2>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-mut">
-            Transformez Actyl en véritable CRM associatif : gérez vos
-            adhérent·e·s, bénévoles, donateur·ice·s et soutiens au même endroit
-            que vos décideurs. Le menu latéral affiche un filtre par segment,
-            et les inscriptions WordPress arrivent automatiquement dans la
-            bonne catégorie.
-          </p>
-        </div>
-        {/* Big switch */}
-        <button
-          role="switch"
-          aria-checked={enabled}
-          disabled={!isAdmin || busy}
-          onClick={() => void toggle()}
-          className={cn(
-            "relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50",
-            enabled ? "bg-indigo-600" : "bg-elev ring-1 ring-inset ring-line",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-1 size-5 rounded-full bg-white shadow transition-all",
-              enabled ? "left-6" : "left-1",
-            )}
-          />
-        </button>
-      </div>
-
-      <ul className="grid grid-cols-1 gap-x-6 gap-y-3 p-5 sm:grid-cols-2">
-        {segments.map((s) => (
-          <li key={s.label} className="flex items-start gap-3">
-            <span className="mt-0.5 rounded-lg bg-elev p-1.5">{s.icon}</span>
-            <div>
-              <p className="text-[13px] font-medium text-fg">{s.label}</p>
-              <p className="text-[11.5px] leading-relaxed text-faint">{s.desc}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      {!isAdmin && (
-        <p className="border-t border-line px-5 py-3 text-[12px] text-faint">
-          Seuls les administrateurs peuvent modifier ce réglage.
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ── Newsletter module (EmailOctopus) ─────────────────────────────────────────
+// ── Module newsletter EmailOctopus ───────────────────────────────────────────
 
 function NewsletterCard({
   enabled,
@@ -1204,7 +1219,7 @@ function NewsletterCard({
             répertoire. La synchronisation utilise l&apos;API v2 d&apos;EmailOctopus.
           </p>
         </div>
-        {/* Big switch */}
+        {/* Interrupteur principal. */}
         <button
           role="switch"
           aria-checked={enabled}
@@ -1279,36 +1294,6 @@ function NewsletterCard({
           Seuls les administrateurs peuvent modifier cette intégration.
         </p>
       )}
-    </div>
-  );
-}
-
-function ApiDocsCard() {
-  const snippet = `curl -X POST https://votre-domaine.fr/api/v1/supporters \\
-  -H "Authorization: Bearer actyl_…" \\
-  -H "Content-Type: application/json" \\
-  -d '{"email":"jean@exemple.fr","fullName":"Jean Martin",
-       "city":"Rennes","source":"newsletter",
-       "tags":["news-2026"]}'`;
-
-  return (
-    <div className="rounded-xl border border-line bg-card p-4">
-      <h3 className="text-[13.5px] font-semibold text-fg">Connecter WordPress</h3>
-      <ol className="mt-2 list-decimal space-y-1 pl-4 text-[12px] leading-relaxed text-faint">
-        <li>Créez un token ci-dessus.</li>
-        <li>Collez-le dans Réglages → PLAID·ACT de l&apos;extension.</li>
-        <li>
-          Endpoints : <code className="font-mono">POST /api/v1/supporters</code>{" "}
-          (newsletter),{" "}
-          <code className="font-mono">POST /api/v1/petitions/&#123;slug&#125;/signatures</code>{" "}
-          (Petitioner),{" "}
-          <code className="font-mono">POST /api/v1/donations</code> (Givoly),{" "}
-          <code className="font-mono">GET /api/v1/ping</code>.
-        </li>
-      </ol>
-      <pre className="mt-3 overflow-x-auto rounded-lg bg-elev p-3 font-mono text-[10.5px] leading-relaxed text-mut ring-1 ring-inset ring-line">
-        {snippet}
-      </pre>
     </div>
   );
 }

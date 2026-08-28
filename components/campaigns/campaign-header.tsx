@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Globe, Settings2 } from "lucide-react";
+import { CalendarDays, Globe, Settings2, Pin, Share2, X } from "lucide-react";
+import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
 import {
   CAMPAIGN_STATUSES,
@@ -13,7 +14,12 @@ import {
   type CampaignStatus,
   type Priority,
 } from "@/lib/constants";
-import { updateCampaignStatusAction } from "@/app/actions/campaigns";
+import {
+  shareCampaignAction,
+  removeCampaignShareAction,
+  toggleCampaignPinAction,
+  updateCampaignStatusAction,
+} from "@/app/actions/campaigns";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -26,6 +32,7 @@ import { Button } from "@/components/ui/button";
 export function CampaignHeader({
   campaign,
   canEdit,
+  canShare = false,
 }: {
   campaign: {
     id: string;
@@ -36,9 +43,12 @@ export function CampaignHeader({
     status: string;
     priority: string;
     dueDate: string | null;
+    pinned: boolean;
+    shares?: Array<{ id: string; workspaceName: string; access: string }>;
     squads: Array<{ name: string; color: string }>;
   };
   canEdit: boolean;
+  canShare?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -97,6 +107,42 @@ export function CampaignHeader({
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
+              {canShare && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Partager avec une organisation"
+                  onClick={() => {
+                    const workspaceSlug = window.prompt(
+                      "Slug de l’organisation destinataire (visible dans son URL) :",
+                    )?.trim();
+                    if (!workspaceSlug) return;
+                    const contribute = window.confirm(
+                      "Autoriser cette organisation à contribuer au kanban ?\n\nAnnuler = lecture seule.",
+                    );
+                    void shareCampaignAction({
+                      campaignId: campaign.id,
+                      workspaceSlug,
+                      access: contribute ? "CONTRIBUTE" : "VIEW",
+                    })
+                      .then((result) => {
+                        toast.success(`Campagne partagée avec ${result.workspaceName}`);
+                        startTransition(() => router.refresh());
+                      })
+                      .catch((error: Error) => toast.error(error.message));
+                  }}
+                >
+                  <Share2 />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                title={campaign.pinned ? "Désépingler la campagne" : "Épingler la campagne"}
+                onClick={() => void toggleCampaignPinAction(campaign.id, !campaign.pinned).then(() => startTransition(() => router.refresh()))}
+              >
+                <Pin className={cn(campaign.pinned && "fill-current text-amber-600")} />
+              </Button>
             </div>
             {campaign.description && (
               <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-faint line-clamp-2">
@@ -129,12 +175,32 @@ export function CampaignHeader({
                   {g.name}
                 </span>
               ))}
+              {canShare && campaign.shares?.map((share) => (
+                <span
+                  key={share.id}
+                  className="inline-flex items-center gap-1 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10.5px] text-sky-700 ring-1 ring-inset ring-sky-500/20 dark:text-sky-300"
+                >
+                  {share.workspaceName} · {share.access === "CONTRIBUTE" ? "contribution" : "lecture"}
+                  <button
+                    type="button"
+                    title="Retirer le partage"
+                    onClick={() => {
+                      if (!window.confirm(`Retirer le partage avec ${share.workspaceName} ?`)) return;
+                      void removeCampaignShareAction(share.id)
+                        .then(() => startTransition(() => router.refresh()))
+                        .catch((error: Error) => toast.error(error.message));
+                    }}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <nav className="flex items-center gap-1 rounded-lg bg-elev p-1 ring-1 ring-inset ring-line">
+        {/* Navigation interne de la campagne. */}
+        <nav className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-elev p-1 ring-1 ring-inset ring-line">
           <TabLink href={`/campaigns/${campaign.id}/kanban`} label="Kanban" />
           <TabLink href={`/campaigns/${campaign.id}/emails`} label="Interpellation" />
           <TabLink href={`/campaigns/${campaign.id}/mobilization`} label="Mobilisation" />
@@ -147,8 +213,7 @@ export function CampaignHeader({
 
 function TabLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
-  // Active while the current path starts with the tab route (keeps the state
-  // on sub-segments like /campaigns/{id}/signatures?page=2).
+  // Reste actif dans les sous-routes du même onglet.
   const active =
     pathname === href ||
     (pathname.startsWith(`${href}/`) && !pathname.slice(href.length + 1).includes("/"));

@@ -16,6 +16,7 @@ export type MergePerson = {
   firstName: string;
   lastName: string;
   email?: string | null;
+  photoUrl?: string | null;
   title?: string | null;
   institution?: string | null;
   party?: string | null;
@@ -63,6 +64,7 @@ function cleanPerson(p: MergePerson): MergePerson | null {
     firstName: firstName || "(?)",
     lastName,
     email: p.email?.trim() || null,
+    photoUrl: p.photoUrl?.trim() || null,
     title: p.title?.trim() || null,
     institution: p.institution?.trim() || null,
     party: p.party?.trim() || null,
@@ -73,14 +75,14 @@ function cleanPerson(p: MergePerson): MergePerson | null {
 }
 
 /**
- * Merge people into the given list without touching existing data.
- * Returns per-bucket counts so the UI can report exactly what happened.
+ * Fusionne les personnes dans la liste sans toucher aux données existantes.
+ * Les compteurs détaillés permettent à l'interface d'expliquer le résultat.
  */export async function mergePeopleIntoList(
   workspaceId: string,
   listId: string,
   people: MergePerson[],
 ): Promise<MergeStats> {
-  // Pre-index the workspace directory once (normalized keys).
+  // Indexe une seule fois l'annuaire de l'espace avec des clés normalisées.
   const existing = await db.contact.findMany({
     where: { workspaceId },
     select: { id: true, firstName: true, lastName: true, institution: true },
@@ -109,13 +111,14 @@ function cleanPerson(p: MergePerson): MergePerson | null {
     let contactId = index.get(key);
 
     if (!contactId) {
-      // Unknown person → create. Nothing pre-existing is overwritten.
+      // Crée uniquement une personne inconnue, sans écraser l'existant.
       const contact = await db.contact.create({
         data: {
           workspaceId,
           firstName: person.firstName,
           lastName: person.lastName,
           email: person.email,
+          photoUrl: person.photoUrl,
           title: person.title,
           institution: person.institution,
           party: person.party,
@@ -149,7 +152,7 @@ function cleanPerson(p: MergePerson): MergePerson | null {
 
 // ── CSV (collé ou fichier) ───────────────────────────────────────────────────
 
-/** Minimal CSV row parser handling quoted fields and doubled quotes. */
+/** Analyse une ligne CSV, y compris les champs cités et les guillemets doublés. */
 export function parseCsvLine(line: string, sep: string): string[] {
   const cols: string[] = [];
   let cur = "";
@@ -177,6 +180,7 @@ const HEADER_ALIASES: Record<keyof MergePerson | "level", string[]> = {
   firstName: ["prenom", "prénom", "firstname", "first_name", "givenname"],
   lastName: ["nom", "nomusuel", "lastname", "last_name", "familyname"],
   email: ["email", "courriel", "mail", "mel"],
+  photoUrl: ["photo", "photourl", "photo_url", "portrait"],
   title: ["fonction", "titre", "title", "qualite"],
   institution: ["institution", "organisation", "organisme"],
   party: ["parti", "partipolitique", "groupe", "mouvement"],
@@ -186,14 +190,14 @@ const HEADER_ALIASES: Record<keyof MergePerson | "level", string[]> = {
 };
 
 /**
- * Parse a pasted CSV / TSV into people. The first non-empty line must be a
- * header; column order is free, unknown columns are ignored.
+ * Convertit un CSV ou TSV collé en personnes. La première ligne non vide doit
+ * être un en-tête ; l'ordre est libre et les colonnes inconnues sont ignorées.
  */
 export function parseContactsCsv(text: string): MergePerson[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
   const headerLine = lines[0]!.trim();
-  // Detect separator: whichever symbol appears most in the header.
+  // Retient le séparateur le plus fréquent dans l'en-tête.
   const sepCounts: Array<[string, number]> = [
     [";", (headerLine.match(/;/g) ?? []).length],
     [",", (headerLine.match(/,/g) ?? []).length],
@@ -230,6 +234,7 @@ export function parseContactsCsv(text: string): MergePerson[] {
       firstName: get("firstName"),
       lastName: get("lastName"),
       email: get("email") || null,
+      photoUrl: get("photoUrl") || null,
       title: get("title") || null,
       institution: get("institution") || null,
       party: get("party") || null,
