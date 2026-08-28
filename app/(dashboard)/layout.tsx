@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
-import { getExtendedDirectory } from "@/lib/flags";
-import { PRESIDENTIELLE_SETTING_KEY } from "@/lib/datasets/presidentielle-2027";
+import { getPresidentielleEnabled, getSegmentsConfig } from "@/lib/flags";
 import { TooltipProvider } from "@/components/ui/controls";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -12,16 +11,26 @@ export default async function DashboardLayout({
 }) {
   const session = await requireSession();
 
-  const [memberships, extendedDirectory, presidentielleFlag] = await Promise.all([
+  const [memberships, segments, presidentielleEnabled, pinnedCampaigns] = await Promise.all([
     db.membership.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
       include: { workspace: { select: { id: true, name: true, slug: true, logoEmoji: true } } },
     }),
-    getExtendedDirectory(),
-    db.appSetting.findUnique({ where: { key: PRESIDENTIELLE_SETTING_KEY } }),
+    getSegmentsConfig(session.workspaceId),
+    getPresidentielleEnabled(session.workspaceId),
+    db.campaign.findMany({
+      where: {
+        OR: [
+          { workspaceId: session.workspaceId, pinned: true },
+          { shares: { some: { workspaceId: session.workspaceId, pinned: true } } },
+        ],
+      },
+      orderBy: { name: "asc" },
+      select: { id: true, slug: true, name: true, emoji: true },
+      take: 8,
+    }),
   ]);
-  const presidentielleEnabled = presidentielleFlag?.value === "on";
   const workspaces = memberships.map((m) => ({
     id: m.workspace.id,
     name: m.workspace.name,
@@ -30,8 +39,8 @@ export default async function DashboardLayout({
     role: m.role,
   }));
 
-  // One grouped query powers the sidebar segment counts.
-  const categoryCounts = extendedDirectory
+  // Une requête groupée alimente les compteurs de segments du menu.
+  const categoryCounts = segments
     ? await db.contact.groupBy({
         by: ["category"],
         where: { workspaceId: session.workspaceId },
@@ -56,18 +65,15 @@ export default async function DashboardLayout({
           workspaces={workspaces}
           userName={session.user.name}
           presidentielleEnabled={presidentielleEnabled}
-          directorySegments={
-            extendedDirectory
-              ? [
+          pinnedCampaigns={pinnedCampaigns}
+          directorySegments={[
                   { key: "", label: "Tout le répertoire", count: categoryCounts.reduce((n, c) => n + c._count._all, 0) },
                   { key: "DECISION_MAKER", label: "Décideur·e·ses", count: counts.DECISION_MAKER ?? 0 },
-                  { key: "MEMBER", label: "Adhérent·e·s", count: counts.MEMBER ?? 0 },
-                  { key: "VOLUNTEER", label: "Bénévoles", count: counts.VOLUNTEER ?? 0 },
-                  { key: "DONOR", label: "Donateur·ice·s", count: counts.DONOR ?? 0 },
-                  { key: "SUPPORTER", label: "Soutiens", count: counts.SUPPORTER ?? 0 },
-                ]
-              : undefined
-          }
+                  ...(segments.members ? [{ key: "MEMBER", label: "Adhérent·e·s", count: counts.MEMBER ?? 0 }] : []),
+                  ...(segments.volunteers ? [{ key: "VOLUNTEER", label: "Bénévoles", count: counts.VOLUNTEER ?? 0 }] : []),
+                  ...(segments.donors ? [{ key: "DONOR", label: "Donateur·ice·s", count: counts.DONOR ?? 0 }] : []),
+                  ...(segments.supporters ? [{ key: "SUPPORTER", label: "Soutiens", count: counts.SUPPORTER ?? 0 }] : []),
+                ]}
         />
         <main className="min-w-0 flex-1">{children}</main>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Mail,
@@ -30,7 +30,7 @@ import { SlideOver } from "@/components/ui/dialog";
 import { EntityAvatar } from "@/components/ui/badge";
 import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label, Switch } from "@/components/ui/controls";
+import { Label } from "@/components/ui/controls";
 import {
   Select,
   SelectContent,
@@ -68,8 +68,11 @@ export function ContactDrawer({
   const [tab, setTab] = useState("infos");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const refresh = useCallback(() => {
+    startTransition(() => router.refresh());
+  }, [router]);
 
-  // Reset tab when a new contact is opened
+  // Revient à la fiche lorsqu'un nouveau contact est ouvert.
   useEffect(() => {
     if (open) setTab("infos");
   }, [contact?.id, open]);
@@ -78,7 +81,7 @@ export function ContactDrawer({
 
   return (
     <SlideOver open={open} onOpenChange={onOpenChange}>
-      {/* Header */}
+      {/* En-tête */}
       <div className="border-b border-line px-6 pb-4 pt-5">
         <div className="flex items-start gap-3.5">
           <EntityAvatar name={fullName(contact)} color={contact.avatarColor} size="xl" photoUrl={contact.photoUrl} />
@@ -118,7 +121,7 @@ export function ContactDrawer({
               <EditForm
                 key={contact.id}
                 contact={contact}
-                onSaved={() => startTransition(() => router.refresh())}
+                onSaved={refresh}
               />
             ) : (
               <ReadonlyInfo contact={contact} fields={fields} />
@@ -130,7 +133,7 @@ export function ContactDrawer({
             <OrgNotesLayer
               contactId={contact.id}
               notes={orgNotes}
-              onSaved={() => startTransition(() => router.refresh())}
+              onSaved={refresh}
               isAdmin={canDelete}
             />
           </TabsContent>
@@ -141,13 +144,13 @@ export function ContactDrawer({
               contactId={contact.id}
               notes={myNotes}
               privateData={myPrivateData}
-              onSaved={() => startTransition(() => router.refresh())}
+              onSaved={refresh}
             />
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Footer actions */}
+      {/* Actions de bas de fiche */}
       {(canDelete || canEdit) && (
         <div className="flex items-center justify-between border-t border-line px-6 py-3">
           <span className="text-[11px] text-faint">
@@ -177,7 +180,7 @@ export function ContactDrawer({
   );
 }
 
-// ── Edit form ────────────────────────────────────────────────────────────────
+// ── Formulaire de modification ───────────────────────────────────────────────
 
 function EditForm({
   contact,
@@ -196,9 +199,9 @@ function EditForm({
       onSaved();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onSaved]);
   return (
-    <form action={action} className="grid grid-cols-2 gap-x-3 gap-y-3.5">
+    <form action={action} className="grid grid-cols-1 gap-x-3 gap-y-3.5 sm:grid-cols-2">
       <Field label="Prénom"><Input name="firstName" defaultValue={contact.firstName} required /></Field>
       <Field label="Nom"><Input name="lastName" defaultValue={contact.lastName} required /></Field>
       <Field label="Email"><Input name="email" type="email" defaultValue={contact.email ?? ""} /></Field>
@@ -230,19 +233,19 @@ function EditForm({
       <Field label="Score d'influence (1–5)">
         <Input name="influenceScore" type="number" min={1} max={5} defaultValue={contact.influenceScore} />
       </Field>
-      <div className="col-span-2 flex flex-col gap-1.5">
+      <div className="sm:col-span-2 flex flex-col gap-1.5">
         <Label>Bio / contexte</Label>
         <Textarea name="bio" defaultValue={contact.bio ?? ""} rows={3} />
       </div>
-      <div className="col-span-2 flex flex-col gap-1.5">
+      <div className="sm:col-span-2 flex flex-col gap-1.5">
         <Label>Thématiques d&apos;intérêt (séparées par des virgules)</Label>
         <Input name="themes" defaultValue={contact.themes ?? ""} placeholder="Climat, Énergie, Numérique…" />
       </div>
-      <div className="col-span-2 flex flex-col gap-1.5">
+      <div className="sm:col-span-2 flex flex-col gap-1.5">
         <Label>Photo (URL)</Label>
         <Input name="photoUrl" defaultValue={contact.photoUrl ?? ""} placeholder="https://…" />
       </div>
-      <div className="col-span-2 mt-1 flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2 sm:flex-nowrap">
         <SocialLinks contact={contact} />
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? "Enregistrement…" : "Enregistrer"}
@@ -290,7 +293,7 @@ function ReadonlyInfo({
       {contact.bio && (
         <p className="text-[13px] leading-relaxed text-mut">{contact.bio}</p>
       )}
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-3">
+      <dl className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2">
         {rows.filter(([, v]) => v).map(([k, v]) => (
           <div key={k}>
             <dt className="text-[11px] uppercase tracking-wider text-faint">{k}</dt>
@@ -298,7 +301,7 @@ function ReadonlyInfo({
           </div>
         ))}
         {!rows.some(([, v]) => v) && (
-          <p className="col-span-2 text-[13px] text-faint">Aucune coordonnée renseignée.</p>
+          <p className="text-[13px] text-faint sm:col-span-2">Aucune coordonnée renseignée.</p>
         )}
       </dl>
     </div>
@@ -335,7 +338,7 @@ function SocialLinks({ contact, large }: { contact: ContactRow; large?: boolean 
   );
 }
 
-// ── Private layer: notes + personal rating/tags ─────────────────────────────
+// ── Couche privée : notes, évaluation et étiquettes personnelles ─────────────
 
 function PrivateLayer({
   contactId,
@@ -359,12 +362,12 @@ function PrivateLayer({
   useEffect(() => {
     setRating(privateData?.rating ?? 0);
     setTags(privateData?.tags ?? "");
-  }, [contactId]);
+  }, [contactId, privateData?.rating, privateData?.tags]);
 
   useEffect(() => {
     if (noteState?.ok) onSaved();
     if (noteState?.error) toast.error(noteState.error);
-  }, [noteState]);
+  }, [noteState, onSaved]);
 
   async function savePrivate() {
     setSavingPriv(true);
@@ -473,7 +476,7 @@ function LevelBadge({ level }: { level: string }) {
   );
 }
 
-// ── Collective workspace notes ───────────────────────────────────────────────
+// ── Notes collectives de l'espace ────────────────────────────────────────────
 
 function OrgNotesLayer({
   contactId,

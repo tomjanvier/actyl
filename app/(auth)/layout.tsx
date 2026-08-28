@@ -1,6 +1,5 @@
 import { Landmark } from "lucide-react";
 import Link from "next/link";
-import { PlaidActCredit } from "@/components/layout/plaidact-credit";
 
 export default function AuthLayout({
   children,

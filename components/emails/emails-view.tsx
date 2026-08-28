@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Mail,
@@ -99,6 +99,9 @@ export function EmailsView({
   const [tab, setTab] = useState("envoyer");
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const refresh = useCallback(() => {
+    startTransition(() => router.refresh());
+  }, [router]);
 
   return (
     <div className="flex min-h-[calc(100vh-137px)] flex-col">
@@ -119,7 +122,7 @@ export function EmailsView({
               targets={targets}
               unjoinableCount={unjoinableCount}
               canSend={canSend}
-              onSent={() => startTransition(() => router.refresh())}
+              onSent={refresh}
             />
           </TabsContent>
 
@@ -129,7 +132,7 @@ export function EmailsView({
               campaignId={campaignId}
               templates={initialTemplates}
               canManage={canManageTemplates}
-              onChanged={() => startTransition(() => router.refresh())}
+              onChanged={refresh}
             />
           </TabsContent>
 
@@ -546,7 +549,7 @@ function CreateTemplateDialog({
   >(async (_prev, fd) => createTemplateAction(_prev, fd), undefined);
 
   useEffect(() => {
-    // bind campaignId via hidden input instead — handled below
+    // campaignId est transmis par le champ masqué traité ci-dessous.
   }, []);
 
   useEffect(() => {
@@ -556,7 +559,7 @@ function CreateTemplateDialog({
       onClose();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onClose, onCreated]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -612,7 +615,7 @@ function TemplateEditorDialog({
   useEffect(() => {
     setSubject(template?.subject ?? "");
     setBody(template?.body ?? "");
-  }, [template?.id]);
+  }, [template?.id, template?.body, template?.subject]);
 
   async function save() {
     if (!template || !subject.trim()) return;

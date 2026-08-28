@@ -51,6 +51,8 @@ export type CampaignCard = {
   allies: number;
   opponents: number;
   progress: number;
+  sharedBy: string | null;
+  shareAccess: string | null;
 };
 
 export function CampaignsView({
@@ -60,7 +62,6 @@ export function CampaignsView({
   campaigns: CampaignCard[];
   canCreate: boolean;
 }) {
-  const router = useRouter();
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
 
@@ -92,6 +93,11 @@ export function CampaignsView({
                     {c.name}
                   </h3>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    {c.sharedBy && (
+                      <span className="rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-inset ring-sky-500/20 dark:text-sky-300">
+                        Partagée par {c.sharedBy} · {c.shareAccess === "CONTRIBUTE" ? "contribution" : "lecture"}
+                      </span>
+                    )}
                     <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", statusMeta.badge)}>
                       {statusMeta.label}
                     </span>
@@ -114,7 +120,7 @@ export function CampaignsView({
                 </p>
               )}
 
-              {/* Progress bar */}
+              {/* Progression synthétique de la campagne. */}
               <div className="mt-4 flex items-center gap-2">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-elev">
                   <div
@@ -125,7 +131,7 @@ export function CampaignsView({
                 <span className="text-[11px] tabular-nums text-faint">{c.progress}%</span>
               </div>
 
-              <dl className="mt-3 grid grid-cols-4 gap-2 text-center">
+              <dl className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                 {[
                   { icon: Users, label: "Cibles", value: c.cardCount },
                   { icon: Trophy, label: "Gagnées", value: c.won },
@@ -192,7 +198,7 @@ const SQUAD_TINT: Record<string, string> = {
   rose: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/20",
 };
 
-// ── Create dialog ────────────────────────────────────────────────────────────
+// ── Fenêtre de création ──────────────────────────────────────────────────────
 
 function CreateCampaignDialog({
   open,
@@ -214,7 +220,7 @@ function CreateCampaignDialog({
       router.push(`/campaigns/${state.campaignId}/kanban`);
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onOpenChange, router]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -241,7 +247,7 @@ function CreateCampaignDialog({
             <Label>Description</Label>
             <Textarea name="description" rows={3} placeholder="Objectif, texte visé, stratégie…" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label>Priorité</Label>
               <Select name="priority" defaultValue="MEDIUM">

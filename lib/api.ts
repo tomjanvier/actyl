@@ -3,11 +3,11 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 
 /**
- * Public ingest API auth (/api/v1/*).
+ * Authentification de l'API publique d'ingestion (/api/v1/*).
  *
- * Tokens look like `actyl_<32 hex chars>`. Only a SHA-256 hash is stored, so a
- * DB leak never leaks usable credentials. Comparison is constant-time and the
- * prefix column lets users identify tokens in the UI without storing secrets.
+ * Les jetons suivent le format `actyl_<32 caractères hexadécimaux>`. Seul leur
+ * condensat SHA-256 est stocké. La comparaison est réalisée en temps constant
+ * et le préfixe permet l'identification sans conserver le secret.
  */
 const PREFIX = "actyl_";
 
@@ -30,8 +30,8 @@ export type ApiContext = {
 };
 
 /**
- * Resolve the Bearer token to its workspace. Returns null when missing,
- * malformed, revoked or unknown. Updates lastUsedAt opportunistically.
+ * Résout le jeton Bearer vers son espace. Retourne null s'il est absent, mal
+ * formé, révoqué ou inconnu, puis actualise lastUsedAt si possible.
  */
 export async function authenticateApiRequest(
   request: Request,
@@ -59,7 +59,7 @@ export async function authenticateApiRequest(
   return { workspaceId: token.workspaceId, tokenId: token.id };
 }
 
-/** Constant-time string comparison for non-token secrets. */
+/** Compare en temps constant les secrets qui ne sont pas des jetons. */
 export function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a);
   const bb = Buffer.from(b);
@@ -70,9 +70,9 @@ export function safeEqual(a: string, b: string): boolean {
 // ── HTTP helpers ─────────────────────────────────────────────────────────────
 
 /**
- * CORS for /api/v1/*: the WordPress plugin calls server-side (PHP) so CORS is
+ * CORS pour /api/v1/* : WordPress appelle l'API côté serveur, mais une utilisation
  * not required, but permissive read/preflight keeps browser-based integrations
- * possible without weakening auth (Bearer token still mandatory).
+ * côté navigateur reste possible sans affaiblir l'authentification Bearer.
  */
 export const apiCorsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",

@@ -28,7 +28,7 @@ export type ContactRow = {
   avatarColor: string;
   createdAt: string;
   updatedAt: string;
-  // Newsletter module (EmailOctopus) — present when the module is enabled.
+  // Statut EmailOctopus présent lorsque le module newsletter est actif.
   newsletterStatus?: string | null;
   newsletterSyncedAt?: string | null;
   customValues: Record<string, string>;

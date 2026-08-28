@@ -9,21 +9,11 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "setup": "prisma db push && tsx prisma/seed.ts"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "esbuild",
-      "prisma",
-      "sharp",
-      "unrs-resolver"
-    ]
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -4,19 +4,14 @@ import { db } from "@/lib/db";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Register (or refresh) a supporter in the unified people database.
- * Called from every public touchpoint — interpellation emails, petition
- * signatures and event RSVPs — so each engagement strengthens the relationship
- * instead of creating duplicates.
- *
- * Atomic upsert: safe under concurrent first-touch requests (no
- * find-then-create race). Tags accumulate instead of being overwritten.
+ * Enregistre ou actualise un soutien dans l'espace concerné. L'upsert atomique
+ * évite les doublons concurrents et cumule les tags déjà présents.
  */
 export async function upsertSupporter(input: {
   email: string;
   name: string;
   city?: string;
-  workspaceId?: string;
+  workspaceId: string;
   source?: string;
   tags?: string[];
 }): Promise<void> {
@@ -24,29 +19,28 @@ export async function upsertSupporter(input: {
   if (!EMAIL_RE.test(email)) return;
 
   await db.supporter.upsert({
-    where: { email },
+    where: { workspaceId_email: { workspaceId: input.workspaceId, email } },
     create: {
       email,
       name: input.name,
       city: input.city?.trim() || null,
-      workspaceId: input.workspaceId ?? null,
+      workspaceId: input.workspaceId,
       source: input.source ?? null,
       tags: input.tags?.length ? input.tags.join(",") : null,
     },
     update: {
       name: input.name || undefined,
       city: input.city?.trim() || undefined,
-      workspaceId: input.workspaceId ?? undefined,
       source: input.source ?? undefined,
       touchCount: { increment: 1 },
       lastSeenAt: new Date(),
       ...(input.tags?.length
         ? {
-            // Merge: keep existing manual/auto tags, add the new ones.
+            // Conserve les tags existants et ajoute les nouveaux.
             tags: {
               set: [
                 ...new Set(
-                  [await currentTags(email), ...input.tags]
+                  [await currentTags(input.workspaceId, email), ...input.tags]
                     .flatMap((t) => t.split(","))
                     .map((t) => t.trim())
                     .filter(Boolean),
@@ -59,15 +53,15 @@ export async function upsertSupporter(input: {
   });
 }
 
-async function currentTags(email: string): Promise<string> {
+async function currentTags(workspaceId: string, email: string): Promise<string> {
   const row = await db.supporter.findUnique({
-    where: { email },
+    where: { workspaceId_email: { workspaceId, email } },
     select: { tags: true },
   });
   return row?.tags ?? "";
 }
 
-/** Parse the comma-separated tag field into a clean list. */
+/** Convertit le champ de tags séparés par des virgules en liste propre. */
 export function parseTags(tags: string | null | undefined): string[] {
   return (tags ?? "")
     .split(",")

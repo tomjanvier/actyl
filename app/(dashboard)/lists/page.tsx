@@ -3,14 +3,24 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { PageHeader } from "@/components/layout/page-header";
 import { ListsView } from "@/components/lists/lists-view";
+import { REFERENCE_PACKS } from "@/lib/datasets/reference-packs";
 
 export const metadata = { title: "Listes partagées" };
+
+function proposalName(payload: string) {
+  try {
+    const parsed = JSON.parse(payload) as { firstName?: string; lastName?: string };
+    return [parsed.firstName, parsed.lastName].filter(Boolean).join(" ") || null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function ListsPage() {
   const session = await requireSession();
 
-  // Both queries are independent — run them concurrently.
-  const [lists, allContacts, listFields] = await Promise.all([
+  // Ces requêtes indépendantes sont exécutées en parallèle.
+  const [lists, allContacts, listFields, proposals] = await Promise.all([
     db.sharedList.findMany({
       where: { workspaceId: session.workspaceId },
       orderBy: [{ isPublished: "desc" }, { createdAt: "desc" }],
@@ -52,12 +62,24 @@ export default async function ListsPage() {
         avatarColor: true,
       },
     }),
-    // Attributes dedicated to a specific list.
+    // Attributs rattachés à une liste précise.
     db.customField.findMany({
       where: { workspaceId: session.workspaceId, NOT: { listId: null } },
       orderBy: { position: "asc" },
       select: { id: true, listId: true, label: true },
     }),
+    session.role === "ADMIN"
+      ? db.listChangeProposal.findMany({
+          where: { workspaceId: session.workspaceId, status: "PENDING" },
+          orderBy: { createdAt: "asc" },
+          take: 200,
+          include: {
+            list: { select: { name: true } },
+            author: { select: { name: true } },
+            contact: { select: { firstName: true, lastName: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const fieldIds = listFields.map((f) => f.id);
@@ -92,6 +114,7 @@ export default async function ListsPage() {
           name: l.name,
           description: l.description,
           isPublished: l.isPublished,
+          sourcePack: l.sourcePack,
           items: l.items.map((i) => ({ itemId: i.id, contact: i.contact })),
           attributes: (fieldsByList.get(l.id) ?? []).map((f) => ({
             id: f.id,
@@ -106,6 +129,21 @@ export default async function ListsPage() {
         allContacts={allContacts}
         canManage={can(session.role, "list:create")}
         canPublish={can(session.role, "list:publish")}
+        isAdmin={session.role === "ADMIN"}
+        referencePacks={REFERENCE_PACKS.map((pack) => ({
+          ...pack,
+          installed: lists.some((list) => list.sourcePack === pack.key),
+        }))}
+        proposals={proposals.map((proposal) => ({
+          id: proposal.id,
+          action: proposal.action,
+          listName: proposal.list.name,
+          authorName: proposal.author?.name ?? "Synchronisation publique",
+          contactName: proposal.contact
+            ? `${proposal.contact.firstName} ${proposal.contact.lastName}`
+            : proposalName(proposal.payload),
+          createdAt: proposal.createdAt.toISOString(),
+        }))}
       />
     </>
   );

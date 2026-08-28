@@ -4,15 +4,15 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { CampaignHeader } from "@/components/campaigns/campaign-header";
 import { SignaturesView } from "@/components/campaigns/signatures-view";
+import { getCampaignAccess } from "@/lib/campaign-access";
 
 export const metadata = { title: "Signataires" };
 
 const PAGE_SIZE = 100;
 
 /**
- * Back office for one campaign's petition: full signer list with server-side
- * pagination (100 per page), search, city filter, CSV export, conversion to
- * directory contacts and broadcast emailing.
+ * Liste des signatures d'une campagne avec pagination, recherche, filtres,
+ * export CSV, conversion en contacts et envoi groupé.
  */
 export default async function SignaturesPage({
   params,
@@ -26,8 +26,10 @@ export default async function SignaturesPage({
   const { q, city, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const campaign = await db.campaign.findFirst({
-    where: { id, workspaceId: session.workspaceId },
+  const access = await getCampaignAccess(id, session.workspaceId);
+  if (!access) notFound();
+  const campaign = await db.campaign.findUnique({
+    where: { id },
     select: {
       id: true,
       name: true,
@@ -37,7 +39,11 @@ export default async function SignaturesPage({
       status: true,
       priority: true,
       dueDate: true,
+      pinned: true,
       squads: { select: { group: { select: { name: true, color: true } } } },
+      shares: {
+        select: { id: true, access: true, workspace: { select: { name: true } } },
+      },
       petition: { select: { id: true, title: true, goal: true, isPublished: true } },
     },
   });
@@ -93,14 +99,21 @@ export default async function SignaturesPage({
           status: campaign.status,
           priority: campaign.priority,
           dueDate: campaign.dueDate?.toISOString() ?? null,
+          pinned: access.owner ? campaign.pinned : (access.pinned ?? false),
           squads: campaign.squads.map((s) => ({ name: s.group.name, color: s.group.color })),
+          shares: campaign.shares.map((share) => ({
+            id: share.id,
+            workspaceName: share.workspace.name,
+            access: share.access,
+          })),
         }}
-        canEdit={can(session.role, "campaign:edit")}
+        canEdit={access.canContribute && can(session.role, "campaign:edit")}
+        canShare={access.owner && session.role === "ADMIN"}
       />
       <SignaturesView
         campaignId={campaign.id}
         campaignSlug={campaign.slug}
-        canManage={can(session.role, "email:send")}
+        canManage={access.owner && can(session.role, "email:send")}
         petition={
           campaign.petition
             ? {

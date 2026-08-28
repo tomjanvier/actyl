@@ -7,23 +7,16 @@ import {
   Download,
   Search,
   Star,
-  StickyNote,
-  Mail,
   MailCheck,
   MailX,
   RefreshCw,
-  Phone,
-  Globe,
-  Twitter,
-  Linkedin,
   X,
-  Pencil,
   Vote,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { fullName, toCSV, downloadFile, timeAgo } from "@/lib/utils";
+import { fullName, toCSV, downloadFile } from "@/lib/utils";
 import {
   LEVELS,
   LEVEL_META,
@@ -76,7 +69,6 @@ export const NEWSLETTER_META: Record<string, { label: string; badge: string; dot
 
 export function ContactsView({
   contacts,
-  total,
   fields,
   notes,
   orgNotes,
@@ -89,7 +81,6 @@ export function ContactsView({
   pagination,
 }: {
   contacts: ContactRow[];
-  total: number;
   fields: CustomFieldLite[];
   notes: Array<{
     id: string;
@@ -133,7 +124,7 @@ export function ContactsView({
   const [importOpen, setImportOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Open create dialog via ⌘K action or ?new=1
+  // Ouvre la création depuis ⌘K ou le paramètre ?new=1.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("new") === "1") {
       setCreateOpen(true);
@@ -185,7 +176,7 @@ export function ContactsView({
       if (partyFilter && c.party !== partyFilter) return false;
       if (institutionFilter && c.institution !== institutionFilter) return false;
       if (newsletterFilter) {
-        // "SYNCED" matches any known status; otherwise exact match.
+        // « SYNCED » retient tout statut connu ; sinon la valeur doit être exacte.
         if (
           newsletterFilter === "SYNCED"
             ? !c.newsletterStatus
@@ -228,7 +219,7 @@ export function ContactsView({
     commissionField,
   ]);
 
-  // ── Newsletter bulk actions (module actif) ──
+  // ── Actions groupées de newsletter lorsque le module est actif ──
   const selectableIds = filtered.filter((c) => !!c.email).map((c) => c.id);
   const allChecked = selectableIds.length > 0 && selectableIds.every((id) => checked.has(id));
 
@@ -319,16 +310,16 @@ export function ContactsView({
 
   return (
     <div className="flex min-h-[calc(100vh-89px)] flex-col">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 px-6 py-3">
-        <div className="relative">
+      {/* Barre d'outils */}
+      <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:px-6">
+        <div className="relative w-full sm:w-auto">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
           <input
             id="contacts-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un décideur…"
-            className="h-9 w-64 rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-indigo-500/60"
+            className="h-9 w-full rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-indigo-500/60 sm:w-64"
           />
           {query && (
             <button
@@ -454,7 +445,7 @@ export function ContactsView({
           </span>
         )}
 
-        <span className="ml-auto flex items-center gap-2">
+        <span className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
           <Button variant="outline" size="sm" onClick={() => exportData("csv")}>
             <Download /> CSV
           </Button>
@@ -474,8 +465,8 @@ export function ContactsView({
         </span>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 px-6 pb-10">
+      {/* Tableau */}
+      <div className="flex-1 px-3 pb-10 sm:px-6">
         {filtered.length === 0 ? (
           <EmptyState
             icon={<Search className="size-5" />}
@@ -653,7 +644,7 @@ export function ContactsView({
   );
 }
 
-// ── Small pieces ─────────────────────────────────────────────────────────────
+// ── Composants auxiliaires ───────────────────────────────────────────────────
 
 function NewsletterBadge({ status }: { status: string | null }) {
   if (!status)
@@ -676,32 +667,6 @@ function NewsletterBadge({ status }: { status: string | null }) {
     </span>
   );
 }
-
-function Avatar({ name, color }: { name: string; color: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex size-7 shrink-0 select-none items-center justify-center rounded-lg text-[10px] font-medium text-white ring-1 ring-inset ring-white/10",
-        AVATAR_BG[color] ?? AVATAR_BG.indigo!,
-      )}
-    >
-      {name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("")}
-    </span>
-  );
-}
-
-const AVATAR_BG: Record<string, string> = {
-  slate: "bg-slate-600",
-  indigo: "bg-indigo-600",
-  emerald: "bg-emerald-600",
-  amber: "bg-amber-600",
-  rose: "bg-rose-600",
-  violet: "bg-violet-600",
-  sky: "bg-sky-600",
-  teal: "bg-teal-600",
-  orange: "bg-orange-600",
-  fuchsia: "bg-fuchsia-600",
-};
 
 function InfluenceDots({ score }: { score: number }) {
   return (

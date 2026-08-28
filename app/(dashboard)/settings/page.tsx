@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { ROLE_META, ROLES, can } from "@/lib/constants";
 import { getSignupMode } from "@/lib/signup-mode";
-import { getExtendedDirectory } from "@/lib/flags";
+import { getPresidentielleEnabled, getSegmentsConfig } from "@/lib/flags";
 import { getNewsletterConfig, maskApiKey } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
 import { SettingsView } from "@/components/settings/settings-view";
@@ -17,7 +17,17 @@ export default async function SettingsPage({
   const session = await requireSession();
   const { tab } = await searchParams;
 
-  const [fields, groups, memberships, apiTokens, extendedDirectory] =
+  const [
+    fields,
+    groups,
+    memberships,
+    apiTokens,
+    segments,
+    presidentielleEnabled,
+    newsletter,
+    requests,
+    signupMode,
+  ] =
     await Promise.all([
       db.customField.findMany({
         where: { workspaceId: session.workspaceId },
@@ -49,16 +59,14 @@ export default async function SettingsPage({
         where: { workspaceId: session.workspaceId },
         orderBy: { createdAt: "desc" },
       }),
-      getExtendedDirectory(),
-    ]);
-
-  const [requests, signupMode, newsletter] = await Promise.all([
+      getSegmentsConfig(session.workspaceId),
+      getPresidentielleEnabled(session.workspaceId),
+      getNewsletterConfig(session.workspaceId),
     db.accountRequest.findMany({
       where: { status: "PENDING" },
       orderBy: { createdAt: "desc" },
     }),
     getSignupMode(),
-    getNewsletterConfig(),
   ]);
 
   return (
@@ -131,7 +139,8 @@ export default async function SettingsPage({
           lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
           createdAt: t.createdAt.toISOString(),
         }))}
-        extendedDirectory={extendedDirectory}
+        segments={segments}
+        presidentielleEnabled={presidentielleEnabled}
         newsletter={{
           enabled: newsletter.enabled,
           apiKeyMasked: maskApiKey(newsletter.apiKey),

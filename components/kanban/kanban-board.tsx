@@ -671,7 +671,7 @@ function AddTargetDialog({
   );
 }
 
-// Minimal local modal shell (avoids extra Radix wiring here)
+// Fenêtre modale locale légère pour éviter un câblage Radix supplémentaire.
 function Dialogish({
   title,
   children,

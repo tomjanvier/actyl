@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { citizenSignAction } from "@/app/actions/mobilization";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Share, Link2, Mail, MessageCircle } from "lucide-react";
 

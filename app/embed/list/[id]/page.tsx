@@ -5,11 +5,11 @@ import { EmbedListTable } from "@/components/public/embed-list-table";
 import { PlaidActCredit } from "@/components/layout/plaidact-credit";
 
 /**
- * Public, iframe-friendly embed of a published shared list.
- * Usage: <iframe src="https://votre-domaine.fr/embed/list/{id}" />
+ * Intégration publique d'une liste publiée, compatible avec une iframe.
+ * Utilisation : <iframe src="https://votre-domaine.fr/embed/list/{id}" />
  *
- * Cached with ISR: repeated iframe loads hit the edge/HTTP cache instead of
- * the database; edits propagate within 5 minutes (or instantly via revalidate).
+ * Le cache ISR évite de solliciter la base à chaque chargement. Les modifications
+ * sont propagées sous cinq minutes ou immédiatement après revalidation.
  */
 export const revalidate = 300;
 

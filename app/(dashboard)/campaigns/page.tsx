@@ -11,7 +11,12 @@ export default async function CampaignsPage() {
   const session = await requireSession();
 
   const campaigns = await db.campaign.findMany({
-    where: { workspaceId: session.workspaceId },
+    where: {
+      OR: [
+        { workspaceId: session.workspaceId },
+        { shares: { some: { workspaceId: session.workspaceId } } },
+      ],
+    },
     orderBy: { createdAt: "desc" },
     include: {
       squads: { include: { group: { select: { name: true, color: true } } } },
@@ -27,6 +32,11 @@ export default async function CampaignsPage() {
           stage: { select: { kind: true, name: true } },
         },
       },
+      workspace: { select: { id: true, name: true } },
+      shares: {
+        where: { workspaceId: session.workspaceId },
+        select: { access: true, pinned: true },
+      },
     },
   });
 
@@ -36,7 +46,6 @@ export default async function CampaignsPage() {
       (k) => k.stage.kind === "POSITIVE" || k.stage.kind === "WON",
     ).length;
     const opponents = c.cards.filter((k) => k.stage.kind === "NEGATIVE").length;
-    const emails = c._count.blasts;
     return {
       id: c.id,
       name: c.name,
@@ -54,6 +63,8 @@ export default async function CampaignsPage() {
       allies,
       opponents,
       progress: c.cards.length ? Math.round((won / c.cards.length) * 100) : 0,
+      sharedBy: c.workspaceId === session.workspaceId ? null : c.workspace.name,
+      shareAccess: c.shares[0]?.access ?? null,
     };
   });
 

@@ -10,10 +10,17 @@ export type ImportedContact = {
   institution: string;
   party: string | null;
   region: string | null;
-  level: string; // NATIONAL | EU
+  level: string; // EU | NATIONAL | REGIONAL | LOCAL
 };
 
 const UA = { "User-Agent": "Actyl/1.0 (open-source advocacy CRM)" };
+
+function ensureMinimum(source: string, contacts: ImportedContact[], minimum: number) {
+  if (contacts.length < minimum) {
+    throw new Error(`${source} a renvoyé seulement ${contacts.length} entrées ; import interrompu`);
+  }
+  return contacts;
+}
 
 async function fetchWithTimeout(url: string, init?: RequestInit, ms = 60_000) {
   const controller = new AbortController();
@@ -41,7 +48,7 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
   const buf = new Uint8Array(await res.arrayBuffer());
   const files = unzipSync(buf);
 
-  // Organes: uid -> { codeType, libelle }
+  // Index des organes par identifiant pour retrouver les groupes politiques.
   const organes = new Map<string, { codeType: string; libelle: string }>();
   for (const [name, data] of Object.entries(files)) {
     if (!name.includes("/organe/") || !name.endsWith(".json")) continue;
@@ -71,7 +78,6 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
     const mandats: any[] =
       a?.mandats?.mandat ??
       (Array.isArray(a?.mandats) ? a.mandats : []);
-    let departement: string | null = null;
     let circo: string | null = null;
     let groupe: string | null = null;
     for (const m of mandats) {
@@ -85,17 +91,22 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
       }
       const lieu = m?.election?.lieu;
       if (lieu?.departement && lieu?.numCirco) {
-        departement = lieu.departement;
         circo = `${lieu.departement} — ${lieu.numCirco}ᵉ circonscription`;
       }
     }
 
+    const actorUid =
+      typeof a?.uid === "string"
+        ? a.uid
+        : typeof a?.uid?.["#text"] === "string"
+          ? a.uid["#text"]
+          : null;
     out.push({
       firstName: ident.prenom ?? "",
       lastName: ident.nom,
       email: extractEmail(a),
-      photoUrl: a?.uid
-        ? `https://www2.assemblee-nationale.fr/static/tribun/17/photos/${String(a.uid).replace(/^PA/, "")}.jpg`
+      photoUrl: actorUid
+        ? `https://www2.assemblee-nationale.fr/static/tribun/17/photos/${actorUid.replace(/^PA/, "")}.jpg`
         : null,
       title: "Député·e",
       institution: "Assemblée nationale",
@@ -104,7 +115,7 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
       level: "NATIONAL",
     });
   }
-  return out;
+  return ensureMinimum("Assemblée nationale", out, 400);
 }
 
 function extractEmail(a: any): string | null {
@@ -134,7 +145,6 @@ export async function importSenat(): Promise<ImportedContact[]> {
   const idx = (...names: string[]) =>
     headers.findIndex((h) => names.some((n) => h.toLowerCase() === n.toLowerCase()));
 
-  const iMat = idx("Matricule");
   const iNom = idx("Nom usuel");
   const iPrenom = idx("Prénom usuel");
   const iEtat = idx("État");
@@ -164,10 +174,10 @@ export async function importSenat(): Promise<ImportedContact[]> {
       level: "NATIONAL",
     });
   }
-  return out;
+  return ensureMinimum("Sénat", out, 250);
 }
 
-/** Minimal CSV line parser supporting quoted fields. */
+/** Analyse une ligne CSV et ses champs entre guillemets. */
 function parseCsvLine(line: string): string[] {
   const cols: string[] = [];
   let cur = "";
@@ -199,26 +209,34 @@ const LD = { Accept: "application/ld+json" };
 export async function importParlementEuropeen(
   onProgress?: (done: number, total: number) => void,
 ): Promise<ImportedContact[]> {
-  // 1) All term-10 MEP identifiers
-  const meps: Array<{ identifier: string; givenName?: string; familyName?: string }> = [];
+  // Charge d'abord les identifiants de la dixième législature.
+  const meps: Array<{
+    identifier: string;
+    givenName?: string;
+    familyName?: string;
+    politicalGroup?: string;
+  }> = [];
   for (let offset = 0; ; offset += 100) {
     const res = await fetchWithTimeout(
-      `${EP_BASE}/meps?parliamentary-term=10&limit=100&offset=${offset}`,
+      `${EP_BASE}/meps/show-current?limit=100&offset=${offset}`,
       { headers: LD },
       60_000,
     );
     if (!res.ok) throw new Error(`API Parlement européen indisponible (${res.status})`);
     const json = await res.json();
     const data: any[] = json?.data ?? [];
-    meps.push(...data.map((d) => ({
-      identifier: String(d.identifier),
-      givenName: d.givenName,
-      familyName: d.familyName,
-    })));
+    meps.push(...data
+      .filter((d) => d["api:country-of-representation"] === "FR")
+      .map((d) => ({
+        identifier: String(d.identifier),
+        givenName: d.givenName,
+        familyName: d.familyName,
+        politicalGroup: d["api:political-group"],
+      })));
     if (data.length < 100) break;
   }
 
-  // 2) Details per MEP (concurrency-limited)
+  // Charge ensuite les fiches détaillées par petits lots.
   const orgCache = new Map<string, string>();
   const results: ImportedContact[] = [];
   const BATCH = 12;
@@ -251,16 +269,13 @@ export async function importParlementEuropeen(
     for (const s of settled) {
       if (s.status !== "fulfilled" || !s.value?.data?.[0]) continue;
       const p = s.value.data[0];
-      // French members only (citizenship authority URI ends with FRA)
-      const citizenship: string = p.citizenship ?? "";
-      if (!citizenship.endsWith("/FRA")) continue;
-
+      // Ne conserve que les membres dont l'URI de citoyenneté se termine par FRA.
       const memberships: any[] = p.hasMembership ?? [];
       let euGroupOrg: string | null = null;
       let nationalGroupOrg: string | null = null;
       for (const mem of memberships) {
         const cls = mem?.membershipClassification ?? "";
-        if (mem?.memberDuring?.endDate) continue; // current only
+        if (mem?.memberDuring?.endDate) continue; // Mandats en cours uniquement.
         const orgId = typeof mem?.organization === "string" ? mem.organization : null;
         if (!orgId) continue;
         if (cls.includes("EU_POLITICAL_GROUP")) euGroupOrg ??= orgId;
@@ -280,7 +295,7 @@ export async function importParlementEuropeen(
         photoUrl: typeof p.img === "string" && p.img.startsWith("http") ? p.img : null,
         title: "Député·e européen·ne",
         institution: "Parlement européen",
-        party: party || group || null,
+        party: party || group || meps.find((m) => m.identifier === String(p.identifier))?.politicalGroup || null,
         region: "France",
         level: "EU",
       });
@@ -288,5 +303,141 @@ export async function importParlementEuropeen(
     done += batch.length;
     onProgress?.(done, meps.length);
   }
-  return results;
+  return ensureMinimum("Parlement européen", results, 50);
+}
+
+const RNE_DATASET_API =
+  "https://www.data.gouv.fr/api/1/datasets/repertoire-national-des-elus-1/";
+const PARIS_API =
+  "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/conseillers-de-paris/records";
+
+function normalizedHeader(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+}
+
+function pick(row: Record<string, string>, ...aliases: string[]) {
+  const entries = Object.entries(row);
+  const wanted = aliases.map(normalizedHeader);
+  return entries.find(([key]) => wanted.includes(normalizedHeader(key)))?.[1]?.trim() || null;
+}
+
+function localContact(
+  row: Record<string, string>,
+  level: string,
+  institution: string,
+  defaultTitle: string,
+): ImportedContact | null {
+  const firstName = pick(row, "Prénom", "Prénom usuel", "Prénom de l'élu", "prenom");
+  const lastName = pick(row, "Nom", "Nom usuel", "Nom de l'élu", "nom");
+  if (!firstName && !lastName) return null;
+  return {
+    firstName: firstName ?? "(?)",
+    lastName: lastName ?? "",
+    email: pick(row, "Email", "Courriel", "Mail"),
+    photoUrl: null,
+    title:
+      pick(
+        row,
+        "Fonction",
+        "Libellé de la fonction",
+        "fonction_dans_l_executif",
+        "Mandat",
+        "Qualité",
+      ) ?? defaultTitle,
+    institution,
+    party: pick(row, "Nuance", "Groupe politique", "Groupe"),
+    region: pick(
+      row,
+      "Région",
+      "Libellé de la région",
+      "Département",
+      "Libellé du département",
+      "Collectivité",
+      "Arrondissement",
+    ),
+    level,
+  };
+}
+
+function parseDelimited(text: string): Record<string, string>[] {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+  const delimiter = lines[0]!.includes(";") ? ";" : ",";
+  const parse = (line: string) => {
+    const output: string[] = [];
+    let value = "";
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i]!;
+      if (char === '"' && quoted && line[i + 1] === '"') {
+        value += '"';
+        i++;
+      } else if (char === '"') quoted = !quoted;
+      else if (char === delimiter && !quoted) { output.push(value); value = ""; }
+      else value += char;
+    }
+    output.push(value);
+    return output.map((item) => item.trim());
+  };
+  const headers = parse(lines[0]!);
+  return lines.slice(1).map((line) => {
+    const values = parse(line);
+    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
+  });
+}
+
+export async function importLocalElectedOfficials(kind: "regions" | "departements"): Promise<ImportedContact[]> {
+  const metadataResponse = await fetchWithTimeout(RNE_DATASET_API, {}, 60_000);
+  if (!metadataResponse.ok) {
+    throw new Error(`Catalogue du Répertoire national des élus indisponible (${metadataResponse.status})`);
+  }
+  const metadata = (await metadataResponse.json()) as {
+    resources?: Array<{ title?: string; url?: string; format?: string }>;
+  };
+  const marker = kind === "regions" ? "conseillers-regionaux" : "conseillers-departementaux";
+  const resource = metadata.resources?.find(
+    (entry) =>
+      entry.url &&
+      entry.format?.toLowerCase() === "csv" &&
+      normalizedHeader(entry.title ?? entry.url).includes(normalizedHeader(marker)),
+  );
+  if (!resource?.url) throw new Error(`Fichier RNE introuvable pour ${kind}`);
+
+  const response = await fetchWithTimeout(resource.url, {}, 180_000);
+  if (!response.ok) throw new Error(`Répertoire national des élus indisponible (${response.status})`);
+  const rows = parseDelimited(new TextDecoder("utf-8").decode(await response.arrayBuffer()));
+  const level = kind === "regions" ? "REGIONAL" : "LOCAL";
+  const institution = kind === "regions" ? "Conseil régional" : "Conseil départemental";
+  const defaultTitle =
+    kind === "regions" ? "Conseiller·ère régional·e" : "Conseiller·ère départemental·e";
+  const contacts = rows
+    .map((row) => localContact(row, level, institution, defaultTitle))
+    .filter((contact): contact is ImportedContact => !!contact);
+  return ensureMinimum(
+    `Répertoire national des élus (${kind})`,
+    contacts,
+    kind === "regions" ? 1_000 : 2_500,
+  );
+}
+
+export async function importParisCouncillors(): Promise<ImportedContact[]> {
+  const records: Array<Record<string, unknown>> = [];
+  for (let offset = 0; ; offset += 100) {
+    const url = new URL(PARIS_API);
+    url.searchParams.set("limit", "100");
+    url.searchParams.set("offset", String(offset));
+    const response = await fetchWithTimeout(url.toString(), {}, 60_000);
+    if (!response.ok) throw new Error(`Paris Data indisponible (${response.status})`);
+    const page = (await response.json()) as {
+      total_count?: number;
+      results?: Array<Record<string, unknown>>;
+    };
+    records.push(...(page.results ?? []));
+    if (records.length >= (page.total_count ?? 0) || !(page.results?.length)) break;
+  }
+  const contacts = records
+    .map((raw) => Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, String(value ?? "")])) as Record<string, string>)
+    .map((row) => localContact(row, "LOCAL", "Conseil de Paris", "Conseiller·ère de Paris"))
+    .filter((contact): contact is ImportedContact => !!contact);
+  return ensureMinimum("Paris Data", contacts, 120);
 }

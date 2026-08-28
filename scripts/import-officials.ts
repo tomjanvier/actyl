@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Importe les députés (AN), sénateurs et eurodéputés français dans le
  * workspace de démo. Usage : pnpm tsx scripts/import-officials.ts [an|senat|pe]

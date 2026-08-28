@@ -7,7 +7,7 @@ export type SignupMode = "OPEN" | "APPROVAL";
  * Signup mode resolution order:
  * 1. DB setting `signup_mode` (toggleable by admins at runtime)
  * 2. env SIGNUP_MODE
- * 3. default: OPEN
+ * 3. valeur par défaut : OPEN
  */
 export async function getSignupMode(): Promise<SignupMode> {
   try {

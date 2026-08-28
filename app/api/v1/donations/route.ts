@@ -19,7 +19,7 @@ const bodySchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   city: z.string().optional(),
-  // Amount in the currency's main unit (25.5) OR cents (2550).
+  // Montant dans l'unité principale (25,5) ou en centimes (2550).
   amount: z.number().nonnegative().optional(),
   amountCents: z.number().int().nonnegative().optional(),
   currency: z.string().length(3).optional(),
@@ -31,8 +31,8 @@ const bodySchema = z.object({
 
 /**
  * Record a donation (Givoly, HelloAsso, cheque logging…). Creates or enriches
- * the donor in the extended directory with DONOR category and keeps the
- * ledger for receipts / tax certificates.
+ * le donateur dans l'annuaire avec le segment DONOR et conserve la
+ * piste comptable nécessaire aux reçus et justificatifs fiscaux.
  *
  *   curl -X POST https://votre-domaine/api/v1/donations \
  *     -H "Authorization: Bearer actyl_…" -H "Content-Type: application/json" \

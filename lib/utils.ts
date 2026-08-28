@@ -29,9 +29,8 @@ export function slugify(input: string): string {
 }
 
 /**
- * Accent/case-insensitive normalization for fuzzy matching of French place
- * names ("Île-de-France" ≈ "ile de france"). Used to match a citizen's
- * region/city against decision-maker territories.
+ * Normalise les noms de lieux français sans tenir compte de la casse ni des
+ * accents afin de rapprocher le territoire d'un citoyen de celui d'une cible.
  */
 export function normalizeFr(input: string): string {
   return input

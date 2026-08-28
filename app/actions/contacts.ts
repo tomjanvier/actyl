@@ -1,13 +1,9 @@
 "use server";
 
 /**
- * Contacts: CRUD on decision-makers + the three-layer knowledge model:
- *   1. Shared fields (this file) — visible to the whole workspace
- *   2. Org notes (addOrgNoteAction) — collective, workspace-visible notes
- *   3. Private layer (notes/rating/tags) — strictly per-user
- *
- * Every mutation is permission-checked via `can(role, action)` and scoped to
- * the caller's active workspace to prevent cross-tenant access.
+ * Contacts et modèle de connaissance à trois niveaux : champs partagés,
+ * notes collectives et données privées propres à chaque membre.
+ * Chaque mutation vérifie les droits et l'espace actif de la session.
  */
 
 import { revalidatePath } from "next/cache";
@@ -15,6 +11,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
+import { proposeListChange } from "@/app/actions/list-proposals";
 
 const contactSchema = z.object({
   firstName: z.string().min(1, "Prénom requis").max(80),
@@ -52,7 +49,7 @@ export async function createContactAction(
   const d = parsed.data;
   const colorPool = ["indigo", "emerald", "amber", "rose", "violet", "sky", "teal", "orange", "fuchsia", "slate"];
 
-  // Extended directory: optional segment (validated against the known list).
+  // Segment facultatif validé dans la liste fermée des valeurs acceptées.
   const CATEGORY_VALUES = ["DECISION_MAKER", "MEMBER", "VOLUNTEER", "DONOR", "SUPPORTER"];
   const rawCategory = String(formData.get("category") ?? "");
   const category = CATEGORY_VALUES.includes(rawCategory) ? rawCategory : "DECISION_MAKER";
@@ -97,12 +94,30 @@ export async function updateContactAction(
   });
   if (!contact) return { error: "Contact introuvable" };
 
+  const referenceLists = await db.sharedList.findMany({
+    where: { workspaceId: session.workspaceId, sourcePack: { not: null }, items: { some: { contactId } } },
+    select: { id: true, name: true },
+  });
+
   const raw = Object.fromEntries(formData.entries());
   const parsed = contactSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
   }
   const d = parsed.data;
+  if (referenceLists.length && session.role !== "ADMIN") {
+    await Promise.all(referenceLists.map((referenceList) =>
+      proposeListChange({
+        listId: referenceList.id,
+        action: "UPDATE",
+        contactId,
+        payload: { ...d, note: "Modification proposée par un membre" },
+        reason: `Modification proposée dans « ${referenceList.name} »`,
+      }),
+    ));
+    revalidatePath("/lists");
+    return { ok: true };
+  }
   await db.contact.update({
     where: { id: contactId },
     data: {
@@ -131,13 +146,48 @@ export async function deleteContactAction(contactId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "campaign:delete")) throw new Error("Permission refusée");
+  const referenceLists = await db.sharedList.findMany({
+    where: {
+      workspaceId: session.workspaceId,
+      sourcePack: { not: null },
+      items: { some: { contactId } },
+    },
+    select: { id: true, name: true },
+  });
+  if (referenceLists.length && session.role !== "ADMIN") {
+    const contact = await db.contact.findFirst({
+      where: { id: contactId, workspaceId: session.workspaceId },
+      select: {
+        firstName: true,
+        lastName: true,
+        email: true,
+        title: true,
+        institution: true,
+        party: true,
+        region: true,
+        level: true,
+      },
+    });
+    if (!contact) throw new Error("Contact introuvable");
+    await Promise.all(referenceLists.map((list) =>
+      proposeListChange({
+        listId: list.id,
+        action: "REMOVE",
+        contactId,
+        payload: contact,
+        reason: `Suppression proposée depuis « ${list.name} »`,
+      }),
+    ));
+    revalidatePath("/lists");
+    return { proposed: referenceLists.length };
+  }
   await db.contact.deleteMany({
     where: { id: contactId, workspaceId: session.workspaceId },
   });
   revalidatePath("/contacts");
 }
 
-// ── Private layer (visible only to the author) ──────────────────────────────
+// ── Couche privée visible uniquement par l'auteur ───────────────────────────
 
 export async function addPrivateNoteAction(
   _prev: unknown,
@@ -189,7 +239,7 @@ export async function savePrivateDataAction(input: {
   return { ok: true };
 }
 
-// ── Collective workspace-level notes ─────────────────────────────────────────
+// ── Notes collectives de l'espace ────────────────────────────────────────────
 
 export async function addOrgNoteAction(
   _prev: unknown,
@@ -234,7 +284,7 @@ export async function deleteOrgNoteAction(noteId: string) {
   revalidatePath("/contacts");
 }
 
-// ── Election campaign team import ────────────────────────────────────────────
+// ── Import d'une équipe de campagne électorale ───────────────────────────────
 
 const ELECTION_TYPES = [
   "PRESIDENTIELLE",
@@ -266,9 +316,8 @@ export async function importCampaignTeamAction(input: {
   const party = input.party?.trim().slice(0, 120) || null;
   const region = input.region?.trim().slice(0, 80) || null;
 
-  // Parse the pasted roster: one person per line, fields separated by ; | tab
-  // or em/en dash. Expected shape: "Prénom Nom — Fonction — email" (email &
-  // function optional). Phone in 4th position is picked up when present.
+  // Analyse une personne par ligne, avec des champs séparés par point-virgule,
+  // tabulation ou tiret. La fonction, l'email et le téléphone restent facultatifs.
   const lines = input.roster.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (!lines.length) return { error: "Collez au moins une ligne." };
   if (lines.length > 300) return { error: "300 personnes maximum par import." };
@@ -285,12 +334,12 @@ export async function importCampaignTeamAction(input: {
       .filter(Boolean);
     if (!parts.length) continue;
 
-    // Name is everything before the first email-like token.
+    // Le nom correspond au premier champ avant une éventuelle adresse email.
     const emailIdx = parts.findIndex((p) => EMAIL_RE.test(p));
     const namePart = (emailIdx === -1 ? parts[0]! : parts.slice(0, emailIdx).join(" ")).trim();
     const email = emailIdx === -1 ? null : parts[emailIdx]!.toLowerCase();
 
-    // Function: first non-name, non-email token.
+    // La fonction est le premier champ distinct du nom et de l'email.
     const fn = parts.find(
       (p, i) => i !== 0 && p !== parts[emailIdx!] && !EMAIL_RE.test(p),
     );

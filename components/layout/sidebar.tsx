@@ -18,6 +18,8 @@ import {
   CalendarDays,
   HeartHandshake,
   Vote,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { switchWorkspaceAction, signOutAction } from "@/app/actions/auth";
@@ -49,31 +51,22 @@ export type DirectorySegment = {
   count: number;
 };
 
-const HINTS: Record<string, string> = {
-  "/contacts": "Annuaire des décideurs",
-  "/campaigns": "Pipelines & interpellations",
-  "/tasks": "Relances & suivis",
-  "/supporters": "Base citoyenne engagée",
-  "/events": "Réunions & RSVP",
-  "/presidentielle": "Candidat·e·s & liste publique",
-  "/lists": "Annuaires publiés",
-  "/settings": "Champs, équipes, membres",
-};
-
 export function Sidebar({
   workspace,
   workspaces,
   userName,
   directorySegments,
   presidentielleEnabled = false,
+  pinnedCampaigns = [],
 }: {
   workspace: WorkspaceOption;
   workspaces: WorkspaceOption[];
   userName: string;
-  /** Present when the extended directory flag is on (associations). */
+  /** Segments actifs de l'annuaire. */
   directorySegments?: DirectorySegment[];
-  /** Présidentielle 2027 pack module is active for this workspace. */
+  /** Indique si le module Présidentielle 2027 est actif. */
   presidentielleEnabled?: boolean;
+  pinnedCampaigns?: Array<{ id: string; slug: string; name: string; emoji: string }>;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -81,8 +74,9 @@ export function Sidebar({
   const searchCategory = searchParams.get("category") ?? "";
   const [collapsed, setCollapsed] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Nav is built per-render so optional modules slot in at the right place.
+  // Construit le menu avec les modules actifs de l'espace.
   const nav = useMemo(() => {
     const base: Array<{ href: string; label: string; icon: typeof Users }> = [
       { href: "/contacts", label: "Contacts", icon: Users },
@@ -120,14 +114,32 @@ export function Sidebar({
   }
 
   return (
+    <>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        className="fixed left-3 top-3 z-40 md:hidden"
+        aria-label="Ouvrir le menu"
+        onClick={() => {
+          setCollapsed(false);
+          setMobileOpen(true);
+        }}
+      >
+        <Menu />
+      </Button>
+      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setMobileOpen(false)} />}
     <aside
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-line bg-sidebar transition-[width] duration-200",
-        collapsed ? "w-[56px]" : "w-[228px]",
+        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-line bg-sidebar transition-[width] duration-200 max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:w-[min(86vw,300px)] max-md:shadow-2xl",
+        !mobileOpen && "max-md:-translate-x-full",
+        collapsed ? "w-[56px] max-md:!w-[min(86vw,300px)]" : "w-[228px]",
       )}
     >
       {/* Workspace switcher */}
       <div className={cn("flex items-center gap-2 px-3 pb-2 pt-4", collapsed && "justify-center px-0")}>
+        <Button variant="ghost" size="icon-sm" className="ml-auto md:hidden" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu">
+          <X />
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -180,6 +192,7 @@ export function Sidebar({
             <div key={item.href} className="w-full">
               <Link
                 href={item.href}
+                onClick={() => setMobileOpen(false)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors",
@@ -192,6 +205,21 @@ export function Sidebar({
                 <item.icon className={cn("size-4 shrink-0", active && "text-indigo-700 dark:text-indigo-400")} />
                 {!collapsed && item.label}
               </Link>
+              {item.href === "/campaigns" && !collapsed && pinnedCampaigns.length > 0 && (
+                <div className="mb-1 ml-[26px] mt-0.5 flex flex-col border-l border-line pl-2">
+                  {pinnedCampaigns.map((campaign) => (
+                    <Link
+                      key={campaign.id}
+                      href={`/campaigns/${campaign.slug}`}
+                      className="flex min-h-8 items-center gap-1.5 truncate rounded-md px-2 text-[11.5px] text-faint hover:bg-elev hover:text-mut"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <span>{campaign.emoji}</span>
+                      <span className="truncate">{campaign.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
               {showSegments && !collapsed && (
                 <div className="mb-1 ml-[26px] mt-0.5 flex flex-col border-l border-line pl-2">
                   {directorySegments!.map((seg) => {
@@ -302,5 +330,6 @@ export function Sidebar({
         <div className="pointer-events-none absolute inset-y-0 left-0 right-0 bg-black/20" />
       )}
     </aside>
+    </>
   );
 }

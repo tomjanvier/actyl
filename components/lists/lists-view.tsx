@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Globe, Trash2, Users, X, Search, Code2, Tag, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +30,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/controls";
 import { EntityAvatar } from "@/components/ui/badge";
 import { STANCE_META } from "@/lib/constants";
+import { installReferencePackAction } from "@/app/actions/import";
+import { approveListChangeProposalAction, rejectListChangeProposalAction } from "@/app/actions/list-proposals";
+import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 
 type ActionRes = { error?: string; ok?: boolean };
 
@@ -38,11 +41,17 @@ export function ListsView({
   allContacts,
   canManage,
   canPublish,
+  isAdmin,
+  referencePacks,
+  proposals,
 }: {
   lists: ListWithItems[];
   allContacts: ContactLite[];
   canManage: boolean;
   canPublish: boolean;
+  isAdmin: boolean;
+  referencePacks: Array<{ key: ReferencePackKey; name: string; description: string; expected: string; installed: boolean }>;
+  proposals: Array<{ id: string; action: string; listName: string; authorName: string; contactName: string | null; createdAt: string }>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -50,12 +59,52 @@ export function ListsView({
   const [addOpenFor, setAddOpenFor] = useState<string | null>(null);
   const [importOpenFor, setImportOpenFor] = useState<string | null>(null);
 
-  function refresh() {
+  const refresh = useCallback(() => {
     startTransition(() => router.refresh());
-  }
+  }, [router]);
 
   return (
-    <div className="grid grid-cols-1 gap-4 px-6 py-5 lg:grid-cols-2 xl:grid-cols-3">
+    <div className="space-y-5 px-6 py-5">
+      <section className="rounded-xl border border-line bg-card p-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[14px] font-semibold text-fg">Packs de référence disponibles</h2>
+            <p className="mt-1 text-[12px] text-faint">Installez explicitement les sources utiles à cet espace. Rien n’est ajouté automatiquement.</p>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {referencePacks.map((pack) => (
+            <div key={pack.key} className="rounded-lg border border-line p-3">
+              <p className="text-[12.5px] font-medium text-fg">{pack.name}</p>
+              <p className="mt-1 text-[11px] text-faint">{pack.description} · {pack.expected}</p>
+              <Button size="sm" variant={pack.installed ? "outline" : "default"} className="mt-3 w-full" disabled={!isAdmin} onClick={() => void installReferencePackAction(pack.key).then((result) => { if (result.error) toast.error(result.error); else { toast.success(pack.installed ? "Pack resynchronisé" : "Pack installé"); refresh(); } })}>
+                {pack.installed ? "Resync le pack" : "Installer"}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </section>
+      {isAdmin && proposals.length > 0 && (
+        <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-4">
+          <h2 className="text-[14px] font-semibold text-fg">Propositions à valider ({proposals.length})</h2>
+          <div className="mt-3 divide-y divide-line rounded-lg border border-line bg-card">
+            {proposals.map((proposal) => (
+              <div key={proposal.id} className="flex flex-wrap items-center gap-3 p-3">
+                <div className="min-w-0 flex-1 text-[12px] text-mut">
+                  <span className="font-medium text-fg">{proposal.action === "ADD" ? "Ajouter" : proposal.action === "REMOVE" ? "Retirer" : "Mettre à jour"}</span>{" "}
+                  {proposal.contactName ?? "un contact"} dans « {proposal.listName} »
+                  <span className="ml-1 text-faint">— par {proposal.authorName}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => void approveListChangeProposalAction(proposal.id).then(refresh).catch((error: Error) => toast.error(error.message))}>Valider</Button>
+                  <Button size="sm" variant="outline" onClick={() => void rejectListChangeProposalAction(proposal.id).then(refresh).catch((error: Error) => toast.error(error.message))}>Refuser</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
       {lists.length === 0 && (
         <div className="col-span-full">
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line px-6 py-14 text-center">
@@ -88,6 +137,11 @@ export function ListsView({
                 {list.isPublished && (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
                     <Globe className="size-3" /> Publiée
+                  </span>
+                )}
+                {list.sourcePack && (
+                  <span className="inline-flex shrink-0 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-sky-700 ring-1 ring-inset ring-sky-500/20 dark:text-sky-400">
+                    Pack de référence
                   </span>
                 )}
               </div>
@@ -132,17 +186,29 @@ export function ListsView({
                   {fullName(contact)}
                   <span className="text-faint"> · {contact.title ?? contact.institution ?? "—"}</span>
                 </span>
-                {/* Dedicated attribute values (read-only chips) */}
+                {/* Valeurs des attributs propres à la liste. */}
                 {(list.attributes ?? []).slice(0, 2).map((a) => {
                   const v = list.values?.[`${contact.id}:${a.id}`];
-                  return v ? (
-                    <span
+                  return v || canManage ? (
+                    <button
                       key={a.id}
-                      title={`${a.label} : ${v}`}
+                      type="button"
+                      title={v ? `${a.label} : ${v}` : `Renseigner ${a.label}`}
                       className="hidden max-w-28 truncate rounded-md bg-elev px-1.5 py-0.5 text-[10.5px] text-mut ring-1 ring-inset ring-line lg:block"
+                      onClick={() => {
+                        if (!canManage) return;
+                        const value = window.prompt(a.label, v ?? "");
+                        if (value === null) return;
+                        void setListItemAttrAction({
+                          listId: list.id,
+                          contactId: contact.id,
+                          fieldId: a.id,
+                          value,
+                        }).then(refresh);
+                      }}
                     >
-                      {v}
-                    </span>
+                      {v || `+ ${a.label}`}
+                    </button>
                   ) : null;
                 })}
                 <StanceDot stance={contact.stance} />
@@ -209,7 +275,7 @@ export function ListsView({
         </article>
       ))}
 
-      {/* Create dialog */}
+      {/* Fenêtre de création. */}
       <CreateListDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={refresh} />
 
       {/* Add contacts dialog */}
@@ -220,7 +286,7 @@ export function ListsView({
         onAdded={refresh}
       />
 
-      {/* CSV import (merge-only, never overwrites existing items) */}
+      {/* Import CSV par fusion, sans écrasement de l'existant. */}
       {lists.filter((l) => l.id === importOpenFor).map((l) => (
         <ImportListDialog
           key={l.id}
@@ -237,11 +303,12 @@ export function ListsView({
           Mise à jour…
         </div>
       )}
+      </div>
     </div>
   );
 }
 
-// ── Pieces ───────────────────────────────────────────────────────────────────
+// ── Composants auxiliaires ───────────────────────────────────────────────────
 
 function Dropdownish({
   canManage,
@@ -348,7 +415,7 @@ function CreateListDialog({
       onCreated();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onCreated, onOpenChange]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -414,9 +481,9 @@ function AddContactsDialog({
   async function confirm() {
     if (!list || !selected.length) return;
     setSaving(true);
-    await addContactsToListAction({ listId: list.id, contactIds: selected });
+    const result = await addContactsToListAction({ listId: list.id, contactIds: selected });
     setSaving(false);
-    toast.success(`${selected.length} contact(s) ajouté(s)`);
+    toast.success(result?.proposed ? `${result.proposed} proposition(s) envoyée(s) à l’administrateur` : `${selected.length} contact(s) ajouté(s)`);
     onAdded();
     onClose();
   }

@@ -47,6 +47,7 @@ export function can(role: Role | undefined, action: string): boolean {
     MEMBER: [
       "card:create", "card:move", "card:edit",
       "contact:create", "contact:edit",
+      "list:create", "list:edit",
       "note:add",
     ],
     OBSERVER: [],
@@ -55,7 +56,7 @@ export function can(role: Role | undefined, action: string): boolean {
   return perms.includes("*") || perms.includes(action);
 }
 
-// ── Contact taxonomy ─────────────────────────────────────────────────────────
+// ── Taxonomie des contacts ───────────────────────────────────────────────────
 
 export const LEVELS = [
   "EU", "NATIONAL", "REGIONAL", "LOCAL",

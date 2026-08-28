@@ -1,0 +1,243 @@
+import "server-only";
+
+import { db } from "@/lib/db";
+import { PRESIDENTIELLE_LISTS } from "@/lib/datasets/presidentielle-2027";
+import { REFERENCE_PACKS, type ReferencePackKey } from "@/lib/datasets/reference-packs";
+import {
+  importAssembleeNationale,
+  importLocalElectedOfficials,
+  importParlementEuropeen,
+  importParisCouncillors,
+  importSenat,
+  type ImportedContact,
+} from "@/lib/importers/officials";
+import { norm, type MergePerson } from "@/lib/lists-import";
+
+const MINIMUM_SOURCE_SIZE: Record<ReferencePackKey, number> = {
+  deputes: 400,
+  senateurs: 250,
+  europeennes: 50,
+  "presidentielle-2027": 1,
+  paris: 120,
+  regions: 1_000,
+  departements: 2_500,
+};
+
+function identity(person: Pick<MergePerson, "firstName" | "lastName" | "institution">) {
+  return `${norm(person.firstName)}|${norm(person.lastName)}|${norm(person.institution)}`;
+}
+
+function toPeople(pack: ReferencePackKey, contacts: ImportedContact[]): MergePerson[] {
+  return contacts.map((contact) => ({
+    ...contact,
+    note: `Synchronisation source publique — ${pack}`,
+  }));
+}
+
+async function fetchPack(pack: ReferencePackKey): Promise<MergePerson[]> {
+  let people: MergePerson[];
+  if (pack === "presidentielle-2027") {
+    people = PRESIDENTIELLE_LISTS.flatMap((list) =>
+      list.people.map((person) => ({
+        firstName: person.firstName,
+        lastName: person.lastName,
+        title: person.title,
+        institution: "Présidentielle 2027",
+        party: person.party,
+        level: "NATIONAL",
+        note: `Synchronisation source publique — ${pack}`,
+      })),
+    );
+  } else {
+    const contacts =
+      pack === "deputes"
+        ? await importAssembleeNationale()
+        : pack === "senateurs"
+          ? await importSenat()
+          : pack === "europeennes"
+            ? await importParlementEuropeen()
+            : pack === "paris"
+              ? await importParisCouncillors()
+              : await importLocalElectedOfficials(
+                  pack === "regions" ? "regions" : "departements",
+                );
+    people = toPeople(pack, contacts);
+  }
+
+  const unique = new Map<string, MergePerson>();
+  for (const person of people) unique.set(identity(person), person);
+  const result = [...unique.values()];
+  if (result.length < MINIMUM_SOURCE_SIZE[pack]) {
+    throw new Error(
+      `Source ${pack} anormalement incomplète (${result.length} entrées) ; aucune proposition créée`,
+    );
+  }
+  return result;
+}
+
+type CurrentContact = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  photoUrl: string | null;
+  title: string | null;
+  institution: string | null;
+  party: string | null;
+  region: string | null;
+  level: string;
+};
+
+function changed(person: MergePerson, contact: CurrentContact) {
+  return (["firstName", "lastName", "email", "photoUrl", "title", "institution", "party", "region", "level"] as const)
+    .some((field) => String(person[field] ?? "") !== String(contact[field] ?? ""));
+}
+
+/** Compare une liste à sa source et crée uniquement des propositions à valider. */
+export async function syncReferenceListProposals(
+  listId: string,
+  workspaceId: string,
+  pack: ReferencePackKey,
+  sourcePeople?: MergePerson[],
+) {
+  const people = sourcePeople ?? (await fetchPack(pack));
+  const list = await db.sharedList.findFirst({
+    where: { id: listId, workspaceId, sourcePack: pack },
+    include: {
+      items: {
+        include: {
+          contact: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              photoUrl: true,
+              title: true,
+              institution: true,
+              party: true,
+              region: true,
+              level: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!list) return { proposals: 0 };
+
+  const pending = await db.listChangeProposal.findMany({
+    where: { listId, status: "PENDING" },
+    select: { action: true, contactId: true, payload: true },
+  });
+  const pendingContacts = new Set(
+    pending.filter((proposal) => proposal.contactId).map((proposal) =>
+      `${proposal.action}:${proposal.contactId}`,
+    ),
+  );
+  const pendingAdds = new Set(
+    pending.filter((proposal) => proposal.action === "ADD").map((proposal) => proposal.payload),
+  );
+  const current = new Map(list.items.map((item) => [identity(item.contact), item.contact]));
+  const proposals: Array<{
+    listId: string;
+    workspaceId: string;
+    authorId: null;
+    contactId: string | null;
+    action: string;
+    origin: string;
+    payload: string;
+    reason: string;
+  }> = [];
+
+  for (const person of people) {
+    const key = identity(person);
+    const contact = current.get(key);
+    const payload = JSON.stringify(person);
+    if (!contact) {
+      if (!pendingAdds.has(payload)) {
+        proposals.push({
+          listId,
+          workspaceId,
+          authorId: null,
+          contactId: null,
+          action: "ADD",
+          origin: "PUBLIC_SOURCE",
+          payload,
+          reason: "Nouvelle entrée détectée dans la source publique",
+        });
+      }
+      continue;
+    }
+    if (changed(person, contact) && !pendingContacts.has(`UPDATE:${contact.id}`)) {
+      proposals.push({
+        listId,
+        workspaceId,
+        authorId: null,
+        contactId: contact.id,
+        action: "UPDATE",
+        origin: "PUBLIC_SOURCE",
+        payload,
+        reason: "Modification détectée dans la source publique",
+      });
+    }
+    current.delete(key);
+  }
+
+  for (const contact of current.values()) {
+    if (pendingContacts.has(`REMOVE:${contact.id}`)) continue;
+    proposals.push({
+      listId,
+      workspaceId,
+      authorId: null,
+      contactId: contact.id,
+      action: "REMOVE",
+      origin: "PUBLIC_SOURCE",
+      payload: JSON.stringify(contact),
+      reason: "Entrée absente de la source publique actuelle — retrait à confirmer",
+    });
+  }
+
+  if (proposals.length) await db.listChangeProposal.createMany({ data: proposals });
+  return { proposals: proposals.length };
+}
+
+/** Synchronise chaque pack installé en mutualisant un téléchargement par source. */
+export async function syncAllReferenceLists() {
+  const lists = await db.sharedList.findMany({
+    where: { sourcePack: { in: REFERENCE_PACKS.map((pack) => pack.key) } },
+    select: { id: true, workspaceId: true, sourcePack: true },
+  });
+  const results = await Promise.all(REFERENCE_PACKS.map(async (definition) => {
+    const packLists = lists.filter((list) => list.sourcePack === definition.key);
+    if (!packLists.length) return { proposals: 0, error: null };
+    try {
+      const people = await fetchPack(definition.key);
+      let proposals = 0;
+      for (const list of packLists) {
+        proposals += (
+          await syncReferenceListProposals(
+            list.id,
+            list.workspaceId,
+            definition.key,
+            people,
+          )
+        ).proposals;
+      }
+      return { proposals, error: null };
+    } catch (error) {
+      return {
+        proposals: 0,
+        error: {
+          pack: definition.key,
+          error: error instanceof Error ? error.message : "Source indisponible",
+        },
+      };
+    }
+  }));
+  const proposals = results.reduce((total, result) => total + result.proposals, 0);
+  const errors = results
+    .map((result) => result.error)
+    .filter((error): error is { pack: ReferencePackKey; error: string } => !!error);
+  return { lists: lists.length, proposals, errors };
+}

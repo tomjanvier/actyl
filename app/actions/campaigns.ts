@@ -1,12 +1,8 @@
 "use server";
 
 /**
- * Campaigns & Kanban pipeline.
- *
- * Card moves are optimistic on the client and normalized here in a
- * transaction: positions are re-sequenced within the destination column and a
- * CardEvent row is appended so every status change is auditable (see the
- * "Activité" panel).
+ * Campagnes et pipeline kanban. Les déplacements optimistes sont normalisés
+ * dans une transaction et chaque changement est ajouté au journal d'activité.
  */
 
 import { revalidatePath } from "next/cache";
@@ -14,6 +10,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { slugify } from "@/lib/utils";
+import { getCampaignAccess } from "@/lib/campaign-access";
 
 // ── Campaigns ────────────────────────────────────────────────────────────────
 
@@ -76,12 +73,66 @@ export async function updateCampaignStatusAction(
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "campaign:edit")) throw new Error("Permission refusée");
-  await db.campaign.updateMany({
-    where: { id: campaignId, workspaceId: session.workspaceId },
-    data: { status },
-  });
+  const access = await getCampaignAccess(campaignId, session.workspaceId);
+  if (!access?.canContribute) throw new Error("Campagne en lecture seule");
+  await db.campaign.update({ where: { id: campaignId }, data: { status } });
   revalidatePath("/campaigns");
   revalidatePath(`/campaigns/${campaignId}`);
+}
+
+export async function toggleCampaignPinAction(campaignId: string, pinned: boolean) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  const access = await getCampaignAccess(campaignId, session.workspaceId);
+  if (!access) throw new Error("Campagne introuvable");
+  if (access.owner) {
+    await db.campaign.update({ where: { id: campaignId }, data: { pinned } });
+  } else if (access.shareId) {
+    await db.sharedCampaignRef.update({ where: { id: access.shareId }, data: { pinned } });
+  }
+  revalidatePath("/campaigns");
+  revalidatePath(`/campaigns/${campaignId}`);
+}
+
+export async function shareCampaignAction(input: {
+  campaignId: string;
+  workspaceSlug: string;
+  access: "VIEW" | "CONTRIBUTE";
+}) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  const campaign = await db.campaign.findFirst({
+    where: { id: input.campaignId, workspaceId: session.workspaceId },
+    select: { id: true },
+  });
+  if (!campaign) throw new Error("Campagne introuvable");
+  const target = await db.workspace.findUnique({
+    where: { slug: input.workspaceSlug.trim().toLowerCase() },
+    select: { id: true, name: true },
+  });
+  if (!target || target.id === session.workspaceId) {
+    throw new Error("Organisation destinataire introuvable");
+  }
+  await db.sharedCampaignRef.upsert({
+    where: { campaignId_workspaceId: { campaignId: campaign.id, workspaceId: target.id } },
+    create: { campaignId: campaign.id, workspaceId: target.id, access: input.access },
+    update: { access: input.access },
+  });
+  revalidatePath(`/campaigns/${campaign.id}`);
+  revalidatePath("/campaigns");
+  return { ok: true, workspaceName: target.name };
+}
+
+export async function removeCampaignShareAction(shareId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  await db.sharedCampaignRef.deleteMany({
+    where: { id: shareId, campaign: { workspaceId: session.workspaceId } },
+  });
+  revalidatePath("/campaigns");
+  return { ok: true };
 }
 
 export async function deleteCampaignAction(campaignId: string) {
@@ -99,9 +150,16 @@ export async function deleteCampaignAction(campaignId: string) {
 
 async function loadCampaignContext(campaignId: string, workspaceId: string) {
   return db.campaign.findFirst({
-    where: { id: campaignId, workspaceId },
+    where: {
+      id: campaignId,
+      OR: [
+        { workspaceId },
+        { shares: { some: { workspaceId, access: "CONTRIBUTE" } } },
+      ],
+    },
     select: {
       id: true,
+      workspaceId: true,
       stages: { orderBy: { position: "asc" }, select: { id: true, name: true } },
     },
   });
@@ -122,7 +180,7 @@ export async function createCardAction(input: {
   if (!campaign) throw new Error("Campagne introuvable");
 
   const contact = await db.contact.findFirst({
-    where: { id: input.contactId, workspaceId: session.workspaceId },
+    where: { id: input.contactId, workspaceId: campaign.workspaceId },
     select: { firstName: true, lastName: true },
   });
   if (!contact) throw new Error("Contact introuvable");
@@ -167,7 +225,15 @@ export async function moveCardAction(input: {
   if (!can(session.role, "card:move")) return { error: "Permission refusée" };
 
   const card = await db.kanbanCard.findFirst({
-    where: { id: input.cardId, campaign: { workspaceId: session.workspaceId } },
+    where: {
+      id: input.cardId,
+      campaign: {
+        OR: [
+          { workspaceId: session.workspaceId },
+          { shares: { some: { workspaceId: session.workspaceId, access: "CONTRIBUTE" } } },
+        ],
+      },
+    },
     include: {
       stage: { select: { name: true } },
       contact: { select: { firstName: true, lastName: true } },
@@ -191,7 +257,7 @@ export async function moveCardAction(input: {
       where: { id: input.cardId },
       data: { stageId: input.toStageId, position: input.position, lastTouchAt: new Date() },
     });
-    // Normalize sibling positions within the destination column
+    // Réordonne les cartes de la colonne de destination.
     const siblings = await tx.kanbanCard.findMany({
       where: { stageId: input.toStageId, NOT: { id: input.cardId } },
       orderBy: [{ position: "asc" }, { lastTouchAt: "desc" }],
@@ -227,7 +293,15 @@ export async function setCardPriorityAction(cardId: string, priority: string) {
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "card:edit")) throw new Error("Permission refusée");
   const card = await db.kanbanCard.findFirst({
-    where: { id: cardId, campaign: { workspaceId: session.workspaceId } },
+    where: {
+      id: cardId,
+      campaign: {
+        OR: [
+          { workspaceId: session.workspaceId },
+          { shares: { some: { workspaceId: session.workspaceId, access: "CONTRIBUTE" } } },
+        ],
+      },
+    },
   });
   if (!card) throw new Error("Carte introuvable");
   await db.kanbanCard.update({ where: { id: cardId }, data: { priority } });
@@ -247,7 +321,15 @@ export async function assignCardAction(cardId: string, userId: string | null) {
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "card:edit")) throw new Error("Permission refusée");
   const card = await db.kanbanCard.findFirst({
-    where: { id: cardId, campaign: { workspaceId: session.workspaceId } },
+    where: {
+      id: cardId,
+      campaign: {
+        OR: [
+          { workspaceId: session.workspaceId },
+          { shares: { some: { workspaceId: session.workspaceId, access: "CONTRIBUTE" } } },
+        ],
+      },
+    },
   });
   if (!card) throw new Error("Carte introuvable");
   await db.kanbanCard.update({
@@ -262,7 +344,15 @@ export async function removeCardAction(cardId: string) {
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "card:delete")) throw new Error("Permission refusée");
   const card = await db.kanbanCard.findFirst({
-    where: { id: cardId, campaign: { workspaceId: session.workspaceId } },
+    where: {
+      id: cardId,
+      campaign: {
+        OR: [
+          { workspaceId: session.workspaceId },
+          { shares: { some: { workspaceId: session.workspaceId, access: "CONTRIBUTE" } } },
+        ],
+      },
+    },
   });
   if (!card) throw new Error("Carte introuvable");
   await db.kanbanCard.delete({ where: { id: cardId } });

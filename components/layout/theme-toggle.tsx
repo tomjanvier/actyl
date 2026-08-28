@@ -9,7 +9,7 @@ export function ThemeToggle() {
 
   useEffect(() => {
     setDark(!document.documentElement.classList.contains("dark") === false);
-    // sync with the no-flash script
+    // Se synchronise avec le script qui évite le clignotement initial.
     setDark(document.documentElement.classList.contains("dark"));
   }, []);
 

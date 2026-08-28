@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
-import { getExtendedDirectory } from "@/lib/flags";
+import { getSegmentsConfig } from "@/lib/flags";
 import { getNewsletterConfig } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
 import { ContactsView } from "@/components/contacts/contacts-view";
@@ -25,14 +25,21 @@ export default async function ContactsPage({
 }) {
   const session = await requireSession();
   const { category, page: pageParam } = await searchParams;
-  const extendedDirectory = await getExtendedDirectory();
-  // Only honor the filter when the feature is on and the value is known.
+  const segments = await getSegmentsConfig(session.workspaceId);
+  const enabledCategories = new Set([
+    "DECISION_MAKER",
+    ...(segments.members ? ["MEMBER"] : []),
+    ...(segments.volunteers ? ["VOLUNTEER"] : []),
+    ...(segments.donors ? ["DONOR"] : []),
+    ...(segments.supporters ? ["SUPPORTER"] : []),
+  ]);
+  // N'applique le filtre que si le segment est actif et reconnu.
   const activeCategory =
-    extendedDirectory && category && CATEGORY_LABELS[category] ? category : null;
+    category && enabledCategories.has(category) ? category : null;
 
-  // Server-side pagination keeps the payload light (100 contacts per page).
+  // La pagination serveur limite la réponse à cent contacts.
   const page = Math.max(1, Number(pageParam) || 1);
-  const newsletter = await getNewsletterConfig();
+  const newsletter = await getNewsletterConfig(session.workspaceId);
   const newsletterEnabled = newsletter.enabled;
   const where = {
     workspaceId: session.workspaceId,
@@ -127,21 +134,20 @@ export default async function ContactsPage({
         title={
           activeCategory
             ? CATEGORY_LABELS[activeCategory]!
-            : extendedDirectory
+            : enabledCategories.size > 1
               ? "Répertoire"
               : "Annuaire des décideurs"
         }
         description={
           activeCategory
             ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} — ${total.toLocaleString("fr-FR")} fiche(s). Vos notes et évaluations personnelles restent privées.`
-            : extendedDirectory
+            : enabledCategories.size > 1
               ? `Toute votre base (${total.toLocaleString("fr-FR")} fiches) — décideurs, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées.`
               : `Base centralisée et partagée (${total.toLocaleString("fr-FR")} fiches) : parlementaires, exécutifs, secteur privé, presse. Vos notes et évaluations personnelles restent privées.`
         }
       />
       <ContactsView
         contacts={serialized}
-        total={total}
         fields={fields.map((f) => ({
           id: f.id,
           label: f.label,
@@ -170,7 +176,7 @@ export default async function ContactsPage({
         canEdit={can(session.role, "contact:create")}
         canDelete={can(session.role, "campaign:delete")}
         canNewsletter={can(session.role, "email:send")}
-        extendedDirectory={extendedDirectory}
+        extendedDirectory={enabledCategories.size > 1}
         newsletterEnabled={newsletterEnabled}
         pagination={{ page, pageCount, total }}
       />

@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { CampaignHeader } from "@/components/campaigns/campaign-header";
 import { MobilizationView } from "@/components/campaigns/mobilization-view";
+import { getCampaignAccess } from "@/lib/campaign-access";
 
 export const metadata = { title: "Mobilisation" };
 
@@ -15,8 +16,10 @@ export default async function MobilizationPage({
   const session = await requireSession();
   const { id } = await params;
 
-  const campaign = await db.campaign.findFirst({
-    where: { id, workspaceId: session.workspaceId },
+  const access = await getCampaignAccess(id, session.workspaceId);
+  if (!access) notFound();
+  const campaign = await db.campaign.findUnique({
+    where: { id },
     include: {
       squads: { include: { group: true } },
       petition: {
@@ -25,6 +28,7 @@ export default async function MobilizationPage({
         },
       },
       events: { orderBy: { startsAt: "desc" }, take: 5 },
+      shares: { include: { workspace: { select: { name: true } } } },
     },
   });
   if (!campaign) notFound();
@@ -41,14 +45,21 @@ export default async function MobilizationPage({
           status: campaign.status,
           priority: campaign.priority,
           dueDate: campaign.dueDate?.toISOString() ?? null,
+          pinned: access.owner ? campaign.pinned : (access.pinned ?? false),
           squads: campaign.squads.map((s) => ({ name: s.group.name, color: s.group.color })),
+          shares: campaign.shares.map((share) => ({
+            id: share.id,
+            workspaceName: share.workspace.name,
+            access: share.access,
+          })),
         }}
-        canEdit={can(session.role, "campaign:edit")}
+        canEdit={access.canContribute && can(session.role, "campaign:edit")}
+        canShare={access.owner && session.role === "ADMIN"}
       />
       <MobilizationView
         campaignId={campaign.id}
         campaignSlug={campaign.slug}
-        canManage={can(session.role, "email:send")}
+        canManage={access.owner && can(session.role, "email:send")}
         petition={
           campaign.petition
             ? {

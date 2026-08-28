@@ -1,10 +1,9 @@
-/* eslint-disable no-console */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
 
-// Deterministic pseudo-random for reproducible seeds
+// Générateur pseudo-aléatoire déterministe pour des données reproductibles.
 let seedState = 42;
 function rand() {
   seedState = (seedState * 1103515245 + 12345) % 2147483648;
@@ -41,7 +40,7 @@ async function main() {
   await db.user.deleteMany();
   await db.workspace.deleteMany();
 
-  // ── Workspace ──────────────────────────────────────────────────────────────
+  // ── Espace de travail ──────────────────────────────────────────────────────
   const ws = await db.workspace.create({
     data: { name: "Plaidoyer Collectif", slug: "plaidoyer-collectif", logoEmoji: "🏛️" },
   });
@@ -101,7 +100,7 @@ async function main() {
     data: memberships.slice(2).map((m) => ({ groupId: groupVolunteers.id, membershipId: m.id })),
   });
 
-  // ── Contacts: decision-makers directory ────────────────────────────────────
+  // ── Contacts : annuaire des décideurs ──────────────────────────────────────
   const contactsInput = [
     { key: "hidalgo", firstName: "Anne", lastName: "Hidalgo", title: "Maire de Paris", institution: "Ville de Paris", party: "Parti Socialiste", region: "Île-de-France", level: "LOCAL", stance: "FAVORABLE", influenceScore: 5, email: "anne.hidalgo@paris.fr", twitter: "Anne_Hidalgo", bio: "Élue à la tête de Paris depuis 2014, engagée sur les questions de mobilité douce et de végétalisation." },
     { key: "rousseau", firstName: "Mathilde", lastName: "Rousseau-Panot", title: "Députée", institution: "Assemblée nationale", party: "Les Écologistes", region: "Paris", level: "NATIONAL", stance: "ALLY", influenceScore: 3, email: "m.rousseau-panot@assemblee-nationale.fr", bio: "Rapporteure de la commission du développement durable." },
@@ -175,7 +174,7 @@ async function main() {
   }
   console.log(`   ✓ ${contactsInput.length} décideurs`);
 
-  // ── Custom fields (dynamic schema) ─────────────────────────────────────────
+  // ── Champs personnalisés dynamiques ────────────────────────────────────────
   const cfCommission = await db.customField.create({
     data: {
       workspaceId: ws.id,
@@ -249,7 +248,7 @@ async function main() {
     });
   }
 
-  // Private notes (per-user)
+  // Notes privées propres à chaque utilisateur.
   await db.privateNote.createMany({
     data: [
       { contactId: contactsByKey.vautrin!.id, authorId: campaigner.id, pinned: true, body: "Cabinet très protégé. Passer par le conseiller parlementaire Étienne M. plutôt que par la ministre directement.", createdAt: daysAgo(12) },
@@ -259,7 +258,7 @@ async function main() {
     ],
   });
 
-  // Private per-user overlays
+  // Données privées propres à chaque utilisateur.
   await db.contactPrivateData.create({
     data: { contactId: contactsByKey.vautrin!.id, userId: campaigner.id, rating: 5, tags: "arbitrage-budget,clé-du-vote", status: "À recontacter après le Conseil des ministres" },
   });
@@ -267,7 +266,7 @@ async function main() {
     data: { contactId: contactsByKey.pompougnac!.id, userId: activist.id, rating: 3, tags: "gironde,balancing" },
   });
 
-  // ── Shared lists ───────────────────────────────────────────────────────────
+  // ── Listes partagées ───────────────────────────────────────────────────────
   const listCulture = await db.sharedList.create({
     data: {
       workspaceId: ws.id,
@@ -428,7 +427,7 @@ async function main() {
 
   console.log("   ✓ Pipelines kanban");
 
-  // ── Email templates ────────────────────────────────────────────────────────
+  // ── Modèles d'email ────────────────────────────────────────────────────────
   const tplClimate = await db.emailTemplate.create({
     data: {
       campaignId: campClimate.id,
@@ -477,7 +476,7 @@ Respectueusement,
     },
   });
 
-  // ── Email blasts + sent history (analytics-ready) ──────────────────────────
+  // ── Envois d'emails et historique exploitable pour les statistiques ───────
   async function makeBlast(campaignId: string, templateId: string, subject: string, body: string, targets: string[], source: "INTERNAL" | "PUBLIC_PAGE", ageDays: number, openedRatio = 0.55) {
     const blast = await db.emailBlast.create({
       data: { campaignId, templateId, subject, body, source, createdById: campaigner.id, createdAt: daysAgo(ageDays) },
@@ -506,7 +505,7 @@ Respectueusement,
   await makeBlast(campClimate.id, tplClimate.id, tplClimate.subject, tplClimate.body, ["rousseau", "obono", "hidalgo", "lefeuvre"], "INTERNAL", 9, 0.75);
   await makeBlast(campDigital.id, tplDigital.id, tplDigital.subject, tplDigital.body, ["glucksmann", "taubira", "asselineau", "mariani"], "PUBLIC_PAGE", 14, 0.5);
 
-  // Extra organic citizen emails (no blast) to enrich per-target counters
+  // Emails citoyens supplémentaires pour enrichir les compteurs par cible.
   for (let i = 0; i < 18; i++) {
     const target = pick(["vautrin", "pompougnac", "graux", "darmanin", "taubira", "glucksmann"]);
     await db.sentEmail.create({

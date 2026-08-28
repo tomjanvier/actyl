@@ -12,7 +12,6 @@ import {
 } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
 import { getSignupMode } from "@/lib/signup-mode";
-import type { SignupMode } from "@/lib/signup-mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const signUpSchema = z.object({
@@ -139,7 +138,7 @@ export async function signInAction(
   redirect(safeNext(formData.get("next")));
 }
 
-/** Only allow relative, same-origin redirect targets (blocks `//evil.com`). */
+/** Autorise uniquement les redirections relatives de même origine. */
 function safeNext(next: FormDataEntryValue | null): string {
   const n = String(next ?? "/contacts");
   if (!n.startsWith("/") || n.startsWith("//") || n.includes("\\")) {

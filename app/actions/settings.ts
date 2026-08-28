@@ -5,8 +5,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { can, ROLES, type Role } from "@/lib/constants";
+import { SEGMENT_SETTING_KEYS } from "@/lib/flags";
+import { setPresidentielleModuleAction } from "@/app/actions/presidentielle";
+import { workspaceSettingKey } from "@/lib/workspace-settings";
 
-// ── Custom fields ────────────────────────────────────────────────────────────
+// ── Champs personnalisés ─────────────────────────────────────────────────────
 
 const fieldSchema = z.object({
   label: z.string().min(2, "Libellé requis").max(80),
@@ -84,7 +87,7 @@ export async function deleteCustomFieldAction(fieldId: string) {
   revalidatePath("/contacts");
 }
 
-// ── Groups / squads ──────────────────────────────────────────────────────────
+// ── Groupes et équipes ───────────────────────────────────────────────────────
 
 export async function createGroupAction(
   _prev: unknown,
@@ -146,7 +149,7 @@ export async function removeGroupMemberAction(groupMemberId: string) {
   revalidatePath("/settings");
 }
 
-// ── Members & roles ──────────────────────────────────────────────────────────
+// ── Membres et rôles ─────────────────────────────────────────────────────────
 
 export async function updateMemberRoleAction(
   membershipId: string,
@@ -217,7 +220,7 @@ export async function removeMemberAction(membershipId: string) {
   revalidatePath("/settings");
 }
 
-// ── Profile ──────────────────────────────────────────────────────────────────
+// ── Profil ───────────────────────────────────────────────────────────────────
 
 export async function updateProfileAction(
   _prev: unknown,
@@ -249,7 +252,7 @@ export async function updateProfileAction(
   return { ok: true };
 }
 
-// ── Account requests (gated signups) ─────────────────────────────────────────
+// ── Demandes de compte modérées ──────────────────────────────────────────────
 
 export async function setSignupModeAction(mode: "OPEN" | "APPROVAL") {
   const session = await getSession();
@@ -318,7 +321,7 @@ export async function rejectAccountRequestAction(requestId: string) {
   revalidatePath("/settings");
 }
 
-// ── API tokens (WordPress / external integrations) ───────────────────────────
+// ── Tokens API ────────────────────────────────────────────────────────────────
 
 export async function createApiTokenAction(input: {
   name: string;
@@ -341,7 +344,7 @@ export async function createApiTokenAction(input: {
     data: { workspaceId: session.workspaceId, name, tokenHash: hash, prefix },
   });
   revalidatePath("/settings");
-  // Plaintext is returned exactly once — only the hash is stored server-side.
+  // La valeur en clair n'est renvoyée qu'une fois ; seul son condensat est stocké.
   return { ok: true, plaintext, prefix };
 }
 
@@ -356,30 +359,55 @@ export async function revokeApiTokenAction(tokenId: string) {
   revalidatePath("/settings");
 }
 
-// ── Extended directory flag (members/volunteers/donors/supporters) ───────────
+// ── Segments de l'annuaire étendu ────────────────────────────────────────────
 
-export async function setExtendedDirectoryAction(enabled: boolean) {
+export async function setSegmentFlagAction(
+  segment: keyof typeof SEGMENT_SETTING_KEYS,
+  enabled: boolean,
+) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  const key = SEGMENT_SETTING_KEYS[segment];
+  if (!key || segment === "decisionMaker") return;
+  const scopedKey = workspaceSettingKey(session.workspaceId, key);
   await db.appSetting.upsert({
-    where: { key: "extended_directory" },
-    create: { key: "extended_directory", value: enabled ? "on" : "off" },
+    where: { key: scopedKey },
+    create: { key: scopedKey, value: enabled ? "on" : "off" },
     update: { value: enabled ? "on" : "off" },
   });
   revalidatePath("/settings");
   revalidatePath("/contacts");
 }
 
-// ── Newsletter module (EmailOctopus) ─────────────────────────────────────────
+export async function setPresidentielleEnabledAction(enabled: boolean) {
+  return setPresidentielleModuleAction(enabled);
+}
+
+// ── Module newsletter EmailOctopus ───────────────────────────────────────────
 
 export async function setNewsletterModuleAction(enabled: boolean) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  const key = workspaceSettingKey(session.workspaceId, "newsletter_enabled");
+  if (enabled) {
+    const config = await db.appSetting.findMany({
+      where: {
+        key: {
+          in: ["newsletter_api_key", "newsletter_list_id"].map((name) =>
+            workspaceSettingKey(session.workspaceId, name),
+          ),
+        },
+      },
+    });
+    if (config.length < 2 || config.some((row) => !row.value.trim())) {
+      throw new Error("Configurez la clé API et la liste EmailOctopus avant d'activer le module.");
+    }
+  }
   await db.appSetting.upsert({
-    where: { key: "newsletter_enabled" },
-    create: { key: "newsletter_enabled", value: enabled ? "on" : "off" },
+    where: { key },
+    create: { key, value: enabled ? "on" : "off" },
     update: { value: enabled ? "on" : "off" },
   });
   revalidatePath("/settings");
@@ -387,9 +415,8 @@ export async function setNewsletterModuleAction(enabled: boolean) {
 }
 
 /**
- * Persist EmailOctopus credentials. When apiKey is blank the stored one is
- * kept (so admins can change just the list). Validates against the API and,
- * when a listId is provided, that this list exists on the account.
+ * Enregistre les accès EmailOctopus. Une clé vide conserve la valeur existante,
+ * puis la connexion et l'existence de la liste sont vérifiées avant activation.
  */
 export async function saveNewsletterSettingsAction(input: {
   apiKey?: string;
@@ -399,12 +426,15 @@ export async function saveNewsletterSettingsAction(input: {
   if (!session) return { error: "Non authentifié" };
   if (session.role !== "ADMIN") return { error: "Réservé aux administrateurs" };
 
+  const names = ["newsletter_api_key", "newsletter_list_id", "newsletter_enabled"];
   const current = await db.appSetting.findMany({
     where: {
-      key: { in: ["newsletter_api_key", "newsletter_list_id", "newsletter_enabled"] },
+      key: { in: names.map((key) => workspaceSettingKey(session.workspaceId, key)) },
     },
   });
-  const map = Object.fromEntries(current.map((r) => [r.key, r.value]));
+  const map = Object.fromEntries(
+    current.map((row) => [row.key.slice(session.workspaceId.length + 1), row.value]),
+  );
   const apiKey = input.apiKey?.trim() || map.newsletter_api_key || "";
   const listId = input.listId?.trim() || map.newsletter_list_id || "";
 
@@ -414,19 +444,19 @@ export async function saveNewsletterSettingsAction(input: {
 
   await db.$transaction([
     db.appSetting.upsert({
-      where: { key: "newsletter_api_key" },
-      create: { key: "newsletter_api_key", value: apiKey },
+      where: { key: workspaceSettingKey(session.workspaceId, "newsletter_api_key") },
+      create: { key: workspaceSettingKey(session.workspaceId, "newsletter_api_key"), value: apiKey },
       update: { value: apiKey },
     }),
     db.appSetting.upsert({
-      where: { key: "newsletter_list_id" },
-      create: { key: "newsletter_list_id", value: listId },
+      where: { key: workspaceSettingKey(session.workspaceId, "newsletter_list_id") },
+      create: { key: workspaceSettingKey(session.workspaceId, "newsletter_list_id"), value: listId },
       update: { value: listId },
     }),
-    // A successful save implies the module can be used.
+    // Une connexion validée permet d'activer immédiatement le module.
     db.appSetting.upsert({
-      where: { key: "newsletter_enabled" },
-      create: { key: "newsletter_enabled", value: "on" },
+      where: { key: workspaceSettingKey(session.workspaceId, "newsletter_enabled") },
+      create: { key: workspaceSettingKey(session.workspaceId, "newsletter_enabled"), value: "on" },
       update: { value: "on" },
     }),
   ]);
@@ -435,7 +465,7 @@ export async function saveNewsletterSettingsAction(input: {
   return { ok: true, listName: test.listName };
 }
 
-/** Lists of the connected EmailOctopus account (settings dropdown). */
+/** Listes EmailOctopus proposées dans les réglages. */
 export async function fetchNewsletterListsAction(input: {
   apiKey?: string;
 }): Promise<{ lists?: Array<{ id: string; name: string; count: number }>; error?: string }> {
@@ -445,7 +475,9 @@ export async function fetchNewsletterListsAction(input: {
 
   let apiKey = input.apiKey?.trim() ?? "";
   if (!apiKey) {
-    const row = await db.appSetting.findUnique({ where: { key: "newsletter_api_key" } });
+    const row = await db.appSetting.findUnique({
+      where: { key: workspaceSettingKey(session.workspaceId, "newsletter_api_key") },
+    });
     apiKey = row?.value ?? "";
   }
   if (!apiKey) return { error: "Renseignez d'abord une clé API." };

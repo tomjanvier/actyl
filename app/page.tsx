@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { PlaidActCredit } from "@/components/layout/plaidact-credit";
 import { LandingDemoTable } from "@/components/public/landing-demo-table";
 
 export default function LandingPage() {
@@ -36,7 +35,7 @@ export default function LandingPage() {
           </Link>
           <Link href="/sign-up">
             <Button size="sm">
-              Commencer
+              Créer mon espace
               <ArrowRight />
             </Button>
           </Link>
@@ -61,16 +60,16 @@ export default function LandingPage() {
             citoyens par email — le tout dans une interface rapide et
             keyboard-first.
           </p>
-          <div className="mt-8 flex items-center gap-3">
-            <Link href="/sign-up">
-              <Button size="lg">
+          <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
+            <Link href="/sign-up" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto">
                 Créer mon espace de travail
                 <ArrowRight />
               </Button>
             </Link>
-            <Link href="/sign-in">
-              <Button size="lg" variant="outline">
-                Voir la démo
+            <Link href="/sign-in" className="w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                Connexion
               </Button>
             </Link>
           </div>

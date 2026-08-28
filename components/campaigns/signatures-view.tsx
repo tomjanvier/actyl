@@ -73,8 +73,8 @@ export function SignaturesView({
   const [busy, setBusy] = useState<string | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
 
-  // Client-side narrowing within the current page (server handles search too
-  // via ?q= for cross-page lookups).
+  // Affine côté client la page courante ; le serveur gère aussi la recherche.
+  // Le paramètre ?q= permet une recherche entre plusieurs pages.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return signatures.filter((s) => {

@@ -8,6 +8,8 @@ import {
   importAssembleeNationale,
   importSenat,
   importParlementEuropeen,
+  importLocalElectedOfficials,
+  importParisCouncillors,
   type ImportedContact,
 } from "@/lib/importers/officials";
 import {
@@ -15,6 +17,9 @@ import {
   parseContactsCsv,
   norm,
 } from "@/lib/lists-import";
+import { REFERENCE_PACKS, type ReferencePackKey } from "@/lib/datasets/reference-packs";
+import { setPresidentielleModuleAction } from "@/app/actions/presidentielle";
+import { proposeListChange } from "@/app/actions/list-proposals";
 
 export type ImportResult = {
   ok?: boolean;
@@ -23,11 +28,12 @@ export type ImportResult = {
   linked?: number;
   already?: number;
   skipped?: number;
+  proposed?: number;
 };
 
 /**
- * Import official sources into the directory WITHOUT overwriting existing
- * contacts (merge-only). Optionally attach everything to a shared list.
+ * Importe une source officielle sans écraser les contacts existants et peut
+ * rattacher le résultat à une liste partagée.
  */
 async function upsertImported(
   workspaceId: string,
@@ -38,6 +44,7 @@ async function upsertImported(
     firstName: c.firstName,
     lastName: c.lastName,
     email: c.email,
+    photoUrl: c.photoUrl,
     title: c.title,
     institution: c.institution,
     party: c.party,
@@ -48,11 +55,11 @@ async function upsertImported(
   if (listId) {
     return mergePeopleIntoList(workspaceId, listId, people);
   }
-  // Directory-only mode: still no clobber — create missing contacts only.
+  // Sans liste cible, ajoute uniquement les contacts absents de l'annuaire.
   return mergePeopleIntoDirectory(workspaceId, people);
 }
 
-/** Same merge rules, but only touches the contact table (no list items). */
+/** Applique les mêmes règles de fusion à la seule table des contacts. */
 async function mergePeopleIntoDirectory(
   workspaceId: string,
   people: Array<{
@@ -84,7 +91,7 @@ async function mergePeopleIntoDirectory(
       continue;
     }
     const key = `${norm(p.firstName)}|${norm(p.lastName)}|${norm(p.institution)}`;
-    if (index.has(key)) continue; // never overwrite
+    if (index.has(key)) continue; // Ne modifie jamais une fiche existante.
     await db.contact.create({
       data: {
         workspaceId,
@@ -109,7 +116,7 @@ async function mergePeopleIntoDirectory(
 }
 
 export async function importOfficialSourceAction(
-  source: "an" | "senat" | "pe",
+  source: "an" | "senat" | "pe" | "paris" | "regions" | "departements",
   opts?: { listId?: string | null },
 ): Promise<ImportResult> {
   const session = await getSession();
@@ -123,18 +130,25 @@ export async function importOfficialSourceAction(
       contacts = await importAssembleeNationale();
     } else if (source === "senat") {
       contacts = await importSenat();
-    } else {
+    } else if (source === "pe") {
       contacts = await importParlementEuropeen();
+    } else if (source === "paris") {
+      contacts = await importParisCouncillors();
+    } else {
+      contacts = await importLocalElectedOfficials(source);
     }
 
-    // If a target list is provided, make sure it belongs to this workspace.
+    // Vérifie que la liste cible appartient bien à l'espace actif.
     let listId = opts?.listId ?? null;
     if (listId) {
       const owned = await db.sharedList.findFirst({
         where: { id: listId, workspaceId: session.workspaceId },
-        select: { id: true },
+        select: { id: true, sourcePack: true },
       });
       if (!owned) listId = null;
+      else if (owned.sourcePack && session.role !== "ADMIN") {
+        return { error: "Seul l’administrateur peut synchroniser une liste de référence" };
+      }
     }
 
     const stats = await upsertImported(session.workspaceId, contacts, listId);
@@ -153,9 +167,58 @@ export async function importOfficialSourceAction(
   }
 }
 
+export async function installReferencePackAction(key: ReferencePackKey): Promise<ImportResult> {
+  const session = await getSession();
+  if (!session) return { error: "Non authentifié" };
+  if (session.role !== "ADMIN") return { error: "Seul l’administrateur peut installer ou synchroniser un pack" };
+  const pack = REFERENCE_PACKS.find((candidate) => candidate.key === key);
+  if (!pack) return { error: "Pack introuvable" };
+  if (pack.source === "presidentielle") return setPresidentielleModuleAction(true);
+
+  const existing = await db.sharedList.findFirst({
+    where: { workspaceId: session.workspaceId, sourcePack: pack.key },
+    select: { id: true },
+  });
+  const nameCollision = existing
+    ? null
+    : await db.sharedList.findUnique({
+        where: { workspaceId_name: { workspaceId: session.workspaceId, name: pack.name } },
+        select: { id: true },
+      });
+  if (nameCollision) {
+    return { error: `Une liste nommée « ${pack.name} » existe déjà sans être rattachée à ce pack` };
+  }
+
+  const list = existing ?? await db.sharedList.create({
+    data: {
+      workspaceId: session.workspaceId,
+      name: pack.name,
+      description: pack.description,
+      sourcePack: pack.key,
+      createdById: session.user.id,
+    },
+    select: { id: true },
+  });
+  if (existing) {
+    await db.sharedList.update({
+      where: { id: existing.id },
+      data: { name: pack.name, description: pack.description },
+    });
+  }
+
+  const result = await importOfficialSourceAction(pack.source, { listId: list.id });
+  if (result.error && !existing) {
+    // Ne conserve pas une liste vide lorsque la première récupération échoue.
+    await db.sharedList.deleteMany({
+      where: { id: list.id, workspaceId: session.workspaceId, items: { none: {} } },
+    });
+  }
+  return result;
+}
+
 /**
- * Paste-CSV import into ONE list — merge semantics: existing contacts are
- * linked, never modified; unknown rows are created; nothing is deleted.
+ * Importe un CSV dans une liste : rattache l'existant, crée les absents et ne
+ * supprime ni ne modifie aucune fiche.
  */
 export async function importCsvIntoListAction(input: {
   listId: string;
@@ -170,7 +233,7 @@ export async function importCsvIntoListAction(input: {
 
   const list = await db.sharedList.findFirst({
     where: { id: input.listId, workspaceId: session.workspaceId },
-    select: { id: true },
+    select: { id: true, sourcePack: true },
   });
   if (!list) return { error: "Liste introuvable" };
 
@@ -182,6 +245,26 @@ export async function importCsvIntoListAction(input: {
     return {
       error:
         "Aucune ligne exploitable : l'en-tête doit contenir au minimum « prénom » ou « nom ».",
+    };
+  }
+  if (list.sourcePack && session.role !== "ADMIN") {
+    const validPeople = people.filter((person) => person.firstName && person.lastName);
+    await Promise.all(validPeople.map((person) =>
+      proposeListChange({
+        listId: list.id,
+        action: "ADD",
+        payload: person,
+        reason: "Ajout proposé par import CSV",
+      }),
+    ));
+    revalidatePath("/lists");
+    return {
+      ok: true,
+      created: 0,
+      linked: 0,
+      already: 0,
+      skipped: people.length - validPeople.length,
+      proposed: validPeople.length,
     };
   }
   const stats = await mergePeopleIntoList(session.workspaceId, input.listId, people);

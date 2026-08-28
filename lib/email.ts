@@ -8,8 +8,8 @@ const KNOWN_VARS = new Set(
 );
 
 /**
- * Renders {{variable}} placeholders. Unknown variables are left untouched so
- * mistakes are visible instead of silently disappearing.
+ * Remplace les espaces réservés {{variable}}. Les variables inconnues restent
+ * visibles afin de signaler une erreur de modèle.
  */
 export function renderTemplate(text: string, ctx: TemplateContext): string {
   return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key: string) => {
@@ -35,9 +35,8 @@ export type DispatchResult =
   | { ok: false; error: string };
 
 /**
- * Sends one email via Resend when configured; otherwise records a SIMULATED
- * send so the whole pipeline (outbox, analytics, per-target counters) works
- * in development without any API key.
+ * Envoie un email via Resend lorsqu'il est configuré ; sinon enregistre un envoi
+ * simulé afin que le pipeline reste vérifiable sans clé en développement.
  */
 export async function dispatchEmail(params: {
   to: string;
@@ -71,7 +70,7 @@ export async function dispatchEmail(params: {
   }
 }
 
-/** Minimal, clean HTML wrapper for interpellation emails. */
+/** Mise en page HTML sobre pour les emails d'interpellation. */
 export function wrapEmailHtml(body: string, signature?: string): string {
   const paragraphs = body
     .split(/\n{2,}/)

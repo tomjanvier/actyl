@@ -1,0 +1,3 @@
+{
+  "crons": [{ "path": "/api/cron/reference-packs", "schedule": "0 4 * * 1" }]
+}

@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * Mobilization suite (NationBuilder-style): petitions with public signature,
- * events with RSVP, follow-up tasks, plus the shared Supporter registry that
- * captures citizens at every touchpoint. Public actions are rate-limited.
+ * Suite de mobilisation : pétitions publiques, événements avec inscription,
+ * tâches de suivi et registre partagé des soutiens. Les actions publiques sont
+ * limitées en fréquence.
  */
 
 import { revalidatePath } from "next/cache";
@@ -14,7 +14,7 @@ import { can } from "@/lib/constants";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { upsertSupporter } from "@/lib/supporters";
 
-// Hard input caps (defense against DB bloat via public forms).
+// Limites strictes contre le gonflement de la base par les formulaires publics.
 const MAX_NAME = 80;
 const MAX_CITY = 80;
 
@@ -270,7 +270,7 @@ export async function deleteTaskAction(taskId: string) {
   revalidatePath("/tasks");
 }
 
-// ── Supporter segmentation (NationBuilder-style tagging) ─────────────────────
+// ── Segmentation des soutiens par étiquettes ──────────────────────────────────
 
 export async function setSupporterTagsAction(input: {
   supporterId: string;
@@ -278,18 +278,18 @@ export async function setSupporterTagsAction(input: {
 }): Promise<{ ok?: boolean; error?: string }> {
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
-  // Only staff roles manage the people database.
+  // Seuls les rôles opérationnels gèrent la base des soutiens.
   if (!can(session.role, "contact:create")) return { error: "Permission refusée" };
 
   const supporter = await db.supporter.findFirst({
     where: {
       id: input.supporterId,
-      OR: [{ workspaceId: session.workspaceId }, { workspaceId: null }],
+      workspaceId: session.workspaceId,
     },
   });
   if (!supporter) return { error: "Soutien introuvable." };
 
-  // Clean, dedupe, cap: max 12 tags of 24 chars each.
+  // Nettoie, déduplique et limite à douze tags de vingt-quatre caractères.
   const tags = [
     ...new Set(
       input.tags

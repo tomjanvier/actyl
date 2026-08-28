@@ -10,6 +10,7 @@ import {
   PRESIDENTIELLE_LISTS,
 } from "@/lib/datasets/presidentielle-2027";
 import { mergePeopleIntoList } from "@/lib/lists-import";
+import { workspaceSettingKey } from "@/lib/workspace-settings";
 
 export type PackToggleResult = {
   ok?: boolean;
@@ -37,13 +38,13 @@ async function ensurePackLists(workspaceId: string, userId: string) {
       });
       list = created;
     } else if (list.sourcePack !== PRESIDENTIELLE_PACK_KEY) {
-      // Tag an adopted list so it shows up in the Présidentielle module.
+      // Rattache une liste existante au module Présidentielle.
       await db.sharedList.update({
         where: { id: list.id },
         data: { sourcePack: PRESIDENTIELLE_PACK_KEY },
       });
     }
-    // Merge-only population: existing contacts/items are never overwritten.
+    // L'import ajoute les absents sans écraser les contacts ou éléments existants.
     await mergePeopleIntoList(
       workspaceId,
       list.id,
@@ -62,7 +63,7 @@ async function ensurePackLists(workspaceId: string, userId: string) {
   return results;
 }
 
-/** Activate/deactivate the whole Présidentielle 2027 module. */
+/** Active ou désactive l'ensemble du module Présidentielle 2027. */
 export async function setPresidentielleModuleAction(
   enabled: boolean,
 ): Promise<PackToggleResult> {
@@ -71,15 +72,16 @@ export async function setPresidentielleModuleAction(
   if (!can(session.role, "list:publish")) return { error: "Permission refusée" };
 
   const value = enabled ? "on" : "off";
+  const settingKey = workspaceSettingKey(session.workspaceId, PRESIDENTIELLE_SETTING_KEY);
   await db.appSetting.upsert({
-    where: { key: PRESIDENTIELLE_SETTING_KEY },
-    create: { key: PRESIDENTIELLE_SETTING_KEY, value },
+    where: { key: settingKey },
+    create: { key: settingKey, value },
     update: { value },
   });
 
   if (enabled) {
     const lists = await ensurePackLists(session.workspaceId, session.user.id);
-    // Publish the pack's flagship list(es) unless the user already chose.
+    // Publie les listes principales prévues par le pack.
     for (const l of lists) {
       if (l.published) {
         await db.sharedList.update({
@@ -89,7 +91,7 @@ export async function setPresidentielleModuleAction(
       }
     }
   } else {
-    // Keep the data; just cut public access to pack lists.
+    // Conserve les données tout en retirant leur accès public.
     await db.sharedList.updateMany({
       where: { workspaceId: session.workspaceId, sourcePack: PRESIDENTIELLE_PACK_KEY },
       data: { isPublished: false },
@@ -102,8 +104,8 @@ export async function setPresidentielleModuleAction(
 }
 
 /**
- * Re-sync the curated dataset into the workspace pack lists.
- * Merge-only: adds missing candidates, never modifies or removes anything.
+ * Resynchronise le jeu éditorial dans les listes de l'espace.
+ * L'opération ajoute les candidatures absentes sans modifier ni supprimer l'existant.
  */
 export async function syncPresidentiellePackAction(): Promise<
   { ok?: boolean; error?: string; linked?: number; created?: number; already?: number }

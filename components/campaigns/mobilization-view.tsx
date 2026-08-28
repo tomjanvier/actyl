@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Megaphone, Globe, Users, ExternalLink } from "lucide-react";
@@ -170,7 +170,7 @@ function PetitionEditor({
         className="mb-3"
       />
 
-      <div className="grid grid-cols-2 items-end gap-3">
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
         <div>
           <Label className="mb-1 block">Objectif de signatures</Label>
           <Input name="goal" type="number" min={10} defaultValue={petition?.goal ?? 1000} />

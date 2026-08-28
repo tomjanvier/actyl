@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -43,9 +43,9 @@ export function EventsView({
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  function refresh() {
+  const refresh = useCallback(() => {
     startTransition(() => router.refresh());
-  }
+  }, [router]);
   const now = Date.now();
   const upcoming = events.filter((e) => new Date(e.startsAt).getTime() >= now);
   const past = events.filter((e) => new Date(e.startsAt).getTime() < now);
@@ -189,7 +189,7 @@ function CreateEventForm({ onCreated }: { onCreated: () => void }) {
       onCreated();
     }
     if (state?.error) toast.error(state.error);
-  }, [state]);
+  }, [state, onCreated]);
 
   return (
     <form action={action} className="h-fit rounded-xl border border-dashed border-line bg-card p-4">

@@ -8,10 +8,10 @@ export const metadata = { title: "Soutiens" };
 const PAGE_SIZE = 100;
 
 /**
- * Unified supporter database — every citizen who signed a petition, emailed a
- * decision-maker or RSVP'd to an event, deduplicated by email.
- * Paginated server-side (100 per page) so large bases stay responsive;
- * aggregates (total, multi-engaged, tags, sources) are computed via SQL.
+ * Base unifiée des soutiens ayant signé, interpellé un décideur ou répondu à un
+ * événement, dédupliquée par adresse email dans chaque espace.
+ * Pagination serveur par cent entrées pour préserver la réactivité des grandes bases ;
+ * les agrégats sont calculés directement en SQL.
  */
 export default async function SupportersPage({
   searchParams,
@@ -23,7 +23,7 @@ export default async function SupportersPage({
   const page = Math.max(1, Number(pageParam) || 1);
   const where = { workspaceId: session.workspaceId };
 
-  const [supporters, total, engaged, tagRows, globalCount] = await Promise.all([
+  const [supporters, total, engaged, tagRows] = await Promise.all([
     db.supporter.findMany({
       where,
       orderBy: { lastSeenAt: "desc" },
@@ -32,9 +32,8 @@ export default async function SupportersPage({
     }),
     db.supporter.count({ where }),
     db.supporter.count({ where: { ...where, touchCount: { gte: 3 } } }),
-    // Single small column scan to build the tag/source filter options.
+    // Lecture ciblée des colonnes utiles aux filtres de tags et d'origine.
     db.supporter.findMany({ where, select: { tags: true, source: true } }),
-    db.supporter.count({ where: { workspaceId: null } }),
   ]);
 
   const allTags = [
@@ -66,7 +65,6 @@ export default async function SupportersPage({
         }))}
         total={total}
         engaged={engaged}
-        globalCount={globalCount}
         allTags={allTags}
         sources={sources}
         pagination={{

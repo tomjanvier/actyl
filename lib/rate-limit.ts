@@ -2,17 +2,17 @@ import "server-only";
 import { headers } from "next/headers";
 
 /**
- * Minimal in-memory sliding-window rate limiter for public server actions.
+ * Limiteur en mémoire à fenêtre glissante pour les actions serveur publiques.
  *
- * Good enough to block casual abuse on a single Node process. For horizontal
- * scaling, swap the store for Redis (same interface).
+ * Suffisant contre les abus simples sur un processus Node unique.
+ * À grande échelle, remplacer le stockage par Redis avec la même interface.
  */
 type Bucket = { hits: number[]; };
 
 const buckets = new Map<string, Bucket>();
 const MAX_BUCKETS = 5_000;
 
-// Periodic sweep so the map never grows unbounded.
+// Nettoyage périodique pour empêcher une croissance illimitée de la table.
 let lastSweep = Date.now();
 function sweep(now: number) {
   if (now - lastSweep < 60_000) return;
@@ -28,8 +28,8 @@ const WINDOW_MS = 60_000; // 1 minute
 export type RateLimitResult = { allowed: boolean; retryAfterSec: number };
 
 /**
- * Check and record one hit for `key` (usually `${action}:${ip}`).
- * @param limit max hits allowed per window
+ * Vérifie et enregistre un accès pour `key`, généralement `${action}:${ip}`.
+ * @param limit nombre maximal d'accès autorisés par fenêtre
  */
 export function rateLimit(
   key: string,
@@ -61,7 +61,7 @@ export function rateLimit(
   return { allowed: true, retryAfterSec: 0 };
 }
 
-/** Best-effort client IP from proxy headers (works behind Vercel/Nginx). */
+/** Déduit au mieux l'adresse IP depuis les en-têtes des mandataires Vercel ou Nginx. */
 export async function clientIp(): Promise<string> {
   const h = await headers();
   return (

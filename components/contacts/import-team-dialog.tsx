@@ -34,8 +34,8 @@ const ELECTIONS = [
 ] as const;
 
 /**
- * Bulk-import a candidate's campaign team during elections. Paste a roster
- * copied from a doc/spreadsheet — one person per line, e.g.
+ * Importe en lot l'équipe électorale d'une candidature depuis une liste collée.
+ * issue d'un document ou tableur, à raison d'une personne par ligne.
  *   Marie Dupont — Directrice de campagne — marie@exemple.fr
  *   Paul Martin; Porte-parole; paul@exemple.fr; +33 6 12 34 56 78
  */
@@ -94,7 +94,7 @@ export function ImportTeamDialog({
             <em> Prénom Nom — Fonction — email — téléphone</em>.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label>Candidat·e *</Label>
             <Input
