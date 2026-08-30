@@ -61,12 +61,12 @@ suivi des décideurs et mobilisation citoyenne.
 
 ```bash
 pnpm install
-pnpm setup        # crée la base SQLite + données de démo
+SEED_ADMIN_PASSWORD="un-mot-de-passe-fort" pnpm setup
 pnpm dev          # http://localhost:3000
 ```
 
-Comptes de démo (mot de passe `password123`) :
-`admin@actyl.org` · `campagne@actyl.org` · `militant@actyl.org` · `observateur@actyl.org`
+Le seed crée uniquement le compte administrateur initial. Son adresse et son
+nom peuvent être définis avec `SEED_ADMIN_EMAIL` et `SEED_ADMIN_NAME`.
 
 ## Production
 
