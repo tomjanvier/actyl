@@ -56,7 +56,6 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/controls";
-import { ImportTeamDialog } from "@/components/contacts/import-team-dialog";
 import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 
 type ReferenceSource =
@@ -788,7 +787,6 @@ function ImportOfficials({
 }) {
   const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<Record<string, string>>({});
-  const [teamOpen, setTeamOpen] = useState(false);
   const router = useRouter();
 
   async function importIntoDirectory(
@@ -914,8 +912,8 @@ function ImportOfficials({
             </p>
           </div>
           {isAdmin && (
-            <Button variant="outline" size="sm" onClick={() => setTeamOpen(true)}>
-              <UsersRound /> Importer une équipe de campagne
+            <Button variant="outline" size="sm" onClick={() => router.push("/campaign-teams")}>
+              <UsersRound /> Gérer les équipes de campagne
             </Button>
           )}
         </div>
@@ -948,8 +946,6 @@ function ImportOfficials({
           <p className="mt-3 text-[12px] text-faint">Votre rôle est en lecture seule.</p>
         )}
       </section>
-
-      {isAdmin && <ImportTeamDialog open={teamOpen} onOpenChange={setTeamOpen} />}
     </div>
   );
 }

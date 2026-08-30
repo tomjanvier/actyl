@@ -151,6 +151,7 @@ export async function importSenat(): Promise<ImportedContact[]> {
   const iGroupe = idx("Groupe politique");
   const iCirco = idx("Circonscription");
   const iMail = idx("Courrier électronique");
+  const iMatricule = idx("Matricule");
 
   const out: ImportedContact[] = [];
   for (const line of lines.slice(1)) {
@@ -162,11 +163,12 @@ export async function importSenat(): Promise<ImportedContact[]> {
     const emailRaw = iMail >= 0 ? cols[iMail]?.trim() : "";
     const email =
       emailRaw && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw) ? emailRaw : null;
+    const matricule = iMatricule >= 0 ? cols[iMatricule]?.trim() : "";
     out.push({
       firstName: prenom,
       lastName: nom,
       email,
-      photoUrl: null,
+      photoUrl: matricule ? senatorPhotoUrl(nom, prenom, matricule) : null,
       title: "Sénateur·rice",
       institution: "Sénat",
       party: iGroupe >= 0 ? cols[iGroupe]?.trim() || null : null,
@@ -174,7 +176,39 @@ export async function importSenat(): Promise<ImportedContact[]> {
       level: "NATIONAL",
     });
   }
+  await discardUnavailablePhotos(out);
   return ensureMinimum("Sénat", out, 250);
+}
+
+/** Construit l'identifiant public utilisé par le Sénat pour ses portraits. */
+function senatorPhotoUrl(lastName: string, firstName: string, matricule: string) {
+  const identifier = `${lastName}_${firstName}${matricule}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `https://www.senat.fr/senimg/${identifier}.jpg`;
+}
+
+/** Écarte les URLs théoriques quand aucun portrait n'est publié par la source. */
+async function discardUnavailablePhotos(contacts: ImportedContact[]) {
+  const batchSize = 16;
+  for (let index = 0; index < contacts.length; index += batchSize) {
+    const batch = contacts.slice(index, index + batchSize);
+    const results = await Promise.allSettled(
+      batch.map((contact) =>
+        contact.photoUrl
+          ? fetchWithTimeout(contact.photoUrl, { method: "HEAD" }, 15_000)
+          : Promise.resolve(null),
+      ),
+    );
+    results.forEach((result, offset) => {
+      if (result.status !== "fulfilled" || !result.value?.ok) {
+        batch[offset]!.photoUrl = null;
+      }
+    });
+  }
 }
 
 /** Analyse une ligne CSV et ses champs entre guillemets. */

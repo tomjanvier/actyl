@@ -77,11 +77,27 @@ function cleanPerson(p: MergePerson): MergePerson | null {
 /**
  * Fusionne les personnes dans la liste sans toucher aux données existantes.
  * Les compteurs détaillés permettent à l'interface d'expliquer le résultat.
- */export async function mergePeopleIntoList(
+ */
+export async function mergePeopleIntoList(
   workspaceId: string,
   listId: string,
   people: MergePerson[],
 ): Promise<MergeStats> {
+  // Déduplique la source avant toute écriture afin de garder des lots bornés.
+  const cleaned = new Map<string, MergePerson>();
+  let skipped = 0;
+  for (const raw of people) {
+    const person = cleanPerson(raw);
+    if (!person) {
+      skipped++;
+      continue;
+    }
+    cleaned.set(
+      `${norm(person.firstName)}|${norm(person.lastName)}|${norm(person.institution)}`,
+      person,
+    );
+  }
+
   // Indexe une seule fois l'annuaire de l'espace avec des clés normalisées.
   const existing = await db.contact.findMany({
     where: { workspaceId },
@@ -99,21 +115,10 @@ function cleanPerson(p: MergePerson): MergePerson | null {
   const inList = new Set(listItems.map((i) => i.contactId));
 
   let colorCursor = Math.floor(Math.random() * AVATAR_COLORS.length);
-  const stats: MergeStats = { created: 0, linked: 0, already: 0, skipped: 0 };
-
-  for (const raw of people) {
-    const person = cleanPerson(raw);
-    if (!person || (!raw.firstName?.trim() && !raw.lastName?.trim())) {
-      stats.skipped++;
-      continue;
-    }
-    const key = `${norm(person.firstName)}|${norm(person.lastName)}|${norm(person.institution)}`;
-    let contactId = index.get(key);
-
-    if (!contactId) {
-      // Crée uniquement une personne inconnue, sans écraser l'existant.
-      const contact = await db.contact.create({
-        data: {
+  const missing = [...cleaned.entries()].filter(([key]) => !index.has(key));
+  const created = missing.length
+    ? await db.contact.createMany({
+        data: missing.map(([, person]) => ({
           workspaceId,
           firstName: person.firstName,
           lastName: person.lastName,
@@ -128,26 +133,40 @@ function cleanPerson(p: MergePerson): MergePerson | null {
           category: "DECISION_MAKER",
           influenceScore: 3,
           avatarColor: AVATAR_COLORS[colorCursor++ % AVATAR_COLORS.length]!,
-        },
-        select: { id: true },
-      });
-      contactId = contact.id;
-      index.set(key, contactId);
-      stats.created++;
-    }
+        })),
+        skipDuplicates: true,
+      })
+    : { count: 0 };
 
-    if (inList.has(contactId)) {
-      stats.already++;
-      continue;
-    }
-    await db.listItem.create({
-      data: { listId, contactId, note: person.note },
+  if (missing.length) {
+    const refreshed = await db.contact.findMany({
+      where: { workspaceId },
+      select: { id: true, firstName: true, lastName: true, institution: true },
     });
-    inList.add(contactId);
-    stats.linked++;
+    for (const contact of refreshed) {
+      index.set(
+        `${norm(contact.firstName)}|${norm(contact.lastName)}|${norm(contact.institution)}`,
+        contact.id,
+      );
+    }
   }
 
-  return stats;
+  const toLink = [...cleaned.entries()].flatMap(([key, person]) => {
+    const contactId = index.get(key);
+    return contactId && !inList.has(contactId)
+      ? [{ listId, contactId, note: person.note }]
+      : [];
+  });
+  const linked = toLink.length
+    ? await db.listItem.createMany({ data: toLink, skipDuplicates: true })
+    : { count: 0 };
+
+  return {
+    created: created.count,
+    linked: linked.count,
+    already: cleaned.size - linked.count,
+    skipped,
+  };
 }
 
 // ── CSV (collé ou fichier) ───────────────────────────────────────────────────

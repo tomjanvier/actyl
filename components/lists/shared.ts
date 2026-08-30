@@ -12,6 +12,7 @@ export type ContactLite = {
   level: string;
   stance: string;
   email: string | null;
+  photoUrl: string | null;
   avatarColor: string;
 };
 
@@ -24,6 +25,8 @@ export type ListWithItems = {
   isPublished: boolean;
   sourcePack?: string | null;
   items: Array<{ itemId: string; contact: ContactLite }>;
+  totalItems: number;
+  memberContactIds: string[];
   /** Attributs propres à cette liste. */
   attributes?: ListAttribute[];
   /** Associe la clé « contactId:fieldId » à sa valeur. */

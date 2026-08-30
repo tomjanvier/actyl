@@ -8,6 +8,7 @@ import {
   ListChecks,
   Settings,
   Plus,
+  UsersRound,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -76,6 +77,10 @@ export function CommandMenu({
             <CommandItem onSelect={() => go("/lists")}>
               <ListChecks />
               Listes partagées
+            </CommandItem>
+            <CommandItem onSelect={() => go("/campaign-teams")}>
+              <UsersRound />
+              Équipes et positions politiques
             </CommandItem>
             <CommandItem onSelect={() => go("/settings")}>
               <Settings />

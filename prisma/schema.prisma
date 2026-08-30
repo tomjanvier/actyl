@@ -38,6 +38,8 @@ model Workspace {
   donations    Donation[]
   apiTokens    ApiToken[]
   supporters   Supporter[]
+  campaignTeams CampaignTeam[]
+  politicalPositions PoliticalPosition[]
 
   @@map("workspaces")
 }
@@ -161,6 +163,8 @@ model Contact {
   tasks          Task[]
   donations      Donation[]
   listChangeProposals ListChangeProposal[]
+  candidateForTeams CampaignTeam[]       @relation("CampaignCandidate")
+  campaignTeamMemberships CampaignTeamMember[]
 
   @@unique([workspaceId, firstName, lastName, institution])
   @@index([workspaceId])
@@ -358,6 +362,85 @@ model ListItem {
   @@index([listId])
   @@index([contactId])
   @@map("list_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Équipes de campagne et positions politiques
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Environnement de campagne rattaché à un candidat et à une élection.
+model CampaignTeam {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  name               String
+  candidateName      String
+  candidateContactId String?
+  election           String   @default("Présidentielle 2027")
+  party              String?
+  politicalBloc      String?
+  status             String?  // OFFICIAL | LIKELY | WATCH | UNKNOWN
+  sourceLabel        String?
+  sourceUrl          String?
+  verifiedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  candidate Contact? @relation("CampaignCandidate", fields: [candidateContactId], references: [id], onDelete: SetNull)
+  members CampaignTeamMember[]
+  positions PoliticalPosition[]
+
+  @@unique([workspaceId, election, candidateName])
+  @@index([workspaceId, election])
+  @@map("campaign_teams")
+}
+
+/// Fonction occupée par un contact dans une équipe de campagne.
+model CampaignTeamMember {
+  id           String   @id @default(cuid())
+  teamId       String
+  contactId    String
+  role         String?
+  involvement  String?
+  relationship String?
+  sourceLabel  String?
+  sourceUrl    String?
+  verifiedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  team    CampaignTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  contact Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, contactId])
+  @@index([contactId])
+  @@map("campaign_team_members")
+}
+
+/// Position sourcée d'un parti ou d'une équipe sur un thème de plaidoyer.
+model PoliticalPosition {
+  id          String   @id @default(cuid())
+  workspaceId String
+  teamId      String?
+  party       String?
+  topic       String
+  summary     String
+  stance      String   @default("UNKNOWN") // FAVORABLE | MIXED | OPPOSED | UNKNOWN
+  evidence    String?
+  sourceLabel String?
+  sourceUrl   String?
+  observedAt  DateTime?
+  sourceKey   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team      CampaignTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sourceKey])
+  @@index([workspaceId, party])
+  @@index([teamId])
+  @@map("political_positions")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

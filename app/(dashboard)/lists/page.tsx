@@ -23,7 +23,7 @@ export default async function ListsPage() {
   );
 
   // Ces requêtes indépendantes sont exécutées en parallèle.
-  const [lists, allContacts, listFields, proposals] = await Promise.all([
+  const [lists, allContacts, listFields, listMemberships, proposals] = await Promise.all([
     db.sharedList.findMany({
       where: {
         workspaceId: session.workspaceId,
@@ -35,6 +35,7 @@ export default async function ListsPage() {
       orderBy: [{ isPublished: "desc" }, { createdAt: "desc" }],
       include: {
         items: {
+          take: 5,
           include: {
             contact: {
               select: {
@@ -47,12 +48,14 @@ export default async function ListsPage() {
                 level: true,
                 stance: true,
                 email: true,
+                photoUrl: true,
                 avatarColor: true,
               },
             },
           },
           orderBy: { note: "asc" },
         },
+        _count: { select: { items: true } },
       },
     }),
     db.contact.findMany({
@@ -68,6 +71,7 @@ export default async function ListsPage() {
         level: true,
         stance: true,
         email: true,
+        photoUrl: true,
         avatarColor: true,
       },
     }),
@@ -75,12 +79,19 @@ export default async function ListsPage() {
     db.customField.findMany({
       where: { workspaceId: session.workspaceId, NOT: { listId: null } },
       orderBy: { position: "asc" },
-      select: {
-        id: true,
-        listId: true,
-        label: true,
-        values: { select: { contactId: true, value: true } },
+      select: { id: true, listId: true, label: true },
+    }),
+    db.listItem.findMany({
+      where: {
+        list: {
+          workspaceId: session.workspaceId,
+          OR: [
+            { sourcePack: null },
+            { sourcePack: { notIn: [...disabledReferencePacks] } },
+          ],
+        },
       },
+      select: { listId: true, contactId: true },
     }),
     session.role === "ADMIN"
       ? db.listChangeProposal.findMany({
@@ -105,6 +116,19 @@ export default async function ListsPage() {
       : Promise.resolve([]),
   ]);
 
+  const previewContactIds = lists.flatMap((list) =>
+    list.items.map((item) => item.contact.id),
+  );
+  const listFieldValues = previewContactIds.length
+    ? await db.customFieldValue.findMany({
+        where: {
+          contactId: { in: previewContactIds },
+          field: { workspaceId: session.workspaceId, NOT: { listId: null } },
+        },
+        select: { fieldId: true, contactId: true, value: true },
+      })
+    : [];
+
   const fieldsByList = new Map<string, typeof listFields>();
   const valuesByList = new Map<string, Record<string, string>>();
   for (const f of listFields) {
@@ -113,10 +137,21 @@ export default async function ListsPage() {
     arr.push(f);
     fieldsByList.set(f.listId, arr);
     const values = valuesByList.get(f.listId) ?? {};
-    for (const value of f.values) {
-      if (value.value) values[`${value.contactId}:${f.id}`] = value.value;
-    }
     valuesByList.set(f.listId, values);
+  }
+  const fieldToList = new Map(listFields.map((field) => [field.id, field.listId]));
+  for (const value of listFieldValues) {
+    const listId = fieldToList.get(value.fieldId);
+    if (!listId || !value.value) continue;
+    const values = valuesByList.get(listId) ?? {};
+    values[`${value.contactId}:${value.fieldId}`] = value.value;
+    valuesByList.set(listId, values);
+  }
+  const membersByList = new Map<string, string[]>();
+  for (const membership of listMemberships) {
+    const members = membersByList.get(membership.listId) ?? [];
+    members.push(membership.contactId);
+    membersByList.set(membership.listId, members);
   }
 
   return (
@@ -134,6 +169,8 @@ export default async function ListsPage() {
           isPublished: l.isPublished,
           sourcePack: l.sourcePack,
           items: l.items.map((i) => ({ itemId: i.id, contact: i.contact })),
+          totalItems: l._count.items,
+          memberContactIds: membersByList.get(l.id) ?? [],
           attributes: (fieldsByList.get(l.id) ?? []).map((f) => ({
             id: f.id,
             label: f.label,
