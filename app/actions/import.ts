@@ -18,8 +18,12 @@ import {
   norm,
 } from "@/lib/lists-import";
 import { REFERENCE_PACKS, type ReferencePackKey } from "@/lib/datasets/reference-packs";
-import { setPresidentielleModuleAction } from "@/app/actions/presidentielle";
+import {
+  PRESIDENTIELLE_LISTS,
+} from "@/lib/datasets/presidentielle-2027";
 import { proposeListChange } from "@/app/actions/list-proposals";
+import { syncReferenceListProposals } from "@/lib/reference-sync";
+import { referencePackSettingKey } from "@/lib/reference-pack-settings";
 
 export type ImportResult = {
   ok?: boolean;
@@ -116,7 +120,7 @@ async function mergePeopleIntoDirectory(
 }
 
 export async function importOfficialSourceAction(
-  source: "an" | "senat" | "pe" | "paris" | "regions" | "departements",
+  source: "an" | "senat" | "pe" | "presidentielle" | "paris" | "regions" | "departements",
   opts?: { listId?: string | null },
 ): Promise<ImportResult> {
   const session = await getSession();
@@ -132,6 +136,20 @@ export async function importOfficialSourceAction(
       contacts = await importSenat();
     } else if (source === "pe") {
       contacts = await importParlementEuropeen();
+    } else if (source === "presidentielle") {
+      contacts = PRESIDENTIELLE_LISTS.flatMap((list) =>
+        list.people.map((person) => ({
+          firstName: person.firstName,
+          lastName: person.lastName,
+          email: null,
+          photoUrl: null,
+          title: person.title,
+          institution: "Présidentielle 2027",
+          party: person.party,
+          region: null,
+          level: "NATIONAL",
+        })),
+      );
     } else if (source === "paris") {
       contacts = await importParisCouncillors();
     } else {
@@ -173,7 +191,6 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
   if (session.role !== "ADMIN") return { error: "Seul l’administrateur peut installer ou synchroniser un pack" };
   const pack = REFERENCE_PACKS.find((candidate) => candidate.key === key);
   if (!pack) return { error: "Pack introuvable" };
-  if (pack.source === "presidentielle") return setPresidentielleModuleAction(true);
 
   const existing = await db.sharedList.findFirst({
     where: { workspaceId: session.workspaceId, sourcePack: pack.key },
@@ -189,7 +206,23 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
     return { error: `Une liste nommée « ${pack.name} » existe déjà sans être rattachée à ce pack` };
   }
 
-  const list = existing ?? await db.sharedList.create({
+  await db.appSetting.upsert({
+    where: { key: referencePackSettingKey(session.workspaceId, key) },
+    create: { key: referencePackSettingKey(session.workspaceId, key), value: "on" },
+    update: { value: "on" },
+  });
+  if (existing) {
+    const result = await syncReferenceListProposals(
+      existing.id,
+      session.workspaceId,
+      key,
+    );
+    revalidatePath("/settings");
+    revalidatePath("/lists");
+    return { ok: true, proposed: result.proposals };
+  }
+
+  const list = await db.sharedList.create({
     data: {
       workspaceId: session.workspaceId,
       name: pack.name,
@@ -199,21 +232,48 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
     },
     select: { id: true },
   });
-  if (existing) {
-    await db.sharedList.update({
-      where: { id: existing.id },
-      data: { name: pack.name, description: pack.description },
-    });
-  }
-
   const result = await importOfficialSourceAction(pack.source, { listId: list.id });
-  if (result.error && !existing) {
+  if (result.error) {
     // Ne conserve pas une liste vide lorsque la première récupération échoue.
     await db.sharedList.deleteMany({
       where: { id: list.id, workspaceId: session.workspaceId, items: { none: {} } },
     });
+    await db.appSetting.update({
+      where: { key: referencePackSettingKey(session.workspaceId, key) },
+      data: { value: "off" },
+    });
   }
   return result;
+}
+
+/** Active ou masque un référentiel partagé sans supprimer ses données. */
+export async function setReferencePackEnabledAction(
+  key: ReferencePackKey,
+  enabled: boolean,
+): Promise<ImportResult> {
+  const session = await getSession();
+  if (!session) return { error: "Non authentifié" };
+  if (session.role !== "ADMIN") {
+    return { error: "Seul l’administrateur peut activer un référentiel" };
+  }
+  if (!REFERENCE_PACKS.some((pack) => pack.key === key)) {
+    return { error: "Référentiel introuvable" };
+  }
+  if (enabled) return installReferencePackAction(key);
+
+  await db.appSetting.upsert({
+    where: { key: referencePackSettingKey(session.workspaceId, key) },
+    create: { key: referencePackSettingKey(session.workspaceId, key), value: "off" },
+    update: { value: "off" },
+  });
+  await db.sharedList.updateMany({
+    where: { workspaceId: session.workspaceId, sourcePack: key },
+    data: { isPublished: false },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/lists");
+  revalidatePath("/contacts");
+  return { ok: true };
 }
 
 /**

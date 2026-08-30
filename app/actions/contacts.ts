@@ -306,7 +306,9 @@ export async function importCampaignTeamAction(input: {
 }): Promise<{ ok?: boolean; error?: string; created?: number; skipped?: number }> {
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
-  if (!can(session.role, "contact:create")) return { error: "Permission refusée" };
+  if (session.role !== "ADMIN") {
+    return { error: "Import réservé aux administrateurs" };
+  }
 
   const candidate = input.candidate.trim().slice(0, 120);
   const election = input.election.trim() as (typeof ELECTION_TYPES)[number];
@@ -324,26 +326,41 @@ export async function importCampaignTeamAction(input: {
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const colorPool = ["indigo", "emerald", "amber", "rose", "violet", "sky", "teal", "orange", "fuchsia", "slate"];
-  let created = 0;
   let skipped = 0;
+  const institution = `Équipe ${candidate}`.slice(0, 160);
+  const parsed: Array<{
+    workspaceId: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    phone: string | null;
+    title: string;
+    institution: string;
+    party: string | null;
+    region: string | null;
+    level: string;
+    category: string;
+    stance: string;
+    influenceScore: number;
+    themes: string;
+    avatarColor: string;
+    createdById: string;
+  }> = [];
 
   for (const line of lines.slice(0, 300)) {
     const parts = line
-      .split(/\s*[;|\t—–-]\s*/)
+      .split(/\s*(?:;|\t|—|–|\s-\s)\s*/)
       .map((p) => p.trim())
       .filter(Boolean);
     if (!parts.length) continue;
 
-    // Le nom correspond au premier champ avant une éventuelle adresse email.
-    const emailIdx = parts.findIndex((p) => EMAIL_RE.test(p));
-    const namePart = (emailIdx === -1 ? parts[0]! : parts.slice(0, emailIdx).join(" ")).trim();
-    const email = emailIdx === -1 ? null : parts[emailIdx]!.toLowerCase();
-
-    // La fonction est le premier champ distinct du nom et de l'email.
-    const fn = parts.find(
-      (p, i) => i !== 0 && p !== parts[emailIdx!] && !EMAIL_RE.test(p),
-    );
+    const namePart = parts[0]!.trim();
+    const email = parts.find((part) => EMAIL_RE.test(part))?.toLowerCase() ?? null;
     const phone = parts.find((p) => /^\+?[\d\s.()-]{8,}$/.test(p) && !EMAIL_RE.test(p));
+    // La fonction est le premier champ après le nom qui n'est ni un email ni un téléphone.
+    const fn = parts.slice(1).find(
+      (part) => !EMAIL_RE.test(part) && part !== phone,
+    );
 
     const nameWords = namePart.split(/\s+/);
     if (nameWords.length < 2 || nameWords.join("").length < 4) {
@@ -353,42 +370,31 @@ export async function importCampaignTeamAction(input: {
     const firstName = nameWords[0]!.slice(0, 80);
     const lastName = nameWords.slice(1).join(" ").slice(0, 80);
 
-    const exists = await db.contact.findFirst({
-      where: {
-        workspaceId: session.workspaceId,
-        firstName,
-        lastName,
-        institution: `Équipe ${candidate}`,
-      },
-      select: { id: true },
+    parsed.push({
+      workspaceId: session.workspaceId,
+      firstName,
+      lastName,
+      email,
+      phone: phone ?? null,
+      title: fn?.slice(0, 120) ?? "Membre de l'équipe",
+      institution,
+      party,
+      region,
+      level: "CIVIL_SOCIETY",
+      category: "DECISION_MAKER",
+      stance: "ALLY",
+      influenceScore: 3,
+      themes: `election:${election.toLowerCase()}`,
+      avatarColor: colorPool[Math.floor(Math.random() * colorPool.length)]!,
+      createdById: session.user.id,
     });
-    if (exists) {
-      skipped++;
-      continue;
-    }
-
-    await db.contact.create({
-      data: {
-        workspaceId: session.workspaceId,
-        firstName,
-        lastName,
-        email,
-        phone: phone ?? null,
-        title: fn?.slice(0, 120) ?? "Membre de l'équipe",
-        institution: `Équipe ${candidate}`.slice(0, 160),
-        party,
-        region,
-        level: "CIVIL_SOCIETY",
-        category: "DECISION_MAKER",
-        stance: "ALLY",
-        influenceScore: 3,
-        themes: `election:${election.toLowerCase()}`,
-        avatarColor: colorPool[Math.floor(Math.random() * colorPool.length)]!,
-        createdById: session.user.id,
-      },
-    });
-    created++;
   }
+
+  const inserted = parsed.length
+    ? await db.contact.createMany({ data: parsed, skipDuplicates: true })
+    : { count: 0 };
+  const created = inserted.count;
+  skipped += parsed.length - created;
 
   revalidatePath("/contacts");
   if (!created && skipped) return { ok: true, created: 0, skipped };

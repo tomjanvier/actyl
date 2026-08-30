@@ -23,27 +23,41 @@ export default async function SupportersPage({
   const page = Math.max(1, Number(pageParam) || 1);
   const where = { workspaceId: session.workspaceId };
 
-  const [supporters, total, engaged, tagRows] = await Promise.all([
+  const [supporters, stats, tagRows, sourceRows] = await Promise.all([
     db.supporter.findMany({
       where,
       orderBy: { lastSeenAt: "desc" },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
-    db.supporter.count({ where }),
-    db.supporter.count({ where: { ...where, touchCount: { gte: 3 } } }),
-    // Lecture ciblée des colonnes utiles aux filtres de tags et d'origine.
-    db.supporter.findMany({ where, select: { tags: true, source: true } }),
+    db.$queryRaw<Array<{ total: number; engaged: number }>>`
+      SELECT
+        count(*)::int AS total,
+        count(*) FILTER (WHERE "touchCount" >= 3)::int AS engaged
+      FROM "supporters"
+      WHERE "workspaceId" = ${session.workspaceId}
+    `,
+    db.$queryRaw<Array<{ tag: string }>>`
+      SELECT DISTINCT btrim(tag) AS tag
+      FROM "supporters"
+      CROSS JOIN LATERAL unnest(string_to_array(coalesce("tags", ''), ',')) AS tag
+      WHERE "workspaceId" = ${session.workspaceId}
+        AND btrim(tag) <> ''
+      ORDER BY tag
+    `,
+    db.$queryRaw<Array<{ source: string }>>`
+      SELECT DISTINCT "source"
+      FROM "supporters"
+      WHERE "workspaceId" = ${session.workspaceId}
+        AND "source" IS NOT NULL
+      ORDER BY "source"
+    `,
   ]);
 
-  const allTags = [
-    ...new Set(
-      tagRows.flatMap((r) =>
-        (r.tags ?? "").split(",").map((t) => t.trim()).filter(Boolean),
-      ),
-    ),
-  ].sort();
-  const sources = [...new Set(tagRows.map((r) => r.source).filter(Boolean))] as string[];
+  const total = stats[0]?.total ?? 0;
+  const engaged = stats[0]?.engaged ?? 0;
+  const allTags = tagRows.map((row) => row.tag);
+  const sources = sourceRows.map((row) => row.source);
 
   return (
     <>

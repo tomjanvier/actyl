@@ -11,7 +11,6 @@ import {
   MailX,
   RefreshCw,
   X,
-  Vote,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,7 +34,6 @@ import {
 import { ContactDrawer } from "@/components/contacts/contact-drawer";
 import { EntityAvatar } from "@/components/ui/badge";
 import { CreateContactDialog } from "@/components/contacts/create-contact-dialog";
-import { ImportTeamDialog } from "@/components/contacts/import-team-dialog";
 import { PaginationBar } from "@/components/ui/pagination";
 import {
   subscribeContactsAction,
@@ -78,6 +76,9 @@ export function ContactsView({
   canNewsletter = false,
   extendedDirectory = false,
   newsletterEnabled = false,
+  lists = [],
+  activeListId = "",
+  initialContactId = null,
   pagination,
 }: {
   contacts: ContactRow[];
@@ -106,6 +107,9 @@ export function ContactsView({
   canNewsletter?: boolean;
   extendedDirectory?: boolean;
   newsletterEnabled?: boolean;
+  lists?: Array<{ id: string; name: string }>;
+  activeListId?: string;
+  initialContactId?: string | null;
   pagination?: { page: number; pageCount: number; total: number };
 }) {
   const router = useRouter();
@@ -121,7 +125,6 @@ export function ContactsView({
   const [nlBusy, setNlBusy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Ouvre la création depuis ⌘K ou le paramètre ?new=1.
@@ -131,6 +134,26 @@ export function ContactsView({
       window.history.replaceState(null, "", "/contacts");
     }
   }, []);
+
+  useEffect(() => {
+    if (
+      initialContactId &&
+      contacts.some((contact) => contact.id === initialContactId)
+    ) {
+      setSelectedId(initialContactId);
+    }
+  }, [contacts, initialContactId]);
+
+  function changeList(listId: string) {
+    const params = new URLSearchParams(window.location.search);
+    if (listId) params.set("list", listId);
+    else params.delete("list");
+    params.delete("page");
+    params.delete("contact");
+    startTransition(() =>
+      router.push(params.size ? `/contacts?${params.toString()}` : "/contacts"),
+    );
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -331,6 +354,20 @@ export function ContactsView({
           )}
         </div>
 
+        {lists.length > 0 && (
+          <select
+            value={activeListId}
+            onChange={(event) => changeList(event.target.value)}
+            className={cn(filterCls, activeListId && activeCls)}
+            aria-label="Filtrer par liste partagée"
+          >
+            <option value="">Toutes les listes</option>
+            {lists.map((list) => (
+              <option key={list.id} value={list.id}>{list.name}</option>
+            ))}
+          </select>
+        )}
+
         <select
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value)}
@@ -452,11 +489,6 @@ export function ContactsView({
           <Button variant="outline" size="sm" onClick={() => exportData("json")}>
             <Download /> JSON
           </Button>
-          {canEdit && extendedDirectory && (
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-              <Vote /> Équipe de campagne
-            </Button>
-          )}
           {canEdit && (
             <Button size="sm" onClick={() => setCreateOpen(true)}>
               <Plus /> Nouveau contact
@@ -630,10 +662,6 @@ export function ContactsView({
         onOpenChange={setCreateOpen}
         extendedDirectory={extendedDirectory}
       />
-
-      {extendedDirectory && (
-        <ImportTeamDialog open={importOpen} onOpenChange={setImportOpen} />
-      )}
 
       {isPending && (
         <div className="fixed bottom-4 right-4 rounded-full bg-white/10 px-3 py-1.5 text-xs text-mut backdrop-blur">

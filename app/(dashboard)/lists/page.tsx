@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { PageHeader } from "@/components/layout/page-header";
 import { ListsView } from "@/components/lists/lists-view";
-import { REFERENCE_PACKS } from "@/lib/datasets/reference-packs";
+import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
 
 export const metadata = { title: "Listes partagées" };
 
@@ -18,11 +18,20 @@ function proposalName(payload: string) {
 
 export default async function ListsPage() {
   const session = await requireSession();
+  const disabledReferencePacks = await getDisabledReferencePacks(
+    session.workspaceId,
+  );
 
   // Ces requêtes indépendantes sont exécutées en parallèle.
   const [lists, allContacts, listFields, proposals] = await Promise.all([
     db.sharedList.findMany({
-      where: { workspaceId: session.workspaceId },
+      where: {
+        workspaceId: session.workspaceId,
+        OR: [
+          { sourcePack: null },
+          { sourcePack: { notIn: [...disabledReferencePacks] } },
+        ],
+      },
       orderBy: [{ isPublished: "desc" }, { createdAt: "desc" }],
       include: {
         items: {
@@ -66,11 +75,25 @@ export default async function ListsPage() {
     db.customField.findMany({
       where: { workspaceId: session.workspaceId, NOT: { listId: null } },
       orderBy: { position: "asc" },
-      select: { id: true, listId: true, label: true },
+      select: {
+        id: true,
+        listId: true,
+        label: true,
+        values: { select: { contactId: true, value: true } },
+      },
     }),
     session.role === "ADMIN"
       ? db.listChangeProposal.findMany({
-          where: { workspaceId: session.workspaceId, status: "PENDING" },
+          where: {
+            workspaceId: session.workspaceId,
+            status: "PENDING",
+            list: {
+              OR: [
+                { sourcePack: null },
+                { sourcePack: { notIn: [...disabledReferencePacks] } },
+              ],
+            },
+          },
           orderBy: { createdAt: "asc" },
           take: 200,
           include: {
@@ -82,23 +105,18 @@ export default async function ListsPage() {
       : Promise.resolve([]),
   ]);
 
-  const fieldIds = listFields.map((f) => f.id);
-  const attrValues = fieldIds.length
-    ? await db.customFieldValue.findMany({
-        where: { fieldId: { in: fieldIds } },
-        select: { contactId: true, fieldId: true, value: true },
-      })
-    : [];
-  const valueMap: Record<string, string> = {};
-  for (const v of attrValues) {
-    if (v.value) valueMap[`${v.contactId}:${v.fieldId}`] = v.value;
-  }
   const fieldsByList = new Map<string, typeof listFields>();
+  const valuesByList = new Map<string, Record<string, string>>();
   for (const f of listFields) {
     if (!f.listId) continue;
     const arr = fieldsByList.get(f.listId) ?? [];
     arr.push(f);
     fieldsByList.set(f.listId, arr);
+    const values = valuesByList.get(f.listId) ?? {};
+    for (const value of f.values) {
+      if (value.value) values[`${value.contactId}:${f.id}`] = value.value;
+    }
+    valuesByList.set(f.listId, values);
   }
 
   return (
@@ -120,20 +138,12 @@ export default async function ListsPage() {
             id: f.id,
             label: f.label,
           })),
-          values: Object.fromEntries(
-            Object.entries(valueMap).filter(([k]) =>
-              (fieldsByList.get(l.id) ?? []).some((f) => k.endsWith(`:${f.id}`)),
-            ),
-          ),
+          values: valuesByList.get(l.id) ?? {},
         }))}
         allContacts={allContacts}
         canManage={can(session.role, "list:create")}
         canPublish={can(session.role, "list:publish")}
         isAdmin={session.role === "ADMIN"}
-        referencePacks={REFERENCE_PACKS.map((pack) => ({
-          ...pack,
-          installed: lists.some((list) => list.sourcePack === pack.key),
-        }))}
         proposals={proposals.map((proposal) => ({
           id: proposal.id,
           action: proposal.action,

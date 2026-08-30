@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
-import { getPresidentielleEnabled, getSegmentsConfig } from "@/lib/flags";
+import { getSegmentsConfig } from "@/lib/flags";
 import { TooltipProvider } from "@/components/ui/controls";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -11,14 +11,13 @@ export default async function DashboardLayout({
 }) {
   const session = await requireSession();
 
-  const [memberships, segments, presidentielleEnabled, pinnedCampaigns] = await Promise.all([
+  const [memberships, segments, pinnedCampaigns] = await Promise.all([
     db.membership.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
       include: { workspace: { select: { id: true, name: true, slug: true, logoEmoji: true } } },
     }),
     getSegmentsConfig(session.workspaceId),
-    getPresidentielleEnabled(session.workspaceId),
     db.campaign.findMany({
       where: {
         OR: [
@@ -64,7 +63,6 @@ export default async function DashboardLayout({
           }}
           workspaces={workspaces}
           userName={session.user.name}
-          presidentielleEnabled={presidentielleEnabled}
           pinnedCampaigns={pinnedCampaigns}
           directorySegments={[
                   { key: "", label: "Tout le répertoire", count: categoryCounts.reduce((n, c) => n + c._count._all, 0) },

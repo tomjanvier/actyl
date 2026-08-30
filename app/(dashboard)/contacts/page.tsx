@@ -5,6 +5,8 @@ import { getSegmentsConfig } from "@/lib/flags";
 import { getNewsletterConfig } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
 import { ContactsView } from "@/components/contacts/contacts-view";
+import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
+import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 
 export const metadata = { title: "Contacts" };
 
@@ -21,11 +23,36 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; page?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    page?: string;
+    list?: string;
+    contact?: string;
+  }>;
 }) {
   const session = await requireSession();
-  const { category, page: pageParam } = await searchParams;
-  const segments = await getSegmentsConfig(session.workspaceId);
+  const {
+    category,
+    page: pageParam,
+    list: requestedListId,
+    contact: initialContactId,
+  } = await searchParams;
+  const [segments, newsletter, directoryLists, disabledReferencePacks] = await Promise.all([
+    getSegmentsConfig(session.workspaceId),
+    getNewsletterConfig(session.workspaceId),
+    db.sharedList.findMany({
+      where: { workspaceId: session.workspaceId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, sourcePack: true },
+    }),
+    getDisabledReferencePacks(session.workspaceId),
+  ]);
+  const visibleLists = directoryLists.filter(
+    (list) =>
+      !list.sourcePack ||
+      !disabledReferencePacks.has(list.sourcePack as ReferencePackKey),
+  );
+  const activeList = visibleLists.find((list) => list.id === requestedListId);
   const enabledCategories = new Set([
     "DECISION_MAKER",
     ...(segments.members ? ["MEMBER"] : []),
@@ -39,15 +66,14 @@ export default async function ContactsPage({
 
   // La pagination serveur limite la réponse à cent contacts.
   const page = Math.max(1, Number(pageParam) || 1);
-  const newsletter = await getNewsletterConfig(session.workspaceId);
   const newsletterEnabled = newsletter.enabled;
   const where = {
     workspaceId: session.workspaceId,
     ...(activeCategory ? { category: activeCategory } : {}),
+    ...(activeList ? { listItems: { some: { listId: activeList.id } } } : {}),
   };
 
-  const [contacts, total, fields, myNotes, myPrivateData, orgNoteRows, emailCounts] =
-    await Promise.all([
+  const [contacts, total, fields] = await Promise.all([
       db.contact.findMany({
         where,
         orderBy: [{ lastName: "asc" }],
@@ -87,29 +113,39 @@ export default async function ContactsPage({
         where: { workspaceId: session.workspaceId },
         orderBy: { position: "asc" },
       }),
+    ]);
+
+  const contactIds = contacts.map((contact) => contact.id);
+  const [myNotes, myPrivateData, orgNoteRows, emailCounts] = contactIds.length
+    ? await Promise.all([
       db.privateNote.findMany({
         where: {
           authorId: session.user.id,
-          contact: { workspaceId: session.workspaceId },
+          contactId: { in: contactIds },
         },
         orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
         select: { id: true, contactId: true, body: true, pinned: true, createdAt: true },
       }),
       db.contactPrivateData.findMany({
-        where: { userId: session.user.id },
+        where: { userId: session.user.id, contactId: { in: contactIds } },
         select: { contactId: true, rating: true, tags: true, status: true },
       }),
       db.orgNote.findMany({
-        where: { workspaceId: session.workspaceId },
+        where: { workspaceId: session.workspaceId, contactId: { in: contactIds } },
         orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
         select: { id: true, contactId: true, authorName: true, body: true, pinned: true, createdAt: true },
       }),
       db.sentEmail.groupBy({
         by: ["contactId"],
-        where: { contact: { workspaceId: session.workspaceId } },
+        where: { contactId: { in: contactIds } },
         _count: { id: true },
       }),
-    ]);
+    ])
+    : [[], [], [], []] as const;
+
+  const emailCountMap = new Map(
+    emailCounts.map((row) => [row.contactId, row._count.id]),
+  );
 
   const serialized = contacts.map((c) => ({
     ...c,
@@ -121,8 +157,7 @@ export default async function ContactsPage({
     customValues: Object.fromEntries(
       c.customValues.map((cv) => [cv.fieldId, cv.value ?? ""]),
     ),
-    emailsReceived:
-      emailCounts.find((e) => e.contactId === c.id)?._count.id ?? 0,
+    emailsReceived: emailCountMap.get(c.id) ?? 0,
   }));
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -132,14 +167,18 @@ export default async function ContactsPage({
       <PageHeader
         crumbs={[{ label: "Actyl" }, { label: "Contacts" }]}
         title={
-          activeCategory
+          activeList
+            ? activeList.name
+            : activeCategory
             ? CATEGORY_LABELS[activeCategory]!
             : enabledCategories.size > 1
               ? "Répertoire"
               : "Annuaire des décideurs"
         }
         description={
-          activeCategory
+          activeList
+            ? `${total.toLocaleString("fr-FR")} contact(s) dans cette liste partagée. Ouvrez une fiche pour la modifier ou proposer une correction.`
+            : activeCategory
             ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} — ${total.toLocaleString("fr-FR")} fiche(s). Vos notes et évaluations personnelles restent privées.`
             : enabledCategories.size > 1
               ? `Toute votre base (${total.toLocaleString("fr-FR")} fiches) — décideurs, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées.`
@@ -178,6 +217,9 @@ export default async function ContactsPage({
         canNewsletter={can(session.role, "email:send")}
         extendedDirectory={enabledCategories.size > 1}
         newsletterEnabled={newsletterEnabled}
+        lists={visibleLists.map((list) => ({ id: list.id, name: list.name }))}
+        activeListId={activeList?.id ?? ""}
+        initialContactId={initialContactId ?? null}
         pagination={{ page, pageCount, total }}
       />
     </>

@@ -12,7 +12,6 @@
  */
 
 export const PRESIDENTIELLE_PACK_KEY = "presidentielle-2027";
-export const PRESIDENTIELLE_SETTING_KEY = "pack_presidentielle_2027";
 
 export type PackPerson = {
   firstName: string;

@@ -2,10 +2,12 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { ROLE_META, ROLES, can } from "@/lib/constants";
 import { getSignupMode } from "@/lib/signup-mode";
-import { getPresidentielleEnabled, getSegmentsConfig } from "@/lib/flags";
+import { getSegmentsConfig } from "@/lib/flags";
 import { getNewsletterConfig, maskApiKey } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
 import { SettingsView } from "@/components/settings/settings-view";
+import { REFERENCE_PACKS } from "@/lib/datasets/reference-packs";
+import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
 
 export const metadata = { title: "Paramètres" };
 
@@ -23,10 +25,11 @@ export default async function SettingsPage({
     memberships,
     apiTokens,
     segments,
-    presidentielleEnabled,
     newsletter,
     requests,
     signupMode,
+    installedReferenceLists,
+    disabledReferencePacks,
   ] =
     await Promise.all([
       db.customField.findMany({
@@ -60,13 +63,17 @@ export default async function SettingsPage({
         orderBy: { createdAt: "desc" },
       }),
       getSegmentsConfig(session.workspaceId),
-      getPresidentielleEnabled(session.workspaceId),
       getNewsletterConfig(session.workspaceId),
     db.accountRequest.findMany({
       where: { status: "PENDING" },
       orderBy: { createdAt: "desc" },
     }),
     getSignupMode(),
+    db.sharedList.findMany({
+      where: { workspaceId: session.workspaceId, sourcePack: { not: null } },
+      select: { sourcePack: true },
+    }),
+    getDisabledReferencePacks(session.workspaceId),
   ]);
 
   return (
@@ -80,6 +87,7 @@ export default async function SettingsPage({
         initialTab={tab ?? null}
         role={session.role}
         isAdmin={session.role === "ADMIN"}
+        canImportContacts={can(session.role, "contact:create")}
         currentUserId={session.user.id}
         currentUser={{
           id: session.user.id,
@@ -140,7 +148,13 @@ export default async function SettingsPage({
           createdAt: t.createdAt.toISOString(),
         }))}
         segments={segments}
-        presidentielleEnabled={presidentielleEnabled}
+        referencePacks={REFERENCE_PACKS.map((pack) => ({
+          ...pack,
+          installed: installedReferenceLists.some(
+            (list) => list.sourcePack === pack.key,
+          ),
+          enabled: !disabledReferencePacks.has(pack.key),
+        }))}
         newsletter={{
           enabled: newsletter.enabled,
           apiKeyMasked: maskApiKey(newsletter.apiKey),
