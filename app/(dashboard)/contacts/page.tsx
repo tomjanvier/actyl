@@ -5,6 +5,8 @@ import { getSegmentsConfig } from "@/lib/flags";
 import { getNewsletterConfig } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
 import { ContactsView } from "@/components/contacts/contacts-view";
+import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
+import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 
 export const metadata = { title: "Contacts" };
 
@@ -21,14 +23,36 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; page?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    page?: string;
+    list?: string;
+    contact?: string;
+  }>;
 }) {
   const session = await requireSession();
-  const { category, page: pageParam } = await searchParams;
-  const [segments, newsletter] = await Promise.all([
+  const {
+    category,
+    page: pageParam,
+    list: requestedListId,
+    contact: initialContactId,
+  } = await searchParams;
+  const [segments, newsletter, directoryLists, disabledReferencePacks] = await Promise.all([
     getSegmentsConfig(session.workspaceId),
     getNewsletterConfig(session.workspaceId),
+    db.sharedList.findMany({
+      where: { workspaceId: session.workspaceId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, sourcePack: true },
+    }),
+    getDisabledReferencePacks(session.workspaceId),
   ]);
+  const visibleLists = directoryLists.filter(
+    (list) =>
+      !list.sourcePack ||
+      !disabledReferencePacks.has(list.sourcePack as ReferencePackKey),
+  );
+  const activeList = visibleLists.find((list) => list.id === requestedListId);
   const enabledCategories = new Set([
     "DECISION_MAKER",
     ...(segments.members ? ["MEMBER"] : []),
@@ -46,6 +70,7 @@ export default async function ContactsPage({
   const where = {
     workspaceId: session.workspaceId,
     ...(activeCategory ? { category: activeCategory } : {}),
+    ...(activeList ? { listItems: { some: { listId: activeList.id } } } : {}),
   };
 
   const [contacts, total, fields] = await Promise.all([
@@ -142,14 +167,18 @@ export default async function ContactsPage({
       <PageHeader
         crumbs={[{ label: "Actyl" }, { label: "Contacts" }]}
         title={
-          activeCategory
+          activeList
+            ? activeList.name
+            : activeCategory
             ? CATEGORY_LABELS[activeCategory]!
             : enabledCategories.size > 1
               ? "Répertoire"
               : "Annuaire des décideurs"
         }
         description={
-          activeCategory
+          activeList
+            ? `${total.toLocaleString("fr-FR")} contact(s) dans cette liste partagée. Ouvrez une fiche pour la modifier ou proposer une correction.`
+            : activeCategory
             ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} — ${total.toLocaleString("fr-FR")} fiche(s). Vos notes et évaluations personnelles restent privées.`
             : enabledCategories.size > 1
               ? `Toute votre base (${total.toLocaleString("fr-FR")} fiches) — décideurs, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées.`
@@ -188,6 +217,9 @@ export default async function ContactsPage({
         canNewsletter={can(session.role, "email:send")}
         extendedDirectory={enabledCategories.size > 1}
         newsletterEnabled={newsletterEnabled}
+        lists={visibleLists.map((list) => ({ id: list.id, name: list.name }))}
+        activeListId={activeList?.id ?? ""}
+        initialContactId={initialContactId ?? null}
         pagination={{ page, pageCount, total }}
       />
     </>

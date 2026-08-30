@@ -30,9 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/controls";
 import { EntityAvatar } from "@/components/ui/badge";
 import { STANCE_META } from "@/lib/constants";
-import { installReferencePackAction } from "@/app/actions/import";
 import { approveListChangeProposalAction, rejectListChangeProposalAction } from "@/app/actions/list-proposals";
-import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 
 type ActionRes = { error?: string; ok?: boolean };
 
@@ -42,7 +40,6 @@ export function ListsView({
   canManage,
   canPublish,
   isAdmin,
-  referencePacks,
   proposals,
 }: {
   lists: ListWithItems[];
@@ -50,7 +47,6 @@ export function ListsView({
   canManage: boolean;
   canPublish: boolean;
   isAdmin: boolean;
-  referencePacks: Array<{ key: ReferencePackKey; name: string; description: string; expected: string; installed: boolean }>;
   proposals: Array<{ id: string; action: string; listName: string; authorName: string; contactName: string | null; createdAt: string }>;
 }) {
   const router = useRouter();
@@ -65,25 +61,6 @@ export function ListsView({
 
   return (
     <div className="space-y-5 px-6 py-5">
-      <section className="rounded-xl border border-line bg-card p-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-[14px] font-semibold text-fg">Packs de référence disponibles</h2>
-            <p className="mt-1 text-[12px] text-faint">Installez explicitement les sources utiles à cet espace. Rien n’est ajouté automatiquement.</p>
-          </div>
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {referencePacks.map((pack) => (
-            <div key={pack.key} className="rounded-lg border border-line p-3">
-              <p className="text-[12.5px] font-medium text-fg">{pack.name}</p>
-              <p className="mt-1 text-[11px] text-faint">{pack.description} · {pack.expected}</p>
-              <Button size="sm" variant={pack.installed ? "outline" : "default"} className="mt-3 w-full" disabled={!isAdmin} onClick={() => void installReferencePackAction(pack.key).then((result) => { if (result.error) toast.error(result.error); else { toast.success(pack.installed ? "Pack resynchronisé" : "Pack installé"); refresh(); } })}>
-                {pack.installed ? "Resync le pack" : "Installer"}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </section>
       {isAdmin && proposals.length > 0 && (
         <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-4">
           <h2 className="text-[14px] font-semibold text-fg">Propositions à valider ({proposals.length})</h2>
@@ -126,6 +103,7 @@ export function ListsView({
       {lists.map((list) => (
         <article
           key={list.id}
+          id={list.sourcePack ? `list-${list.sourcePack}` : undefined}
           className="flex flex-col rounded-xl border border-line bg-card transition-colors hover:border-line"
         >
           <header className="flex items-start gap-2 p-4 pb-3">
@@ -141,7 +119,7 @@ export function ListsView({
                 )}
                 {list.sourcePack && (
                   <span className="inline-flex shrink-0 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-sky-700 ring-1 ring-inset ring-sky-500/20 dark:text-sky-400">
-                    Pack de référence
+                    Référentiel partagé
                   </span>
                 )}
               </div>
@@ -182,10 +160,19 @@ export function ListsView({
                 className="group flex h-9 items-center gap-2.5 rounded-lg px-2 hover:bg-hover"
               >
                 <EntityAvatar name={fullName(contact)} color={contact.avatarColor} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-mut">
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/contacts?list=${encodeURIComponent(list.id)}&contact=${encodeURIComponent(contact.id)}`,
+                    )
+                  }
+                  className="min-w-0 flex-1 truncate text-left text-[12.5px] text-mut hover:text-fg"
+                  title="Ouvrir et modifier la fiche contact"
+                >
                   {fullName(contact)}
                   <span className="text-faint"> · {contact.title ?? contact.institution ?? "—"}</span>
-                </span>
+                </button>
                 {/* Valeurs des attributs propres à la liste. */}
                 {(list.attributes ?? []).slice(0, 2).map((a) => {
                   const v = list.values?.[`${contact.id}:${a.id}`];

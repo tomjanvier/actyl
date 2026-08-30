@@ -34,7 +34,7 @@ const ELECTIONS = [
 ] as const;
 
 /**
- * Importe en lot l'équipe électorale d'une candidature depuis une liste collée.
+ * Importe en lot l'équipe électorale d'une candidature depuis une liste collée,
  * issue d'un document ou tableur, à raison d'une personne par ligne.
  *   Marie Dupont — Directrice de campagne — marie@exemple.fr
  *   Paul Martin; Porte-parole; paul@exemple.fr; +33 6 12 34 56 78
@@ -87,7 +87,7 @@ export function ImportTeamDialog({
         <DialogHeader>
           <DialogTitle>Importer une équipe de campagne</DialogTitle>
           <DialogDescription>
-            Élections : intégrez l&apos;équipe d&apos;un·e candidat·e en un
+            Réservé aux administrateurs : intégrez une équipe électorale en un
             copier-coller. Une personne par ligne, champs séparés par
             <code className="mx-1 rounded bg-elev px-1">;</code>,
             <code className="mx-1 rounded bg-elev px-1">—</code>ou tabulation :
@@ -96,13 +96,16 @@ export function ImportTeamDialog({
         </DialogHeader>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label>Candidat·e *</Label>
+            <Label>Candidature / tête de liste *</Label>
             <Input
               value={candidate}
               onChange={(e) => setCandidate(e.target.value)}
               placeholder="Camille Durand"
               autoFocus
             />
+            <p className="text-[11px] leading-relaxed text-faint">
+              Ce nom regroupe les personnes sous la même institution, par exemple « Équipe Camille Durand ».
+            </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Parti / nuance</Label>

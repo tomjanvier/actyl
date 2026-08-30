@@ -12,6 +12,7 @@ import {
   type ImportedContact,
 } from "@/lib/importers/officials";
 import { norm, type MergePerson } from "@/lib/lists-import";
+import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
 
 const MINIMUM_SOURCE_SIZE: Record<ReferencePackKey, number> = {
   deputes: 400,
@@ -208,10 +209,26 @@ export async function syncReferenceListProposals(
 
 /** Synchronise chaque pack installé en mutualisant un téléchargement par source. */
 export async function syncAllReferenceLists() {
-  const lists = await db.sharedList.findMany({
+  const installedLists = await db.sharedList.findMany({
     where: { sourcePack: { in: REFERENCE_PACKS.map((pack) => pack.key) } },
     select: { id: true, workspaceId: true, sourcePack: true },
   });
+  const workspaceIds = [...new Set(installedLists.map((list) => list.workspaceId))];
+  const disabledByWorkspace = new Map(
+    await Promise.all(
+      workspaceIds.map(async (workspaceId) => [
+        workspaceId,
+        await getDisabledReferencePacks(workspaceId),
+      ] as const),
+    ),
+  );
+  const lists = installedLists.filter(
+    (list) =>
+      list.sourcePack &&
+      !disabledByWorkspace
+        .get(list.workspaceId)
+        ?.has(list.sourcePack as ReferencePackKey),
+  );
   const results = await Promise.all(REFERENCE_PACKS.map(async (definition) => {
     const packLists = lists.filter((list) => list.sourcePack === definition.key);
     if (!packLists.length) return { proposals: 0, error: null };

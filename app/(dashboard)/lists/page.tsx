@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { PageHeader } from "@/components/layout/page-header";
 import { ListsView } from "@/components/lists/lists-view";
-import { REFERENCE_PACKS } from "@/lib/datasets/reference-packs";
+import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
 
 export const metadata = { title: "Listes partagées" };
 
@@ -18,11 +18,20 @@ function proposalName(payload: string) {
 
 export default async function ListsPage() {
   const session = await requireSession();
+  const disabledReferencePacks = await getDisabledReferencePacks(
+    session.workspaceId,
+  );
 
   // Ces requêtes indépendantes sont exécutées en parallèle.
   const [lists, allContacts, listFields, proposals] = await Promise.all([
     db.sharedList.findMany({
-      where: { workspaceId: session.workspaceId },
+      where: {
+        workspaceId: session.workspaceId,
+        OR: [
+          { sourcePack: null },
+          { sourcePack: { notIn: [...disabledReferencePacks] } },
+        ],
+      },
       orderBy: [{ isPublished: "desc" }, { createdAt: "desc" }],
       include: {
         items: {
@@ -75,7 +84,16 @@ export default async function ListsPage() {
     }),
     session.role === "ADMIN"
       ? db.listChangeProposal.findMany({
-          where: { workspaceId: session.workspaceId, status: "PENDING" },
+          where: {
+            workspaceId: session.workspaceId,
+            status: "PENDING",
+            list: {
+              OR: [
+                { sourcePack: null },
+                { sourcePack: { notIn: [...disabledReferencePacks] } },
+              ],
+            },
+          },
           orderBy: { createdAt: "asc" },
           take: 200,
           include: {
@@ -126,10 +144,6 @@ export default async function ListsPage() {
         canManage={can(session.role, "list:create")}
         canPublish={can(session.role, "list:publish")}
         isAdmin={session.role === "ADMIN"}
-        referencePacks={REFERENCE_PACKS.map((pack) => ({
-          ...pack,
-          installed: lists.some((list) => list.sourcePack === pack.key),
-        }))}
         proposals={proposals.map((proposal) => ({
           id: proposal.id,
           action: proposal.action,

@@ -17,7 +17,6 @@ import {
   CheckCircle,
   CalendarDays,
   HeartHandshake,
-  Vote,
   Menu,
   X,
 } from "lucide-react";
@@ -56,7 +55,6 @@ export function Sidebar({
   workspaces,
   userName,
   directorySegments,
-  presidentielleEnabled = false,
   pinnedCampaigns = [],
 }: {
   workspace: WorkspaceOption;
@@ -64,8 +62,6 @@ export function Sidebar({
   userName: string;
   /** Segments actifs de l'annuaire. */
   directorySegments?: DirectorySegment[];
-  /** Indique si le module Présidentielle 2027 est actif. */
-  presidentielleEnabled?: boolean;
   pinnedCampaigns?: Array<{ id: string; slug: string; name: string; emoji: string }>;
 }) {
   const pathname = usePathname();
@@ -85,14 +81,12 @@ export function Sidebar({
       { href: "/supporters", label: "Soutiens", icon: HeartHandshake },
       { href: "/events", label: "Événements", icon: CalendarDays },
     ];
-    if (presidentielleEnabled)
-      base.push({ href: "/presidentielle", label: "Présidentielle 2027", icon: Vote });
     base.push(
       { href: "/lists", label: "Listes partagées", icon: ListChecks },
       { href: "/settings", label: "Paramètres", icon: Settings },
     );
     return base;
-  }, [presidentielleEnabled]);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem("actyl_sidebar_collapsed");
@@ -261,7 +255,6 @@ export function Sidebar({
       <div className="flex flex-col gap-1 border-t border-line p-3">
         <div className={cn("flex items-center justify-between gap-2", collapsed && "flex-col")}>
           <CommandMenu
-            presidentielle={presidentielleEnabled}
             trigger={
               collapsed ? (
                 <Button variant="ghost" size="icon-sm" title="Recherche (⌘K)">

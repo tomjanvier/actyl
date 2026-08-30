@@ -1,6 +1,5 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { PRESIDENTIELLE_SETTING_KEY } from "@/lib/datasets/presidentielle-2027";
 import { workspaceSettingKey } from "@/lib/workspace-settings";
 
 /** Réglages fonctionnels isolés par espace dans AppSetting. */
@@ -60,13 +59,6 @@ export async function getSegmentsConfig(workspaceId: string): Promise<SegmentsCo
     donors: values.extended_donors === "on" || legacy,
     supporters: values.extended_supporters === "on" || legacy,
   };
-}
-
-export async function getPresidentielleEnabled(workspaceId: string): Promise<boolean> {
-  const row = await db.appSetting.findUnique({
-    where: { key: workspaceSettingKey(workspaceId, PRESIDENTIELLE_SETTING_KEY) },
-  });
-  return row?.value === "on";
 }
 
 export const CONTACT_CATEGORIES = [

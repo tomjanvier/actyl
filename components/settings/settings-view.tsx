@@ -31,13 +31,16 @@ import {
   removeGroupMemberAction,
   updateProfileAction,
 } from "@/app/actions/settings";
-import { importOfficialSourceAction } from "@/app/actions/import";
+import {
+  importOfficialSourceAction,
+  installReferencePackAction,
+  setReferencePackEnabledAction,
+} from "@/app/actions/import";
 import {
   setSignupModeAction,
   approveAccountRequestAction,
   rejectAccountRequestAction,
   setSegmentFlagAction,
-  setPresidentielleEnabledAction,
   setNewsletterModuleAction,
   saveNewsletterSettingsAction,
   fetchNewsletterListsAction,
@@ -53,6 +56,17 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/controls";
+import { ImportTeamDialog } from "@/components/contacts/import-team-dialog";
+import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
+
+type ReferenceSource =
+  | "an"
+  | "senat"
+  | "pe"
+  | "presidentielle"
+  | "paris"
+  | "regions"
+  | "departements";
 
 type RoleMeta = Record<
   string,
@@ -63,6 +77,7 @@ export function SettingsView({
   initialTab,
   role,
   isAdmin,
+  canImportContacts,
   currentUserId,
   currentUser,
   fields,
@@ -74,12 +89,13 @@ export function SettingsView({
   pendingRequests,
   apiTokens,
   segments,
-  presidentielleEnabled,
+  referencePacks,
   newsletter,
 }: {
   initialTab: string | null;
   role: string;
   isAdmin: boolean;
+  canImportContacts: boolean;
   currentUserId: string;
   currentUser: { id: string; name: string; email: string; jobTitle: string | null };
   fields: Array<{
@@ -127,7 +143,15 @@ export function SettingsView({
     createdAt: string;
   }>;
   segments: { decisionMaker: boolean; members: boolean; volunteers: boolean; donors: boolean; supporters: boolean };
-  presidentielleEnabled: boolean;
+  referencePacks: Array<{
+    key: ReferencePackKey;
+    name: string;
+    description: string;
+    expected: string;
+    source: ReferenceSource;
+    installed: boolean;
+    enabled: boolean;
+  }>;
   newsletter: {
     enabled: boolean;
     apiKeyMasked: string | null;
@@ -149,7 +173,7 @@ export function SettingsView({
           <TabsTrigger value="modules"><SlidersHorizontal /> Modules</TabsTrigger>
           <TabsTrigger value="equipes"><UsersRound /> Équipes</TabsTrigger>
           <TabsTrigger value="membres"><ShieldCheck /> Membres & accès</TabsTrigger>
-          <TabsTrigger value="import"><Download /> Importer les élus</TabsTrigger>
+          <TabsTrigger value="import"><Download /> Référentiels & imports</TabsTrigger>
           <TabsTrigger value="api"><Plug /> API & intégrations</TabsTrigger>
           <TabsTrigger value="profil"><KeyRound /> Mon profil</TabsTrigger>
         </TabsList>
@@ -157,7 +181,6 @@ export function SettingsView({
         <TabsContent value="modules" className="mt-5 space-y-6 outline-none">
           <ModulesCard
             segments={segments}
-            presidentielleEnabled={presidentielleEnabled}
             newsletterEnabled={newsletter.enabled}
             newsletterConfigured={!!newsletter.apiKeyMasked && !!newsletter.listId}
             isAdmin={isAdmin}
@@ -410,7 +433,11 @@ export function SettingsView({
 
         {/* ── Import des élus ── */}
         <TabsContent value="import" className="mt-5 outline-none">
-          <ImportOfficials isAdmin={isAdmin} />
+          <ImportOfficials
+            isAdmin={isAdmin}
+            canImportContacts={canImportContacts}
+            referencePacks={referencePacks}
+          />
         </TabsContent>
 
         {/* ── API et intégrations ── */}
@@ -431,14 +458,12 @@ export function SettingsView({
 
 function ModulesCard({
   segments,
-  presidentielleEnabled,
   newsletterEnabled,
   newsletterConfigured,
   isAdmin,
   onChanged,
 }: {
   segments: { decisionMaker: boolean; members: boolean; volunteers: boolean; donors: boolean; supporters: boolean };
-  presidentielleEnabled: boolean;
   newsletterEnabled: boolean;
   newsletterConfigured: boolean;
   isAdmin: boolean;
@@ -458,18 +483,6 @@ function ModulesCard({
     await setSegmentFlagAction(segment, !segments[segment]);
     setBusy(null);
     onChanged();
-  }
-
-  async function togglePack() {
-    if (!isAdmin) return;
-    if (presidentielleEnabled && !window.confirm(
-      "Désactiver le module Présidentielle 2027 ? Les contacts seront conservés et la liste ne sera plus publique.",
-    )) return;
-    setBusy("presidentielle");
-    const result = await setPresidentielleEnabledAction(!presidentielleEnabled);
-    setBusy(null);
-    if (result.error) toast.error(result.error);
-    else onChanged();
   }
 
   async function toggleNewsletter() {
@@ -521,15 +534,6 @@ function ModulesCard({
               </button>
             ))}
           </div>
-        </div>
-        <div className="flex min-h-16 items-center justify-between gap-4 p-5">
-          <div>
-            <p className="text-[13px] font-semibold text-fg">Présidentielle 2027</p>
-            <p className="mt-1 text-[12px] text-faint">Installe et synchronise la liste de référence des candidat·e·s.</p>
-          </div>
-          <Button variant={presidentielleEnabled ? "default" : "outline"} size="sm" disabled={!isAdmin || busy !== null} onClick={() => void togglePack()}>
-            {busy === "presidentielle" ? <Loader2 className="animate-spin" /> : presidentielleEnabled ? "Activé" : "Activer"}
-          </Button>
         </div>
         <div className="flex min-h-16 items-center justify-between gap-4 p-5">
           <div>
@@ -763,112 +767,189 @@ const GROUP_DOT: Record<string, string> = {
   rose: "bg-rose-500",
 };
 
-// ── Import des annuaires officiels ───────────────────────────────────────────
+// ── Référentiels partagés et imports indépendants ─────────────────────────────
 
-const SOURCES: Array<{
-  key: "an" | "senat" | "pe";
-  label: string;
-  emoji: string;
-  description: string;
-  detail: string;
-}> = [
-  {
-    key: "an",
-    label: "Député·e·s — Assemblée nationale",
-    emoji: "🇫🇷",
-    description:
-      "577 députés en exercice (17ᵉ législature) : groupe politique, circonscription, email.",
-    detail: "Source : data.assemblee-nationale.fr (open data officielle)",
-  },
-  {
-    key: "senat",
-    label: "Sénateur·rice·s",
-    emoji: "🏛️",
-    description:
-      "348 sénateurs actifs : groupe politique, circonscription, email quand public.",
-    detail: "Source : data.senat.fr (OpenSAD)",
-  },
-  {
-    key: "pe",
-    label: "Député·e·s européen·ne·s (France)",
-    emoji: "🇪🇺",
-    description:
-      "~81 eurodéputés français (10ᵉ législature) : groupe politique, email. Peut prendre 2–3 min.",
-    detail: "Source : data.europarl.europa.eu (API v2)",
-  },
-];
-
-function ImportOfficials({ isAdmin }: { isAdmin: boolean }) {
+function ImportOfficials({
+  isAdmin,
+  canImportContacts,
+  referencePacks,
+}: {
+  isAdmin: boolean;
+  canImportContacts: boolean;
+  referencePacks: Array<{
+    key: ReferencePackKey;
+    name: string;
+    description: string;
+    expected: string;
+    source: ReferenceSource;
+    installed: boolean;
+    enabled: boolean;
+  }>;
+}) {
   const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<Record<string, string>>({});
+  const [teamOpen, setTeamOpen] = useState(false);
   const router = useRouter();
 
-  async function run(key: "an" | "senat" | "pe") {
-    if (!isAdmin || running) return;
-    setRunning(key);
-    setResult((r) => ({ ...r, [key]: "" }));
-    const res = await importOfficialSourceAction(key);
+  async function importIntoDirectory(
+    key: ReferencePackKey,
+    source: ReferenceSource,
+  ) {
+    if (!canImportContacts || running) return;
+    const operation = `directory:${key}`;
+    setRunning(operation);
+    setResult((current) => ({ ...current, [operation]: "" }));
+    const res = await importOfficialSourceAction(source);
     setRunning(null);
     if (res.ok) {
-      setResult((r) => ({
-        ...r,
-        [key]: `✅ ${res.created ?? 0} créés · ${res.already ?? 0} déjà présents (conservés) · ${res.skipped ?? 0} ignorés`,
+      setResult((current) => ({
+        ...current,
+        [operation]: `${res.created ?? 0} créé(s) · ${res.skipped ?? 0} ignoré(s)`,
       }));
-      toast.success("Import terminé");
+      toast.success("Import indépendant terminé");
       router.refresh();
     } else {
-      setResult((r) => ({ ...r, [key]: `❌ ${res.error}` }));
+      setResult((current) => ({
+        ...current,
+        [operation]: res.error ?? "Import impossible",
+      }));
       toast.error(res.error ?? "Erreur");
     }
   }
 
+  async function updateSharedPack(
+    pack: (typeof referencePacks)[number],
+    action: "enable" | "sync" | "disable",
+  ) {
+    if (!isAdmin || running) return;
+    if (
+      action === "disable" &&
+      !window.confirm(
+        `Désactiver « ${pack.name} » dans cet espace ? Les contacts et la liste seront conservés.`,
+      )
+    ) return;
+    const operation = `shared:${pack.key}`;
+    setRunning(operation);
+    const res =
+      action === "sync"
+        ? await installReferencePackAction(pack.key)
+        : await setReferencePackEnabledAction(pack.key, action === "enable");
+    setRunning(null);
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+    if (action === "sync") {
+      toast.success(
+        res.proposed
+          ? `${res.proposed} modification(s) à valider dans les listes`
+          : "Référentiel à jour",
+      );
+    } else {
+      toast.success(action === "enable" ? "Référentiel activé" : "Référentiel désactivé");
+    }
+    router.refresh();
+  }
+
   return (
-    <div className="max-w-3xl">
-      <p className="mb-4 text-[13px] leading-relaxed text-mut">
-        Importez les annuaires officiels des parlements directement dans votre
-        espace. Fusion sans écrasement : les contacts existants (même nom +
-        institution) sont conservés tels quels, jamais dupliqués ni modifiés.
-      </p>
-      <div className="grid grid-cols-1 gap-3">
-        {SOURCES.map((s) => (
-          <article
-            key={s.key}
-            className="flex items-center gap-4 rounded-xl border border-line bg-card p-4"
-          >
-            <span className="text-2xl">{s.emoji}</span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[13.5px] font-semibold text-fg">{s.label}</h3>
-              <p className="mt-0.5 text-[12px] leading-relaxed text-mut">{s.description}</p>
-              <p className="mt-0.5 text-[11px] text-faint">{s.detail}</p>
-              {result[s.key] && (
-                <p className="mt-1.5 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
-                  {result[s.key]}
-                </p>
-              )}
-            </div>
-            <Button
-              size="sm"
-              disabled={!isAdmin || running !== null}
-              onClick={() => void run(s.key)}
-            >
-              {running === s.key ? (
-                <>
-                  <Loader2 className="animate-spin" /> Import…
-                </>
-              ) : (
-                <>
-                  <Download /> Importer
-                </>
-              )}
-            </Button>
-          </article>
-        ))}
-      </div>
-      {!isAdmin && (
-        <p className="mt-3 text-[12px] text-faint">
-          Seul un administrateur peut lancer un import.
-        </p>
+    <div className="max-w-5xl space-y-6">
+      {isAdmin && (
+        <section>
+          <h2 className="text-[15px] font-semibold text-fg">Listes de référence partagées</h2>
+          <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-mut">
+            Activez les référentiels utiles à cet espace. La synchronisation hebdomadaire
+            propose les écarts ; un administrateur les valide ensuite dans « Listes partagées ».
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {referencePacks.map((pack) => {
+              const operation = `shared:${pack.key}`;
+              const active = pack.installed && pack.enabled;
+              return (
+                <article key={pack.key} className="rounded-xl border border-line bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-[13.5px] font-semibold text-fg">{pack.name}</h3>
+                      <p className="mt-1 text-[12px] text-mut">{pack.description}</p>
+                      <p className="mt-1 text-[11px] text-faint">{pack.expected}</p>
+                    </div>
+                    <span className={cn(
+                      "rounded-md px-2 py-1 text-[10.5px] font-medium",
+                      active ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-elev text-faint",
+                    )}>
+                      {active ? "Activée" : "Désactivée"}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {!active ? (
+                      <Button size="sm" disabled={running !== null} onClick={() => void updateSharedPack(pack, "enable")}>
+                        {running === operation ? <Loader2 className="animate-spin" /> : <Download />}
+                        Activer
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" disabled={running !== null} onClick={() => void updateSharedPack(pack, "sync")}>
+                          {running === operation ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                          Vérifier les mises à jour
+                        </Button>
+                        <Button variant="ghost" size="sm" disabled={running !== null} onClick={() => void updateSharedPack(pack, "disable")}>
+                          Désactiver
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       )}
+
+      <section className="border-t border-line pt-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-fg">Import indépendant</h2>
+            <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-mut">
+              Ajoutez une copie ponctuelle à votre répertoire si vous ne souhaitez pas utiliser
+              une liste partagée. Cet import ne sera pas synchronisé chaque semaine.
+            </p>
+          </div>
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setTeamOpen(true)}>
+              <UsersRound /> Importer une équipe de campagne
+            </Button>
+          )}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          {referencePacks.map((pack) => {
+            const operation = `directory:${pack.key}`;
+            return (
+              <article key={pack.key} className="flex items-center gap-3 rounded-xl border border-line bg-card p-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[13px] font-semibold text-fg">{pack.name}</h3>
+                  <p className="mt-0.5 text-[11.5px] text-faint">Copie locale sans synchronisation</p>
+                  {result[operation] && (
+                    <p className="mt-1 text-[11.5px] text-mut">{result[operation]}</p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!canImportContacts || running !== null}
+                  onClick={() => void importIntoDirectory(pack.key, pack.source)}
+                >
+                  {running === operation ? <Loader2 className="animate-spin" /> : <Download />}
+                  Importer
+                </Button>
+              </article>
+            );
+          })}
+        </div>
+        {!canImportContacts && (
+          <p className="mt-3 text-[12px] text-faint">Votre rôle est en lecture seule.</p>
+        )}
+      </section>
+
+      {isAdmin && <ImportTeamDialog open={teamOpen} onOpenChange={setTeamOpen} />}
     </div>
   );
 }

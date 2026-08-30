@@ -8,7 +8,6 @@ import {
   ListChecks,
   Settings,
   Plus,
-  Vote,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -24,11 +23,8 @@ type CampaignOption = { id: string; slug: string; name: string; emoji: string; p
 
 export function CommandMenu({
   trigger,
-  presidentielle = false,
 }: {
   trigger: React.ReactNode;
-  /** Affiche le raccourci lorsque le module Présidentielle 2027 est actif. */
-  presidentielle?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
@@ -81,12 +77,6 @@ export function CommandMenu({
               <ListChecks />
               Listes partagées
             </CommandItem>
-            {presidentielle && (
-              <CommandItem onSelect={() => go("/presidentielle")}>
-                <Vote />
-                Présidentielle 2027
-              </CommandItem>
-            )}
             <CommandItem onSelect={() => go("/settings")}>
               <Settings />
               Paramètres

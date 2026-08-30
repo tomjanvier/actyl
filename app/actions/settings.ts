@@ -6,7 +6,6 @@ import { db } from "@/lib/db";
 import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { can, ROLES, type Role } from "@/lib/constants";
 import { SEGMENT_SETTING_KEYS } from "@/lib/flags";
-import { setPresidentielleModuleAction } from "@/app/actions/presidentielle";
 import { workspaceSettingKey } from "@/lib/workspace-settings";
 
 // ── Champs personnalisés ─────────────────────────────────────────────────────
@@ -378,10 +377,6 @@ export async function setSegmentFlagAction(
   });
   revalidatePath("/settings");
   revalidatePath("/contacts");
-}
-
-export async function setPresidentielleEnabledAction(enabled: boolean) {
-  return setPresidentielleModuleAction(enabled);
 }
 
 // ── Module newsletter EmailOctopus ───────────────────────────────────────────
