@@ -159,7 +159,12 @@ export function ListsView({
                 key={itemId}
                 className="group flex h-9 items-center gap-2.5 rounded-lg px-2 hover:bg-hover"
               >
-                <EntityAvatar name={fullName(contact)} color={contact.avatarColor} size="sm" />
+                <EntityAvatar
+                  name={fullName(contact)}
+                  color={contact.avatarColor}
+                  size="sm"
+                  photoUrl={contact.photoUrl}
+                />
                 <button
                   type="button"
                   onClick={() =>
@@ -210,6 +215,17 @@ export function ListsView({
                 )}
               </li>
             ))}
+            {list.totalItems > 5 && (
+              <li className="px-2 pb-1 pt-1">
+                <button
+                  type="button"
+                  className="w-full rounded-lg px-2 py-1.5 text-left text-[11.5px] font-medium text-indigo-700 hover:bg-hover dark:text-indigo-400"
+                  onClick={() => router.push(`/contacts?list=${encodeURIComponent(list.id)}`)}
+                >
+                  Voir les {list.totalItems - 5} autres dans le répertoire
+                </button>
+              </li>
+            )}
             {list.items.length === 0 && (
               <li className="px-2 py-3 text-[12.5px] text-faint">Liste vide.</li>
             )}
@@ -252,7 +268,7 @@ export function ListsView({
           {canManage && (
             <footer className="mt-auto flex items-center justify-between border-t border-line px-4 py-2.5">
               <span className="text-[11px] uppercase tracking-wider text-faint">
-                {list.items.length} contact{list.items.length > 1 ? "s" : ""}
+                {list.totalItems} contact{list.totalItems > 1 ? "s" : ""}
               </span>
               <Button variant="ghost" size="sm" onClick={() => setAddOpenFor(list.id)}>
                 <Plus /> Ajouter
@@ -455,7 +471,7 @@ function AddContactsDialog({
     setSelected([]);
   }, [list?.id]);
 
-  const inList = new Set(list?.items.map((i) => i.contact.id) ?? []);
+  const inList = new Set(list?.memberContactIds ?? []);
   const filtered = contacts.filter((c) => {
     if (inList.has(c.id)) return false;
     const q = query.trim().toLowerCase();
@@ -508,7 +524,7 @@ function AddContactsDialog({
                 }
                 className="size-3.5 accent-indigo-500"
               />
-              <EntityAvatar name={fullName(c)} color={c.avatarColor} size="sm" />
+              <EntityAvatar name={fullName(c)} color={c.avatarColor} size="sm" photoUrl={c.photoUrl} />
               <span className="min-w-0 flex-1 truncate text-[12.5px] text-mut">
                 {fullName(c)}
                 <span className="text-faint"> · {c.party ?? c.institution ?? ""}</span>

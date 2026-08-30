@@ -19,6 +19,7 @@ import {
   HeartHandshake,
   Menu,
   X,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { switchWorkspaceAction, signOutAction } from "@/app/actions/auth";
@@ -80,6 +81,7 @@ export function Sidebar({
       { href: "/tasks", label: "Tâches", icon: CheckCircle },
       { href: "/supporters", label: "Soutiens", icon: HeartHandshake },
       { href: "/events", label: "Événements", icon: CalendarDays },
+      { href: "/campaign-teams", label: "Équipes politiques", icon: UsersRound },
     ];
     base.push(
       { href: "/lists", label: "Listes partagées", icon: ListChecks },
