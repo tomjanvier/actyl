@@ -23,6 +23,8 @@ const MINIMUM_SOURCE_SIZE: Record<ReferencePackKey, number> = {
   departements: 2_500,
 };
 
+const LIST_SYNC_CONCURRENCY = 4;
+
 function identity(person: Pick<MergePerson, "firstName" | "lastName" | "institution">) {
   return `${norm(person.firstName)}|${norm(person.lastName)}|${norm(person.institution)}`;
 }
@@ -101,35 +103,37 @@ export async function syncReferenceListProposals(
   sourcePeople?: MergePerson[],
 ) {
   const people = sourcePeople ?? (await fetchPack(pack));
-  const list = await db.sharedList.findFirst({
-    where: { id: listId, workspaceId, sourcePack: pack },
-    include: {
-      items: {
-        include: {
-          contact: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              photoUrl: true,
-              title: true,
-              institution: true,
-              party: true,
-              region: true,
-              level: true,
+  const [list, pending] = await Promise.all([
+    db.sharedList.findFirst({
+      where: { id: listId, workspaceId, sourcePack: pack },
+      include: {
+        items: {
+          include: {
+            contact: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                photoUrl: true,
+                title: true,
+                institution: true,
+                party: true,
+                region: true,
+                level: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    db.listChangeProposal.findMany({
+      where: { listId, workspaceId, status: "PENDING" },
+      select: { action: true, contactId: true, payload: true },
+    }),
+  ]);
   if (!list) return { proposals: 0 };
 
-  const pending = await db.listChangeProposal.findMany({
-    where: { listId, status: "PENDING" },
-    select: { action: true, contactId: true, payload: true },
-  });
   const pendingContacts = new Set(
     pending.filter((proposal) => proposal.contactId).map((proposal) =>
       `${proposal.action}:${proposal.contactId}`,
@@ -214,15 +218,19 @@ export async function syncAllReferenceLists() {
     try {
       const people = await fetchPack(definition.key);
       let proposals = 0;
-      for (const list of packLists) {
-        proposals += (
-          await syncReferenceListProposals(
-            list.id,
-            list.workspaceId,
-            definition.key,
-            people,
-          )
-        ).proposals;
+      for (let index = 0; index < packLists.length; index += LIST_SYNC_CONCURRENCY) {
+        const batch = packLists.slice(index, index + LIST_SYNC_CONCURRENCY);
+        const synced = await Promise.all(
+          batch.map((list) =>
+            syncReferenceListProposals(
+              list.id,
+              list.workspaceId,
+              definition.key,
+              people,
+            ),
+          ),
+        );
+        proposals += synced.reduce((total, result) => total + result.proposals, 0);
       }
       return { proposals, error: null };
     } catch (error) {

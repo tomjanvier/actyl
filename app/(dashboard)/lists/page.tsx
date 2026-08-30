@@ -66,7 +66,12 @@ export default async function ListsPage() {
     db.customField.findMany({
       where: { workspaceId: session.workspaceId, NOT: { listId: null } },
       orderBy: { position: "asc" },
-      select: { id: true, listId: true, label: true },
+      select: {
+        id: true,
+        listId: true,
+        label: true,
+        values: { select: { contactId: true, value: true } },
+      },
     }),
     session.role === "ADMIN"
       ? db.listChangeProposal.findMany({
@@ -82,23 +87,18 @@ export default async function ListsPage() {
       : Promise.resolve([]),
   ]);
 
-  const fieldIds = listFields.map((f) => f.id);
-  const attrValues = fieldIds.length
-    ? await db.customFieldValue.findMany({
-        where: { fieldId: { in: fieldIds } },
-        select: { contactId: true, fieldId: true, value: true },
-      })
-    : [];
-  const valueMap: Record<string, string> = {};
-  for (const v of attrValues) {
-    if (v.value) valueMap[`${v.contactId}:${v.fieldId}`] = v.value;
-  }
   const fieldsByList = new Map<string, typeof listFields>();
+  const valuesByList = new Map<string, Record<string, string>>();
   for (const f of listFields) {
     if (!f.listId) continue;
     const arr = fieldsByList.get(f.listId) ?? [];
     arr.push(f);
     fieldsByList.set(f.listId, arr);
+    const values = valuesByList.get(f.listId) ?? {};
+    for (const value of f.values) {
+      if (value.value) values[`${value.contactId}:${f.id}`] = value.value;
+    }
+    valuesByList.set(f.listId, values);
   }
 
   return (
@@ -120,11 +120,7 @@ export default async function ListsPage() {
             id: f.id,
             label: f.label,
           })),
-          values: Object.fromEntries(
-            Object.entries(valueMap).filter(([k]) =>
-              (fieldsByList.get(l.id) ?? []).some((f) => k.endsWith(`:${f.id}`)),
-            ),
-          ),
+          values: valuesByList.get(l.id) ?? {},
         }))}
         allContacts={allContacts}
         canManage={can(session.role, "list:create")}

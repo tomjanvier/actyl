@@ -25,7 +25,10 @@ export default async function ContactsPage({
 }) {
   const session = await requireSession();
   const { category, page: pageParam } = await searchParams;
-  const segments = await getSegmentsConfig(session.workspaceId);
+  const [segments, newsletter] = await Promise.all([
+    getSegmentsConfig(session.workspaceId),
+    getNewsletterConfig(session.workspaceId),
+  ]);
   const enabledCategories = new Set([
     "DECISION_MAKER",
     ...(segments.members ? ["MEMBER"] : []),
@@ -39,15 +42,13 @@ export default async function ContactsPage({
 
   // La pagination serveur limite la réponse à cent contacts.
   const page = Math.max(1, Number(pageParam) || 1);
-  const newsletter = await getNewsletterConfig(session.workspaceId);
   const newsletterEnabled = newsletter.enabled;
   const where = {
     workspaceId: session.workspaceId,
     ...(activeCategory ? { category: activeCategory } : {}),
   };
 
-  const [contacts, total, fields, myNotes, myPrivateData, orgNoteRows, emailCounts] =
-    await Promise.all([
+  const [contacts, total, fields] = await Promise.all([
       db.contact.findMany({
         where,
         orderBy: [{ lastName: "asc" }],
@@ -87,29 +88,39 @@ export default async function ContactsPage({
         where: { workspaceId: session.workspaceId },
         orderBy: { position: "asc" },
       }),
+    ]);
+
+  const contactIds = contacts.map((contact) => contact.id);
+  const [myNotes, myPrivateData, orgNoteRows, emailCounts] = contactIds.length
+    ? await Promise.all([
       db.privateNote.findMany({
         where: {
           authorId: session.user.id,
-          contact: { workspaceId: session.workspaceId },
+          contactId: { in: contactIds },
         },
         orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
         select: { id: true, contactId: true, body: true, pinned: true, createdAt: true },
       }),
       db.contactPrivateData.findMany({
-        where: { userId: session.user.id },
+        where: { userId: session.user.id, contactId: { in: contactIds } },
         select: { contactId: true, rating: true, tags: true, status: true },
       }),
       db.orgNote.findMany({
-        where: { workspaceId: session.workspaceId },
+        where: { workspaceId: session.workspaceId, contactId: { in: contactIds } },
         orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
         select: { id: true, contactId: true, authorName: true, body: true, pinned: true, createdAt: true },
       }),
       db.sentEmail.groupBy({
         by: ["contactId"],
-        where: { contact: { workspaceId: session.workspaceId } },
+        where: { contactId: { in: contactIds } },
         _count: { id: true },
       }),
-    ]);
+    ])
+    : [[], [], [], []] as const;
+
+  const emailCountMap = new Map(
+    emailCounts.map((row) => [row.contactId, row._count.id]),
+  );
 
   const serialized = contacts.map((c) => ({
     ...c,
@@ -121,8 +132,7 @@ export default async function ContactsPage({
     customValues: Object.fromEntries(
       c.customValues.map((cv) => [cv.fieldId, cv.value ?? ""]),
     ),
-    emailsReceived:
-      emailCounts.find((e) => e.contactId === c.id)?._count.id ?? 0,
+    emailsReceived: emailCountMap.get(c.id) ?? 0,
   }));
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
