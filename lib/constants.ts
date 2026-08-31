@@ -1,4 +1,4 @@
-// ── Domain vocabulary (labels, colors, option lists) ─────────────────────────
+// ── Vocabulaire métier : libellés, couleurs et listes d’options ──────────────
 
 export const ROLES = ["ADMIN", "CAMPAIGNER", "MEMBER", "OBSERVER"] as const;
 export type Role = (typeof ROLES)[number];
@@ -16,13 +16,13 @@ export const ROLE_META: Record<
   CAMPAIGNER: {
     label: "Responsable campagne",
     description:
-      "Crée des campagnes, gère les listes partagées, déclenche les envois d'emails.",
+      "Crée des campagnes et ses listes, contribue aux référentiels, déclenche les envois d'emails.",
     badge: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/20",
   },
   MEMBER: {
     label: "Militant·e",
     description:
-      "Consulte les listes, met à jour les statuts, ajoute des notes privées.",
+      "Crée ses listes, propose des mises à jour et ajoute des notes d’équipe.",
     badge: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20",
   },
   OBSERVER: {
@@ -39,7 +39,7 @@ export function can(role: Role | undefined, action: string): boolean {
     CAMPAIGNER: [
       "campaign:create", "campaign:edit", "campaign:delete",
       "card:create", "card:move", "card:edit", "card:delete",
-      "list:create", "list:edit", "list:publish",
+      "list:create", "list:edit",
       "email:send", "template:manage",
       "contact:create", "contact:edit",
       "note:add",

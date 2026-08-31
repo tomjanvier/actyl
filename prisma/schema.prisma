@@ -64,6 +64,7 @@ model User {
   blasts          EmailBlast[]
   listChangeProposals         ListChangeProposal[] @relation("ProposalAuthor")
   reviewedListChangeProposals ListChangeProposal[] @relation("ProposalReviewer")
+  politicalPositions PoliticalPosition[]
 }
 
 model Membership {
@@ -94,6 +95,7 @@ model Group {
   workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   members   GroupMember[]
   campaigns CampaignGroup[]
+  politicalPositions PoliticalPosition[]
 
   @@unique([workspaceId, name])
   @@map("groups")
@@ -315,6 +317,7 @@ model SharedList {
   items     ListItem[]
   fields    CustomField[]
   proposals ListChangeProposal[]
+  campaignTeams CampaignTeam[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -375,23 +378,27 @@ model CampaignTeam {
   name               String
   candidateName      String
   candidateContactId String?
+  listId             String?
   election           String   @default("Présidentielle 2027")
   party              String?
   politicalBloc      String?
   status             String?  // OFFICIAL | LIKELY | WATCH | UNKNOWN
   sourceLabel        String?
   sourceUrl          String?
+  programUrl         String?
   verifiedAt         DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   candidate Contact? @relation("CampaignCandidate", fields: [candidateContactId], references: [id], onDelete: SetNull)
+  list SharedList? @relation(fields: [listId], references: [id], onDelete: Cascade)
   members CampaignTeamMember[]
   positions PoliticalPosition[]
 
   @@unique([workspaceId, election, candidateName])
   @@index([workspaceId, election])
+  @@index([listId])
   @@map("campaign_teams")
 }
 
@@ -422,6 +429,8 @@ model PoliticalPosition {
   id          String   @id @default(cuid())
   workspaceId String
   teamId      String?
+  groupId     String?
+  authorId    String?
   party       String?
   topic       String
   summary     String
@@ -436,10 +445,13 @@ model PoliticalPosition {
 
   workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   team      CampaignTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  group     Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@unique([workspaceId, sourceKey])
   @@index([workspaceId, party])
   @@index([teamId])
+  @@index([groupId])
   @@map("political_positions")
 }
 

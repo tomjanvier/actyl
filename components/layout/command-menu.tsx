@@ -24,8 +24,12 @@ type CampaignOption = { id: string; slug: string; name: string; emoji: string; p
 
 export function CommandMenu({
   trigger,
+  presidentialEnabled = false,
+  listShortcuts = [],
 }: {
   trigger: React.ReactNode;
+  presidentialEnabled?: boolean;
+  listShortcuts?: Array<{ id: string; name: string }>;
 }) {
   const [open, setOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
@@ -78,15 +82,27 @@ export function CommandMenu({
               <ListChecks />
               Listes partagées
             </CommandItem>
-            <CommandItem onSelect={() => go("/campaign-teams")}>
-              <UsersRound />
-              Équipes et positions politiques
-            </CommandItem>
+            {presidentialEnabled && (
+              <CommandItem onSelect={() => go("/presidentielle")}>
+                <UsersRound />
+                Présidentielle 2027
+              </CommandItem>
+            )}
             <CommandItem onSelect={() => go("/settings")}>
               <Settings />
               Paramètres
             </CommandItem>
           </CommandGroup>
+          {listShortcuts.length > 0 && (
+            <CommandGroup heading="Listes épinglées">
+              {listShortcuts.map((list) => (
+                <CommandItem key={list.id} onSelect={() => go(`/contacts?list=${list.id}`)}>
+                  <ListChecks />
+                  {list.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
           <CommandGroup heading="Campagnes épinglées">
             {campaigns.filter((c) => c.pinned).map((c) => (
               <CommandItem key={c.id} onSelect={() => go(`/campaigns/${c.slug}`)}>

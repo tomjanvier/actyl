@@ -4,6 +4,7 @@ import { can } from "@/lib/constants";
 import { PageHeader } from "@/components/layout/page-header";
 import { ListsView } from "@/components/lists/lists-view";
 import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
+import { getListShortcutIds } from "@/lib/list-shortcuts";
 
 export const metadata = { title: "Listes partagées" };
 
@@ -21,9 +22,10 @@ export default async function ListsPage() {
   const disabledReferencePacks = await getDisabledReferencePacks(
     session.workspaceId,
   );
+  const canCreateLists = can(session.role, "list:create");
 
   // Ces requêtes indépendantes sont exécutées en parallèle.
-  const [lists, allContacts, listFields, listMemberships, proposals] = await Promise.all([
+  const [lists, allContacts, listFields, listMemberships, proposals, shortcutIds] = await Promise.all([
     db.sharedList.findMany({
       where: {
         workspaceId: session.workspaceId,
@@ -58,41 +60,45 @@ export default async function ListsPage() {
         _count: { select: { items: true } },
       },
     }),
-    db.contact.findMany({
-      where: { workspaceId: session.workspaceId },
-      orderBy: [{ lastName: "asc" }],
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        title: true,
-        institution: true,
-        party: true,
-        level: true,
-        stance: true,
-        email: true,
-        photoUrl: true,
-        avatarColor: true,
-      },
-    }),
+    canCreateLists
+      ? db.contact.findMany({
+          where: { workspaceId: session.workspaceId },
+          orderBy: [{ lastName: "asc" }],
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            title: true,
+            institution: true,
+            party: true,
+            level: true,
+            stance: true,
+            email: true,
+            photoUrl: true,
+            avatarColor: true,
+          },
+        })
+      : Promise.resolve([]),
     // Attributs rattachés à une liste précise.
     db.customField.findMany({
       where: { workspaceId: session.workspaceId, NOT: { listId: null } },
       orderBy: { position: "asc" },
       select: { id: true, listId: true, label: true },
     }),
-    db.listItem.findMany({
-      where: {
-        list: {
-          workspaceId: session.workspaceId,
-          OR: [
-            { sourcePack: null },
-            { sourcePack: { notIn: [...disabledReferencePacks] } },
-          ],
-        },
-      },
-      select: { listId: true, contactId: true },
-    }),
+    canCreateLists
+      ? db.listItem.findMany({
+          where: {
+            list: {
+              workspaceId: session.workspaceId,
+              OR: [
+                { sourcePack: null },
+                { sourcePack: { notIn: [...disabledReferencePacks] } },
+              ],
+            },
+          },
+          select: { listId: true, contactId: true },
+        })
+      : Promise.resolve([]),
     session.role === "ADMIN"
       ? db.listChangeProposal.findMany({
           where: {
@@ -114,7 +120,9 @@ export default async function ListsPage() {
           },
         })
       : Promise.resolve([]),
+    getListShortcutIds(session.workspaceId, session.user.id),
   ]);
+  const shortcutSet = new Set(shortcutIds);
 
   const previewContactIds = lists.flatMap((list) =>
     list.items.map((item) => item.contact.id),
@@ -159,27 +167,37 @@ export default async function ListsPage() {
       <PageHeader
         crumbs={[{ label: "Actyl" }, { label: "Listes partagées" }]}
         title="Listes de décideurs"
-        description="Annuaires vérifiés et partageables avec votre équipe — ou publiés pour toute l'organisation."
+        description="Annuaires vérifiés, réservés à votre équipe ou accessibles à toute personne disposant du lien."
       />
       <ListsView
-        lists={lists.map((l) => ({
-          id: l.id,
-          name: l.name,
-          description: l.description,
-          isPublished: l.isPublished,
-          sourcePack: l.sourcePack,
-          items: l.items.map((i) => ({ itemId: i.id, contact: i.contact })),
-          totalItems: l._count.items,
-          memberContactIds: membersByList.get(l.id) ?? [],
-          attributes: (fieldsByList.get(l.id) ?? []).map((f) => ({
-            id: f.id,
-            label: f.label,
-          })),
-          values: valuesByList.get(l.id) ?? {},
-        }))}
+        lists={lists.map((l) => {
+          const ownsList = !l.sourcePack && l.createdById === session.user.id;
+          const canEdit = session.role === "ADMIN" || ownsList;
+          return {
+            id: l.id,
+            name: l.name,
+            description: l.description,
+            isPublished: l.isPublished,
+            sourcePack: l.sourcePack,
+            items: l.items.map((i) => ({ itemId: i.id, contact: i.contact })),
+            totalItems: l._count.items,
+            memberContactIds: membersByList.get(l.id) ?? [],
+            pinned: shortcutSet.has(l.id),
+            canEdit,
+            canContribute:
+              can(session.role, "list:create") &&
+              (session.role === "ADMIN" || !!l.sourcePack || ownsList),
+            canImport: session.role === "ADMIN" || ownsList,
+            attributes: (fieldsByList.get(l.id) ?? []).map((f) => ({
+              id: f.id,
+              label: f.label,
+            })),
+            values: valuesByList.get(l.id) ?? {},
+          };
+        })}
         allContacts={allContacts}
-        canManage={can(session.role, "list:create")}
-        canPublish={can(session.role, "list:publish")}
+        canManage={canCreateLists}
+        canPublish={session.role === "ADMIN"}
         isAdmin={session.role === "ADMIN"}
         proposals={proposals.map((proposal) => ({
           id: proposal.id,

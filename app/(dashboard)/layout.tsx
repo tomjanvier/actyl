@@ -3,6 +3,9 @@ import { requireSession } from "@/lib/auth";
 import { getSegmentsConfig } from "@/lib/flags";
 import { TooltipProvider } from "@/components/ui/controls";
 import { Sidebar } from "@/components/layout/sidebar";
+import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
+import { getListShortcutIds } from "@/lib/list-shortcuts";
+import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 
 export default async function DashboardLayout({
   children,
@@ -11,7 +14,7 @@ export default async function DashboardLayout({
 }) {
   const session = await requireSession();
 
-  const [memberships, segments, pinnedCampaigns] = await Promise.all([
+  const [memberships, segments, pinnedCampaigns, shortcutIds, disabledPacks, presidentialList] = await Promise.all([
     db.membership.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
@@ -29,7 +32,27 @@ export default async function DashboardLayout({
       select: { id: true, slug: true, name: true, emoji: true },
       take: 8,
     }),
+    getListShortcutIds(session.workspaceId, session.user.id),
+    getDisabledReferencePacks(session.workspaceId),
+    db.sharedList.findFirst({
+      where: { workspaceId: session.workspaceId, sourcePack: "presidentielle-2027" },
+      select: { id: true },
+    }),
   ]);
+  const pinnedLists = shortcutIds.length
+    ? await db.sharedList.findMany({
+        where: { workspaceId: session.workspaceId, id: { in: shortcutIds } },
+        select: { id: true, name: true, sourcePack: true },
+      })
+    : [];
+  const orderedPinnedLists = shortcutIds.flatMap((id) => {
+    const list = pinnedLists.find((candidate) => candidate.id === id);
+    return list &&
+      (!list.sourcePack ||
+        !disabledPacks.has(list.sourcePack as ReferencePackKey))
+      ? [list]
+      : [];
+  });
   const workspaces = memberships.map((m) => ({
     id: m.workspace.id,
     name: m.workspace.name,
@@ -64,6 +87,10 @@ export default async function DashboardLayout({
           workspaces={workspaces}
           userName={session.user.name}
           pinnedCampaigns={pinnedCampaigns}
+          pinnedLists={orderedPinnedLists}
+          presidentialEnabled={
+            !!presidentialList && !disabledPacks.has("presidentielle-2027")
+          }
           directorySegments={[
                   { key: "", label: "Tout le répertoire", count: categoryCounts.reduce((n, c) => n + c._count._all, 0) },
                   { key: "DECISION_MAKER", label: "Décideur·e·ses", count: counts.DECISION_MAKER ?? 0 },

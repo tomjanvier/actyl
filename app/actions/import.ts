@@ -21,9 +21,9 @@ import { REFERENCE_PACKS, type ReferencePackKey } from "@/lib/datasets/reference
 import {
   PRESIDENTIELLE_LISTS,
 } from "@/lib/datasets/presidentielle-2027";
-import { proposeListChange } from "@/app/actions/list-proposals";
 import { syncReferenceListProposals } from "@/lib/reference-sync";
 import { referencePackSettingKey } from "@/lib/reference-pack-settings";
+import { ensurePresidentialModuleScope } from "@/lib/presidential-module";
 
 export type ImportResult = {
   ok?: boolean;
@@ -217,6 +217,9 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
       session.workspaceId,
       key,
     );
+    if (key === "presidentielle-2027") {
+      await ensurePresidentialModuleScope(session.workspaceId, session.user.id);
+    }
     revalidatePath("/settings");
     revalidatePath("/lists");
     return { ok: true, proposed: result.proposals };
@@ -242,6 +245,8 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
       where: { key: referencePackSettingKey(session.workspaceId, key) },
       data: { value: "off" },
     });
+  } else if (key === "presidentielle-2027") {
+    await ensurePresidentialModuleScope(session.workspaceId, session.user.id);
   }
   return result;
 }
@@ -293,9 +298,17 @@ export async function importCsvIntoListAction(input: {
 
   const list = await db.sharedList.findFirst({
     where: { id: input.listId, workspaceId: session.workspaceId },
-    select: { id: true, sourcePack: true },
+    select: { id: true, sourcePack: true, createdById: true },
   });
   if (!list) return { error: "Liste introuvable" };
+  if (
+    session.role !== "ADMIN" &&
+    (list.sourcePack || list.createdById !== session.user.id)
+  ) {
+    return {
+      error: "Vous pouvez importer un CSV uniquement dans une liste que vous avez créée",
+    };
+  }
 
   const csv = (input.csv ?? "").trim();
   if (!csv) return { error: "Collez d'abord un CSV (avec ligne d'en-tête)." };
@@ -305,26 +318,6 @@ export async function importCsvIntoListAction(input: {
     return {
       error:
         "Aucune ligne exploitable : l'en-tête doit contenir au minimum « prénom » ou « nom ».",
-    };
-  }
-  if (list.sourcePack && session.role !== "ADMIN") {
-    const validPeople = people.filter((person) => person.firstName && person.lastName);
-    await Promise.all(validPeople.map((person) =>
-      proposeListChange({
-        listId: list.id,
-        action: "ADD",
-        payload: person,
-        reason: "Ajout proposé par import CSV",
-      }),
-    ));
-    revalidatePath("/lists");
-    return {
-      ok: true,
-      created: 0,
-      linked: 0,
-      already: 0,
-      skipped: people.length - validPeople.length,
-      proposed: validPeople.length,
     };
   }
   const stats = await mergePeopleIntoList(session.workspaceId, input.listId, people);
