@@ -205,6 +205,35 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
   if (nameCollision) {
     return { error: `Une liste nommée « ${pack.name} » existe déjà sans être rattachée à ce pack` };
   }
+  const canonicalList = existing
+    ? null
+    : await db.sharedList.findFirst({
+        where: {
+          sourcePack: pack.key,
+          workspaceId: { not: session.workspaceId },
+        },
+        orderBy: { createdAt: "asc" },
+        select: {
+          items: {
+            select: {
+              note: true,
+              contact: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  photoUrl: true,
+                  title: true,
+                  institution: true,
+                  party: true,
+                  region: true,
+                  level: true,
+                },
+              },
+            },
+          },
+        },
+      });
 
   await db.appSetting.upsert({
     where: { key: referencePackSettingKey(session.workspaceId, key) },
@@ -235,7 +264,19 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
     },
     select: { id: true },
   });
-  const result = await importOfficialSourceAction(pack.source, { listId: list.id });
+  const result = canonicalList
+    ? {
+        ok: true as const,
+        ...(await mergePeopleIntoList(
+          session.workspaceId,
+          list.id,
+          canonicalList.items.map((item) => ({
+            ...item.contact,
+            note: item.note,
+          })),
+        )),
+      }
+    : await importOfficialSourceAction(pack.source, { listId: list.id });
   if (result.error) {
     // Ne conserve pas une liste vide lorsque la première récupération échoue.
     await db.sharedList.deleteMany({
@@ -302,8 +343,10 @@ export async function importCsvIntoListAction(input: {
   });
   if (!list) return { error: "Liste introuvable" };
   if (
-    session.role !== "ADMIN" &&
-    (list.sourcePack || list.createdById !== session.user.id)
+    (list.sourcePack && !session.user.isSuperAdmin) ||
+    (!list.sourcePack &&
+      session.role !== "ADMIN" &&
+      list.createdById !== session.user.id)
   ) {
     return {
       error: "Vous pouvez importer un CSV uniquement dans une liste que vous avez créée",

@@ -37,7 +37,7 @@ export default async function ContactsPage({
     list: requestedListId,
     contact: initialContactId,
   } = await searchParams;
-  const [segments, newsletter, directoryLists, disabledReferencePacks] = await Promise.all([
+  const [segments, newsletter, directoryLists, disabledReferencePacks, groups] = await Promise.all([
     getSegmentsConfig(session.workspaceId),
     getNewsletterConfig(session.workspaceId),
     db.sharedList.findMany({
@@ -46,6 +46,16 @@ export default async function ContactsPage({
       select: { id: true, name: true, sourcePack: true },
     }),
     getDisabledReferencePacks(session.workspaceId),
+    db.group.findMany({
+      where: {
+        workspaceId: session.workspaceId,
+        ...(session.role === "ADMIN"
+          ? {}
+          : { members: { some: { membership: { userId: session.user.id } } } }),
+      },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, color: true },
+    }),
   ]);
   const visibleLists = directoryLists.filter(
     (list) =>
@@ -116,7 +126,8 @@ export default async function ContactsPage({
     ]);
 
   const contactIds = contacts.map((contact) => contact.id);
-  const [myNotes, myPrivateData, orgNoteRows, emailCounts] = contactIds.length
+  const groupIds = groups.map((group) => group.id);
+  const [myNotes, myPrivateData, orgNoteRows, emailCounts, candidateTeams] = contactIds.length
     ? await Promise.all([
       db.privateNote.findMany({
         where: {
@@ -140,8 +151,33 @@ export default async function ContactsPage({
         where: { contactId: { in: contactIds } },
         _count: { id: true },
       }),
+      db.campaignTeam.findMany({
+        where: {
+          workspaceId: session.workspaceId,
+          candidateContactId: { in: contactIds },
+          list: { sourcePack: "presidentielle-2027" },
+        },
+        select: {
+          id: true,
+          candidateName: true,
+          candidateContactId: true,
+          programUrl: true,
+          positions: {
+            where: { groupId: { in: groupIds } },
+            orderBy: { updatedAt: "desc" },
+            select: {
+              id: true,
+              topic: true,
+              summary: true,
+              stance: true,
+              authorId: true,
+              group: { select: { name: true } },
+            },
+          },
+        },
+      }),
     ])
-    : [[], [], [], []] as const;
+    : [[], [], [], [], []] as const;
 
   const emailCountMap = new Map(
     emailCounts.map((row) => [row.contactId, row._count.id]),
@@ -220,6 +256,28 @@ export default async function ContactsPage({
         lists={visibleLists.map((list) => ({ id: list.id, name: list.name }))}
         activeListId={activeList?.id ?? ""}
         initialContactId={initialContactId ?? null}
+        candidateProfiles={Object.fromEntries(
+          candidateTeams.flatMap((team) =>
+            team.candidateContactId
+              ? [[team.candidateContactId, {
+                  teamId: team.id,
+                  candidateName: team.candidateName,
+                  programUrl: team.programUrl,
+                  positions: team.positions.map((position) => ({
+                    id: position.id,
+                    topic: position.topic,
+                    summary: position.summary,
+                    stance: position.stance,
+                    groupName: position.group?.name ?? "Équipe non renseignée",
+                    canDelete:
+                      session.role === "ADMIN" || position.authorId === session.user.id,
+                  })),
+                }]]
+              : [],
+          ),
+        )}
+        politicalGroups={groups}
+        canAddPoliticalPosition={can(session.role, "note:add") && groups.length > 0}
         pagination={{ page, pageCount, total }}
       />
     </>

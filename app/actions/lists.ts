@@ -82,7 +82,7 @@ export async function addContactsToListAction(input: {
     where: { id: input.listId, workspaceId: session.workspaceId },
   });
   if (!list) throw new Error("Liste introuvable");
-  if (list.sourcePack && session.role !== "ADMIN") {
+  if (list.sourcePack && !session.user.isSuperAdmin) {
     const contacts = await db.contact.findMany({
       where: { id: { in: input.contactIds }, workspaceId: session.workspaceId },
       select: { id: true, firstName: true, lastName: true, email: true, title: true, institution: true, party: true, region: true, level: true },
@@ -113,7 +113,7 @@ export async function removeListItemAction(itemId: string) {
     include: { list: { select: { sourcePack: true, createdById: true } } },
   });
   if (!item) throw new Error("Élément introuvable");
-  if (item.list.sourcePack && session.role !== "ADMIN") {
+  if (item.list.sourcePack && !session.user.isSuperAdmin) {
     const contact = await db.contact.findUnique({
       where: { id: item.contactId },
       select: { id: true, firstName: true, lastName: true, email: true, title: true, institution: true, party: true, region: true, level: true },
@@ -144,8 +144,8 @@ export async function createListFieldAction(input: {
     select: { id: true, sourcePack: true, createdById: true },
   });
   if (!list) return { error: "Liste introuvable" };
-  if (list.sourcePack && session.role !== "ADMIN") {
-    return { error: "Seul l’administrateur peut modifier les attributs d’une liste de référence" };
+  if (list.sourcePack && !session.user.isSuperAdmin) {
+    return { error: "Seul le super-administrateur peut modifier les attributs d’un référentiel" };
   }
   if (session.role !== "ADMIN" && !ownsPersonalList(list, session.user.id)) {
     return { error: "Vous pouvez modifier uniquement vos propres listes" };
@@ -199,8 +199,8 @@ export async function deleteListFieldAction(fieldId: string) {
     include: { list: { select: { sourcePack: true, createdById: true } } },
   });
   if (!field) throw new Error("Attribut introuvable");
-  if (field.list?.sourcePack && session.role !== "ADMIN") {
-    throw new Error("Seul l’administrateur peut modifier les attributs d’une liste de référence");
+  if (field.list?.sourcePack && !session.user.isSuperAdmin) {
+    throw new Error("Seul le super-administrateur peut modifier les attributs d’un référentiel");
   }
   if (
     session.role !== "ADMIN" &&
@@ -242,7 +242,7 @@ export async function setListItemAttrAction(input: {
     where: { id: input.listId, workspaceId: session.workspaceId },
     select: { sourcePack: true, createdById: true },
   });
-  if (list?.sourcePack && session.role !== "ADMIN") {
+  if (list?.sourcePack && !session.user.isSuperAdmin) {
     await proposeListChange({
       listId: input.listId,
       action: "ATTRIBUTE",

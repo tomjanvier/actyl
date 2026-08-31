@@ -16,6 +16,7 @@ import {
   Copy,
   Mail,
   RefreshCw,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, timeAgo } from "@/lib/utils";
@@ -30,6 +31,7 @@ import {
   removeMemberAction,
   removeGroupMemberAction,
   updateProfileAction,
+  createWorkspaceAction,
 } from "@/app/actions/settings";
 import {
   importOfficialSourceAction,
@@ -76,6 +78,7 @@ export function SettingsView({
   initialTab,
   role,
   isAdmin,
+  isSuperAdmin,
   canImportContacts,
   currentUserId,
   currentUser,
@@ -90,10 +93,12 @@ export function SettingsView({
   segments,
   referencePacks,
   newsletter,
+  workspaces,
 }: {
   initialTab: string | null;
   role: string;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   canImportContacts: boolean;
   currentUserId: string;
   currentUser: { id: string; name: string; email: string; jobTitle: string | null };
@@ -156,6 +161,13 @@ export function SettingsView({
     apiKeyMasked: string | null;
     listId: string;
   };
+  workspaces: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    memberCount: number;
+    createdAt: string;
+  }>;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -175,6 +187,9 @@ export function SettingsView({
           <TabsTrigger value="import"><Download /> Référentiels & imports</TabsTrigger>
           <TabsTrigger value="api"><Plug /> API & intégrations</TabsTrigger>
           <TabsTrigger value="profil"><KeyRound /> Mon profil</TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="espaces"><Building2 /> Espaces</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="modules" className="mt-5 space-y-6 outline-none">
@@ -320,7 +335,7 @@ export function SettingsView({
         {/* ── Membres ── */}
         <TabsContent value="membres" className="mt-5 outline-none">
           <AccountRequestsSection
-            isAdmin={isAdmin}
+            isAdmin={isSuperAdmin}
             signupMode={signupMode}
             pending={pendingRequests}
             onChanged={refresh}
@@ -434,6 +449,7 @@ export function SettingsView({
         <TabsContent value="import" className="mt-5 outline-none">
           <ImportOfficials
             isAdmin={isAdmin}
+            isSuperAdmin={isSuperAdmin}
             canImportContacts={canImportContacts}
             referencePacks={referencePacks}
           />
@@ -450,8 +466,78 @@ export function SettingsView({
         <TabsContent value="profil" className="mt-5 outline-none">
           <ProfileForm user={currentUser} />
         </TabsContent>
+
+        {isSuperAdmin && (
+          <TabsContent value="espaces" className="mt-5 outline-none">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+              <section className="overflow-hidden rounded-xl border border-line bg-card">
+                <header className="border-b border-line px-4 py-3">
+                  <h2 className="text-[14px] font-semibold text-fg">Espaces Actyl</h2>
+                  <p className="mt-0.5 text-[11.5px] text-faint">
+                    Le super-administrateur peut rejoindre chaque espace et en administrer les accès.
+                  </p>
+                </header>
+                {workspaces.map((workspace) => (
+                  <article key={workspace.id} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-0">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-elev text-faint ring-1 ring-inset ring-line">
+                      <Building2 className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium text-fg">{workspace.name}</p>
+                      <p className="text-[11px] text-faint">
+                        {workspace.slug} · {workspace.memberCount} membre{workspace.memberCount > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <span className="text-[10.5px] text-faint">
+                      {new Date(workspace.createdAt).toLocaleDateString("fr-FR")}
+                    </span>
+                  </article>
+                ))}
+              </section>
+              <CreateWorkspaceForm onCreated={refresh} />
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
+  );
+}
+
+function CreateWorkspaceForm({ onCreated }: { onCreated: () => void }) {
+  const [state, action, pending] = useActionState<
+    { error?: string; ok?: boolean } | undefined,
+    FormData
+  >(createWorkspaceAction, undefined);
+
+  useEffect(() => {
+    if (state?.ok) {
+      toast.success("Espace créé et ajouté au sélecteur");
+      onCreated();
+    }
+    if (state?.error) toast.error(state.error);
+  }, [state, onCreated]);
+
+  return (
+    <form action={action} className="h-fit rounded-xl border border-line bg-card p-4">
+      <h2 className="text-[14px] font-semibold text-fg">Créer un espace</h2>
+      <p className="mt-1 text-[11.5px] text-faint">
+        Vous serez automatiquement administrateur du nouvel espace.
+      </p>
+      <div className="mt-4 space-y-3">
+        <div>
+          <Label>Nom de l’espace *</Label>
+          <Input name="name" required placeholder="Association ou campagne" />
+        </div>
+        <div>
+          <Label>Site web</Label>
+          <Input name="website" type="url" placeholder="https://…" />
+        </div>
+      </div>
+      <Button type="submit" size="sm" className="mt-4" disabled={pending}>
+        {pending ? <Loader2 className="animate-spin" /> : <Plus />}
+        {pending ? "Création…" : "Créer l’espace"}
+      </Button>
+    </form>
   );
 }
 
@@ -770,10 +856,12 @@ const GROUP_DOT: Record<string, string> = {
 
 function ImportOfficials({
   isAdmin,
+  isSuperAdmin,
   canImportContacts,
   referencePacks,
 }: {
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   canImportContacts: boolean;
   referencePacks: Array<{
     key: ReferencePackKey;
@@ -820,6 +908,10 @@ function ImportOfficials({
     action: "enable" | "sync" | "disable",
   ) {
     if (!isAdmin || running) return;
+    if (action === "sync" && !isSuperAdmin) {
+      toast.error("La synchronisation globale est réservée au super-administrateur");
+      return;
+    }
     if (
       action === "disable" &&
       !window.confirm(
@@ -855,8 +947,9 @@ function ImportOfficials({
         <section>
           <h2 className="text-[15px] font-semibold text-fg">Listes de référence partagées</h2>
           <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-mut">
-            Activez les référentiels utiles à cet espace. La synchronisation hebdomadaire
-            propose les écarts ; un administrateur les valide ensuite dans « Listes partagées ».
+            Activez dans cet espace les projections du catalogue global. Chaque référentiel
+            conserve les mêmes contacts dans tous les espaces ; une validation du
+            super-administrateur est répercutée partout.
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             {referencePacks.map((pack) => {
@@ -885,10 +978,12 @@ function ImportOfficials({
                       </Button>
                     ) : (
                       <>
-                        <Button variant="outline" size="sm" disabled={running !== null} onClick={() => void updateSharedPack(pack, "sync")}>
-                          {running === operation ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-                          Vérifier les mises à jour
-                        </Button>
+                        {isSuperAdmin && (
+                          <Button variant="outline" size="sm" disabled={running !== null} onClick={() => void updateSharedPack(pack, "sync")}>
+                            {running === operation ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                            Vérifier pour tous les espaces
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" disabled={running !== null} onClick={() => void updateSharedPack(pack, "disable")}>
                           Désactiver
                         </Button>

@@ -22,7 +22,7 @@ import {
   STANCES,
   STANCE_META,
 } from "@/lib/constants";
-import type { ContactRow } from "@/components/contacts/types";
+import type { CandidateProfile, ContactRow } from "@/components/contacts/types";
 import type { CustomFieldLite } from "@/components/contacts/types";
 import {
   Table,
@@ -79,6 +79,9 @@ export function ContactsView({
   lists = [],
   activeListId = "",
   initialContactId = null,
+  candidateProfiles = {},
+  politicalGroups = [],
+  canAddPoliticalPosition = false,
   pagination,
 }: {
   contacts: ContactRow[];
@@ -110,6 +113,9 @@ export function ContactsView({
   lists?: Array<{ id: string; name: string }>;
   activeListId?: string;
   initialContactId?: string | null;
+  candidateProfiles?: Record<string, CandidateProfile>;
+  politicalGroups?: Array<{ id: string; name: string; color: string }>;
+  canAddPoliticalPosition?: boolean;
   pagination?: { page: number; pageCount: number; total: number };
 }) {
   const router = useRouter();
@@ -649,6 +655,9 @@ export function ContactsView({
         myPrivateData={selectedId ? privateData[selectedId] : undefined}
         canEdit={canEdit}
         canDelete={canDelete}
+        candidateProfile={selectedId ? candidateProfiles[selectedId] : undefined}
+        politicalGroups={politicalGroups}
+        canAddPoliticalPosition={canAddPoliticalPosition}
         open={!!selected}
         onOpenChange={(o) => !o && setSelectedId(null)}
         onDeleted={() => {

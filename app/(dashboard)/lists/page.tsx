@@ -99,17 +99,11 @@ export default async function ListsPage() {
           select: { listId: true, contactId: true },
         })
       : Promise.resolve([]),
-    session.role === "ADMIN"
+    session.user.isSuperAdmin
       ? db.listChangeProposal.findMany({
           where: {
-            workspaceId: session.workspaceId,
             status: "PENDING",
-            list: {
-              OR: [
-                { sourcePack: null },
-                { sourcePack: { notIn: [...disabledReferencePacks] } },
-              ],
-            },
+            list: { sourcePack: { not: null } },
           },
           orderBy: { createdAt: "asc" },
           take: 200,
@@ -172,7 +166,9 @@ export default async function ListsPage() {
       <ListsView
         lists={lists.map((l) => {
           const ownsList = !l.sourcePack && l.createdById === session.user.id;
-          const canEdit = session.role === "ADMIN" || ownsList;
+          const canEdit = l.sourcePack
+            ? session.user.isSuperAdmin
+            : session.role === "ADMIN" || ownsList;
           return {
             id: l.id,
             name: l.name,
@@ -187,7 +183,9 @@ export default async function ListsPage() {
             canContribute:
               can(session.role, "list:create") &&
               (session.role === "ADMIN" || !!l.sourcePack || ownsList),
-            canImport: session.role === "ADMIN" || ownsList,
+            canImport: l.sourcePack
+              ? session.user.isSuperAdmin
+              : session.role === "ADMIN" || ownsList,
             attributes: (fieldsByList.get(l.id) ?? []).map((f) => ({
               id: f.id,
               label: f.label,
@@ -198,7 +196,7 @@ export default async function ListsPage() {
         allContacts={allContacts}
         canManage={canCreateLists}
         canPublish={session.role === "ADMIN"}
-        isAdmin={session.role === "ADMIN"}
+        isAdmin={session.user.isSuperAdmin}
         proposals={proposals.map((proposal) => ({
           id: proposal.id,
           action: proposal.action,

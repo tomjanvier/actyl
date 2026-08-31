@@ -51,3 +51,17 @@ export type OrgNote = {
   pinned: boolean;
   createdAt: string;
 };
+
+export type CandidateProfile = {
+  teamId: string;
+  candidateName: string;
+  programUrl: string | null;
+  positions: Array<{
+    id: string;
+    topic: string;
+    summary: string;
+    stance: string;
+    groupName: string;
+    canDelete: boolean;
+  }>;
+};

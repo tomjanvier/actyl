@@ -13,11 +13,13 @@ import {
   Pin,
   Star,
   Loader2,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, fullName, timeAgo } from "@/lib/utils";
 import { LEVELS, LEVEL_META, STANCES, STANCE_META } from "@/lib/constants";
-import type { ContactRow, CustomFieldLite, MyNote, OrgNote } from "@/components/contacts/types";
+import type { CandidateProfile, ContactRow, CustomFieldLite, MyNote, OrgNote } from "@/components/contacts/types";
 import {
   updateContactAction,
   deleteContactAction,
@@ -26,6 +28,11 @@ import {
   addOrgNoteAction,
   deleteOrgNoteAction,
 } from "@/app/actions/contacts";
+import {
+  createPoliticalPositionAction,
+  deletePoliticalPositionAction,
+  type CampaignTeamActionState,
+} from "@/app/actions/campaign-teams";
 import { SlideOver } from "@/components/ui/dialog";
 import { EntityAvatar } from "@/components/ui/badge";
 import { Input, Textarea } from "@/components/ui/input";
@@ -50,6 +57,9 @@ export function ContactDrawer({
   myPrivateData,
   canEdit,
   canDelete,
+  candidateProfile,
+  politicalGroups,
+  canAddPoliticalPosition,
   open,
   onOpenChange,
   onDeleted,
@@ -61,6 +71,9 @@ export function ContactDrawer({
   myPrivateData?: { rating: number | null; tags: string; status: string };
   canEdit: boolean;
   canDelete: boolean;
+  candidateProfile?: CandidateProfile;
+  politicalGroups: Array<{ id: string; name: string; color: string }>;
+  canAddPoliticalPosition: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted: () => void;
@@ -109,6 +122,9 @@ export function ContactDrawer({
             <TabsTrigger value="infos">Fiche</TabsTrigger>
             <TabsTrigger value="equipe">Notes d&apos;équipe ({orgNotes.length})</TabsTrigger>
             <TabsTrigger value="notes">Mes notes ({myNotes.length})</TabsTrigger>
+            {candidateProfile && (
+              <TabsTrigger value="presidentielle">Présidentielle 2027</TabsTrigger>
+            )}
           </TabsList>
         </Tabs>
       </div>
@@ -147,6 +163,17 @@ export function ContactDrawer({
               onSaved={refresh}
             />
           </TabsContent>
+
+          {candidateProfile && (
+            <TabsContent value="presidentielle" className="mt-0 outline-none">
+              <CandidatePoliticalLayer
+                profile={candidateProfile}
+                groups={politicalGroups}
+                canAdd={canAddPoliticalPosition}
+                onSaved={refresh}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
@@ -177,6 +204,132 @@ export function ContactDrawer({
         </div>
       )}
     </SlideOver>
+  );
+}
+
+const POLITICAL_STANCE_LABELS: Record<string, string> = {
+  FAVORABLE: "Favorable",
+  MIXED: "Position mixte",
+  OPPOSED: "Opposée",
+  UNKNOWN: "À qualifier",
+};
+
+function CandidatePoliticalLayer({
+  profile,
+  groups,
+  canAdd,
+  onSaved,
+}: {
+  profile: CandidateProfile;
+  groups: Array<{ id: string; name: string; color: string }>;
+  canAdd: boolean;
+  onSaved: () => void;
+}) {
+  const [state, action, pending] = useActionState<
+    CampaignTeamActionState | undefined,
+    FormData
+  >(createPoliticalPositionAction, undefined);
+
+  useEffect(() => {
+    if (state?.message) {
+      toast.success(state.message);
+      onSaved();
+    }
+    if (state?.error) toast.error(state.error);
+  }, [state, onSaved]);
+
+  async function remove(positionId: string) {
+    if (!confirm("Supprimer cette piste de travail ?")) return;
+    try {
+      await deletePoliticalPositionAction(positionId);
+      toast.success("Piste supprimée");
+      onSaved();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Suppression impossible");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-xl border border-line bg-card p-4">
+        <h3 className="text-[13.5px] font-semibold text-fg">{profile.candidateName}</h3>
+        {profile.programUrl ? (
+          <Button variant="outline" size="sm" className="mt-3" asChild>
+            <a href={profile.programUrl} target="_blank" rel="noreferrer">
+              <FileText /> Ouvrir le programme <ExternalLink />
+            </a>
+          </Button>
+        ) : (
+          <p className="mt-2 text-[12px] text-faint">Aucun programme en ligne renseigné.</p>
+        )}
+      </section>
+
+      {canAdd && (
+        <form action={action} className="rounded-xl border border-line bg-card p-4">
+          <input type="hidden" name="teamId" value={profile.teamId} />
+          <h3 className="text-[13.5px] font-semibold text-fg">Ajouter une piste de travail</h3>
+          <p className="mt-1 text-[11.5px] text-mut">
+            Cette note reste visible uniquement par l’équipe interne choisie.
+          </p>
+          <div className="mt-3 space-y-3">
+            <Field label="Équipe interne">
+              <select name="groupId" required className="h-9 w-full rounded-md border border-line bg-elev px-2 text-[12px] text-fg">
+                <option value="">Choisir une équipe</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>{group.name}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Enjeu">
+              <Input name="topic" required placeholder="Aide publique au développement" />
+            </Field>
+            <Field label="Qualification">
+              <select name="stance" defaultValue="UNKNOWN" className="h-9 w-full rounded-md border border-line bg-elev px-2 text-[12px] text-fg">
+                <option value="UNKNOWN">À qualifier</option>
+                <option value="FAVORABLE">Favorable</option>
+                <option value="MIXED">Mixte</option>
+                <option value="OPPOSED">Opposée</option>
+              </select>
+            </Field>
+            <Field label="Note">
+              <Textarea name="summary" required rows={3} placeholder="Position connue, point d’attention ou prochaine action…" />
+            </Field>
+          </div>
+          <Button type="submit" size="sm" className="mt-3" disabled={pending}>
+            {pending ? "Enregistrement…" : "Partager avec l’équipe"}
+          </Button>
+        </form>
+      )}
+
+      <section className="space-y-2">
+        <h3 className="text-[12px] font-semibold uppercase tracking-wider text-faint">
+          Positions et pistes ({profile.positions.length})
+        </h3>
+        {profile.positions.map((position) => (
+          <article key={position.id} className="rounded-lg bg-elev p-3 ring-1 ring-inset ring-line">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[12.5px] font-medium text-fg">{position.topic}</p>
+                <p className="mt-0.5 text-[10.5px] text-faint">
+                  {POLITICAL_STANCE_LABELS[position.stance] ?? "À qualifier"} · {position.groupName}
+                </p>
+              </div>
+              {position.canDelete && (
+                <button type="button" onClick={() => void remove(position.id)} className="text-faint hover:text-rose-600" aria-label="Supprimer la piste">
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-[12px] leading-relaxed text-mut">{position.summary}</p>
+          </article>
+        ))}
+        {profile.positions.length === 0 && (
+          <p className="rounded-lg border border-dashed border-line p-4 text-center text-[12px] text-faint">
+            Aucune piste partagée avec vos équipes.
+          </p>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -385,7 +538,7 @@ function PrivateLayer({
 
   return (
     <>
-      {/* Personal overlay */}
+      {/* Couche personnelle. */}
       <section className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.04] p-4">
         <header className="mb-3 flex items-center gap-2">
           <Star className="size-3.5 text-indigo-700 dark:text-indigo-400" />
@@ -417,7 +570,7 @@ function PrivateLayer({
         </Button>
       </section>
 
-      {/* Add note */}
+      {/* Ajout d’une note. */}
       <form action={noteAction} className="flex flex-col gap-2">
         <input type="hidden" name="contactId" value={contactId} />
         <Label className="flex items-center gap-1.5">
