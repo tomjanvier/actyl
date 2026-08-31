@@ -46,14 +46,21 @@ async function main() {
   });
 
   // ── Compte administrateur initial ──────────────────────────────────────────
-  const initialPassword = process.env.ACTYL_ADMIN_PASSWORD;
+  const initialPassword =
+    process.env.ACTYL_ADMIN_PASSWORD ?? process.env.SEED_ADMIN_PASSWORD;
   if (!initialPassword || initialPassword.length < 12) {
-    throw new Error("ACTYL_ADMIN_PASSWORD doit contenir au moins 12 caractères");
+    throw new Error("SEED_ADMIN_PASSWORD doit contenir au moins 12 caractères");
   }
   const admin = await db.user.create({
     data: {
-      email: process.env.ACTYL_ADMIN_EMAIL ?? "admin@actyl.org",
-      name: "Administrateur Actyl",
+      email:
+        process.env.ACTYL_ADMIN_EMAIL ??
+        process.env.SEED_ADMIN_EMAIL ??
+        "admin@actyl.org",
+      name:
+        process.env.ACTYL_ADMIN_NAME ??
+        process.env.SEED_ADMIN_NAME ??
+        "Administrateur Actyl",
       jobTitle: "Super-administrateur",
       isSuperAdmin: true,
       passwordHash: await bcrypt.hash(initialPassword, 11),

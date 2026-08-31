@@ -61,12 +61,12 @@ suivi des décideurs et mobilisation citoyenne.
 
 ```bash
 pnpm install
-ACTYL_ADMIN_PASSWORD='un-mot-de-passe-fort' pnpm setup
+SEED_ADMIN_PASSWORD='un-mot-de-passe-fort' pnpm setup
 pnpm dev          # http://localhost:3000
 ```
 
 Le peuplement initial crée uniquement le super-administrateur
-`admin@actyl.org`. L’adresse peut être remplacée avec `ACTYL_ADMIN_EMAIL`.
+`admin@actyl.org`. L’adresse peut être remplacée avec `SEED_ADMIN_EMAIL`.
 
 ## Production
 
