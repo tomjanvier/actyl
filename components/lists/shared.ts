@@ -27,6 +27,10 @@ export type ListWithItems = {
   items: Array<{ itemId: string; contact: ContactLite }>;
   totalItems: number;
   memberContactIds: string[];
+  pinned: boolean;
+  canEdit: boolean;
+  canContribute: boolean;
+  canImport: boolean;
   /** Attributs propres à cette liste. */
   attributes?: ListAttribute[];
   /** Associe la clé « contactId:fieldId » à sa valeur. */

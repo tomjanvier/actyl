@@ -5,6 +5,14 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { proposeListChange } from "@/app/actions/list-proposals";
+import { getListShortcutIds, saveListShortcutIds } from "@/lib/list-shortcuts";
+
+function ownsPersonalList(
+  list: { sourcePack: string | null; createdById: string | null },
+  userId: string,
+) {
+  return !list.sourcePack && list.createdById === userId;
+}
 
 export async function createListAction(
   _prev: unknown,
@@ -33,12 +41,11 @@ export async function createListAction(
 export async function toggleListPublishAction(listId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
-  if (!can(session.role, "list:publish")) throw new Error("Permission refusée");
+  if (session.role !== "ADMIN") throw new Error("Action réservée à l’administrateur");
   const list = await db.sharedList.findFirst({
     where: { id: listId, workspaceId: session.workspaceId },
   });
   if (!list) throw new Error("Liste introuvable");
-  if (list.sourcePack && session.role !== "ADMIN") throw new Error("Seul l’administrateur peut publier une liste de référence");
   await db.sharedList.update({
     where: { id: listId },
     data: { isPublished: !list.isPublished },
@@ -50,8 +57,14 @@ export async function deleteListAction(listId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "list:edit")) throw new Error("Permission refusée");
-  const list = await db.sharedList.findFirst({ where: { id: listId, workspaceId: session.workspaceId }, select: { sourcePack: true } });
-  if (list?.sourcePack && session.role !== "ADMIN") throw new Error("Seul l’administrateur peut supprimer une liste de référence");
+  const list = await db.sharedList.findFirst({
+    where: { id: listId, workspaceId: session.workspaceId },
+    select: { sourcePack: true, createdById: true },
+  });
+  if (!list) throw new Error("Liste introuvable");
+  if (session.role !== "ADMIN" && !ownsPersonalList(list, session.user.id)) {
+    throw new Error("Vous pouvez supprimer uniquement vos propres listes");
+  }
   await db.sharedList.deleteMany({
     where: { id: listId, workspaceId: session.workspaceId },
   });
@@ -80,13 +93,13 @@ export async function addContactsToListAction(input: {
     revalidatePath("/lists");
     return { proposed: contacts.length };
   }
-  for (const contactId of input.contactIds) {
-    await db.listItem.upsert({
-      where: { listId_contactId: { listId: input.listId, contactId } },
-      create: { listId: input.listId, contactId },
-      update: {},
-    });
+  if (session.role !== "ADMIN" && !ownsPersonalList(list, session.user.id)) {
+    throw new Error("Vous pouvez modifier uniquement vos propres listes");
   }
+  await db.listItem.createMany({
+    data: input.contactIds.map((contactId) => ({ listId: input.listId, contactId })),
+    skipDuplicates: true,
+  });
   revalidatePath("/lists");
   return { proposed: 0 };
 }
@@ -97,7 +110,7 @@ export async function removeListItemAction(itemId: string) {
   if (!can(session.role, "list:edit")) throw new Error("Permission refusée");
   const item = await db.listItem.findFirst({
     where: { id: itemId, list: { workspaceId: session.workspaceId } },
-    include: { list: { select: { sourcePack: true } } },
+    include: { list: { select: { sourcePack: true, createdById: true } } },
   });
   if (!item) throw new Error("Élément introuvable");
   if (item.list.sourcePack && session.role !== "ADMIN") {
@@ -108,6 +121,9 @@ export async function removeListItemAction(itemId: string) {
     if (contact) await proposeListChange({ listId: item.listId, action: "REMOVE", contactId: contact.id, payload: contact });
     revalidatePath("/lists");
     return { proposed: 1 };
+  }
+  if (session.role !== "ADMIN" && !ownsPersonalList(item.list, session.user.id)) {
+    throw new Error("Vous pouvez modifier uniquement vos propres listes");
   }
   await db.listItem.delete({ where: { id: itemId } });
   revalidatePath("/lists");
@@ -125,11 +141,14 @@ export async function createListFieldAction(input: {
 
   const list = await db.sharedList.findFirst({
     where: { id: input.listId, workspaceId: session.workspaceId },
-    select: { id: true, sourcePack: true },
+    select: { id: true, sourcePack: true, createdById: true },
   });
   if (!list) return { error: "Liste introuvable" };
   if (list.sourcePack && session.role !== "ADMIN") {
     return { error: "Seul l’administrateur peut modifier les attributs d’une liste de référence" };
+  }
+  if (session.role !== "ADMIN" && !ownsPersonalList(list, session.user.id)) {
+    return { error: "Vous pouvez modifier uniquement vos propres listes" };
   }
 
   const label = input.label.trim().slice(0, 60);
@@ -177,11 +196,18 @@ export async function deleteListFieldAction(fieldId: string) {
   if (!can(session.role, "list:create")) throw new Error("Permission refusée");
   const field = await db.customField.findFirst({
     where: { id: fieldId, workspaceId: session.workspaceId, NOT: { listId: null } },
-    include: { list: { select: { sourcePack: true } } },
+    include: { list: { select: { sourcePack: true, createdById: true } } },
   });
   if (!field) throw new Error("Attribut introuvable");
   if (field.list?.sourcePack && session.role !== "ADMIN") {
     throw new Error("Seul l’administrateur peut modifier les attributs d’une liste de référence");
+  }
+  if (
+    session.role !== "ADMIN" &&
+    field.list &&
+    !ownsPersonalList(field.list, session.user.id)
+  ) {
+    throw new Error("Vous pouvez modifier uniquement vos propres listes");
   }
   await db.customField.delete({ where: { id: field.id } });
   revalidatePath("/lists");
@@ -212,7 +238,10 @@ export async function setListItemAttrAction(input: {
     select: { id: true },
   });
   if (!inList) throw new Error("Contact absent de la liste");
-  const list = await db.sharedList.findFirst({ where: { id: input.listId, workspaceId: session.workspaceId }, select: { sourcePack: true } });
+  const list = await db.sharedList.findFirst({
+    where: { id: input.listId, workspaceId: session.workspaceId },
+    select: { sourcePack: true, createdById: true },
+  });
   if (list?.sourcePack && session.role !== "ADMIN") {
     await proposeListChange({
       listId: input.listId,
@@ -224,6 +253,10 @@ export async function setListItemAttrAction(input: {
     revalidatePath("/lists");
     return { proposed: 1 };
   }
+  if (!list) throw new Error("Liste introuvable");
+  if (session.role !== "ADMIN" && !ownsPersonalList(list, session.user.id)) {
+    throw new Error("Vous pouvez modifier uniquement vos propres listes");
+  }
 
   const value = input.value.trim().slice(0, 300);
   await db.customFieldValue.upsert({
@@ -232,4 +265,23 @@ export async function setListItemAttrAction(input: {
     update: { value: value || null },
   });
   revalidatePath("/lists");
+}
+
+/** Ajoute ou retire une liste des raccourcis personnels du menu latéral. */
+export async function toggleListShortcutAction(listId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  const list = await db.sharedList.findFirst({
+    where: { id: listId, workspaceId: session.workspaceId },
+    select: { id: true },
+  });
+  if (!list) throw new Error("Liste introuvable");
+  const current = await getListShortcutIds(session.workspaceId, session.user.id);
+  const next = current.includes(list.id)
+    ? current.filter((id) => id !== list.id)
+    : [...current, list.id].slice(-12);
+  await saveListShortcutIds(session.workspaceId, session.user.id, next);
+  revalidatePath("/lists");
+  revalidatePath("/", "layout");
+  return { pinned: next.includes(list.id) };
 }

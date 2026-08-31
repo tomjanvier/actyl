@@ -57,6 +57,8 @@ export function Sidebar({
   userName,
   directorySegments,
   pinnedCampaigns = [],
+  pinnedLists = [],
+  presidentialEnabled = false,
 }: {
   workspace: WorkspaceOption;
   workspaces: WorkspaceOption[];
@@ -64,6 +66,8 @@ export function Sidebar({
   /** Segments actifs de l'annuaire. */
   directorySegments?: DirectorySegment[];
   pinnedCampaigns?: Array<{ id: string; slug: string; name: string; emoji: string }>;
+  pinnedLists?: Array<{ id: string; name: string }>;
+  presidentialEnabled?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -81,14 +85,16 @@ export function Sidebar({
       { href: "/tasks", label: "Tâches", icon: CheckCircle },
       { href: "/supporters", label: "Soutiens", icon: HeartHandshake },
       { href: "/events", label: "Événements", icon: CalendarDays },
-      { href: "/campaign-teams", label: "Équipes politiques", icon: UsersRound },
+      ...(presidentialEnabled
+        ? [{ href: "/presidentielle", label: "Présidentielle 2027", icon: UsersRound }]
+        : []),
     ];
     base.push(
       { href: "/lists", label: "Listes partagées", icon: ListChecks },
       { href: "/settings", label: "Paramètres", icon: Settings },
     );
     return base;
-  }, []);
+  }, [presidentialEnabled]);
 
   useEffect(() => {
     const stored = localStorage.getItem("actyl_sidebar_collapsed");
@@ -131,7 +137,7 @@ export function Sidebar({
         collapsed ? "w-[56px] max-md:!w-[min(86vw,300px)]" : "w-[228px]",
       )}
     >
-      {/* Workspace switcher */}
+      {/* Sélecteur d’espace de travail. */}
       <div className={cn("flex items-center gap-2 px-3 pb-2 pt-4", collapsed && "justify-center px-0")}>
         <Button variant="ghost" size="icon-sm" className="ml-auto md:hidden" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu">
           <X />
@@ -177,7 +183,7 @@ export function Sidebar({
         </DropdownMenu>
       </div>
 
-      {/* Nav */}
+      {/* Navigation principale. */}
       <nav className={cn("mt-2 flex flex-col gap-0.5 px-3", collapsed && "items-center px-0")}>
         {nav.map((item) => {
           const active =
@@ -212,6 +218,20 @@ export function Sidebar({
                     >
                       <span>{campaign.emoji}</span>
                       <span className="truncate">{campaign.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {item.href === "/lists" && !collapsed && pinnedLists.length > 0 && (
+                <div className="mb-1 ml-[26px] mt-0.5 flex flex-col border-l border-line pl-2">
+                  {pinnedLists.map((list) => (
+                    <Link
+                      key={list.id}
+                      href={`/contacts?list=${encodeURIComponent(list.id)}`}
+                      className="flex min-h-8 items-center truncate rounded-md px-2 text-[11.5px] text-faint hover:bg-elev hover:text-mut"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <span className="truncate">{list.name}</span>
                     </Link>
                   ))}
                 </div>
@@ -253,10 +273,12 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Footer: collapse + user */}
+      {/* Pied du menu : repli et compte utilisateur. */}
       <div className="flex flex-col gap-1 border-t border-line p-3">
         <div className={cn("flex items-center justify-between gap-2", collapsed && "flex-col")}>
           <CommandMenu
+            presidentialEnabled={presidentialEnabled}
+            listShortcuts={pinnedLists}
             trigger={
               collapsed ? (
                 <Button variant="ghost" size="icon-sm" title="Recherche (⌘K)">

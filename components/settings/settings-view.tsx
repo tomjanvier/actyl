@@ -911,11 +911,6 @@ function ImportOfficials({
               une liste partagée. Cet import ne sera pas synchronisé chaque semaine.
             </p>
           </div>
-          {isAdmin && (
-            <Button variant="outline" size="sm" onClick={() => router.push("/campaign-teams")}>
-              <UsersRound /> Gérer les équipes de campagne
-            </Button>
-          )}
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {referencePacks.map((pack) => {

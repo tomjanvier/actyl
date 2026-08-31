@@ -2,7 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Globe, Trash2, Users, X, Search, Code2, Tag, Download } from "lucide-react";
+import { Plus, Globe, Trash2, Users, X, Search, Code2, Tag, Download, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { fullName } from "@/components/lists/shared";
@@ -16,6 +16,7 @@ import {
   createListFieldAction,
   deleteListFieldAction,
   setListItemAttrAction,
+  toggleListShortcutAction,
 } from "@/app/actions/lists";
 import { ImportListDialog } from "@/components/lists/import-list-dialog";
 import {
@@ -114,7 +115,12 @@ export function ListsView({
                 </h3>
                 {list.isPublished && (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
-                    <Globe className="size-3" /> Publiée
+                    <Globe className="size-3" /> Tout le monde
+                  </span>
+                )}
+                {!list.isPublished && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-elev px-1.5 py-0.5 text-[10.5px] font-medium text-mut ring-1 ring-inset ring-line">
+                    <Users className="size-3" /> Équipe
                   </span>
                 )}
                 {list.sourcePack && (
@@ -129,9 +135,23 @@ export function ListsView({
                 </p>
               )}
             </div>
-            {(canManage || canPublish) && (
+            <button
+              type="button"
+              title={list.pinned ? "Retirer des raccourcis" : "Ajouter aux raccourcis"}
+              aria-label={list.pinned ? "Retirer des raccourcis" : "Ajouter aux raccourcis"}
+              onClick={() =>
+                void toggleListShortcutAction(list.id)
+                  .then(refresh)
+                  .catch((error: Error) => toast.error(error.message))
+              }
+              className="rounded-md p-1.5 text-faint hover:bg-hover hover:text-amber-600"
+            >
+              <Pin className={cn("size-3.5", list.pinned && "fill-current text-amber-600")} />
+            </button>
+            {(list.canEdit || list.canImport || canPublish) && (
               <Dropdownish
-                canManage={canManage}
+                canDelete={list.canEdit}
+                canImport={list.canImport}
                 canPublish={canPublish}
                 published={list.isPublished}
                 onTogglePublish={() =>
@@ -181,14 +201,14 @@ export function ListsView({
                 {/* Valeurs des attributs propres à la liste. */}
                 {(list.attributes ?? []).slice(0, 2).map((a) => {
                   const v = list.values?.[`${contact.id}:${a.id}`];
-                  return v || canManage ? (
+                  return v || list.canContribute ? (
                     <button
                       key={a.id}
                       type="button"
                       title={v ? `${a.label} : ${v}` : `Renseigner ${a.label}`}
                       className="hidden max-w-28 truncate rounded-md bg-elev px-1.5 py-0.5 text-[10.5px] text-mut ring-1 ring-inset ring-line lg:block"
                       onClick={() => {
-                        if (!canManage) return;
+                        if (!list.canContribute) return;
                         const value = window.prompt(a.label, v ?? "");
                         if (value === null) return;
                         void setListItemAttrAction({
@@ -204,7 +224,7 @@ export function ListsView({
                   ) : null;
                 })}
                 <StanceDot stance={contact.stance} />
-                {canManage && (
+                {list.canContribute && (
                   <button
                     title="Retirer de la liste"
                     onClick={() => void removeListItemAction(itemId).then(refresh)}
@@ -231,8 +251,8 @@ export function ListsView({
             )}
           </ul>
 
-          {/* Dedicated attributes footer */}
-          {(canManage || (list.attributes?.length ?? 0) > 0) && (
+          {/* Attributs propres à la liste. */}
+          {(list.canEdit || (list.attributes?.length ?? 0) > 0) && (
             <div className="border-t border-linesoft px-4 py-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Tag className="size-3 text-faint" />
@@ -242,7 +262,7 @@ export function ListsView({
                     className="inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-400"
                   >
                     {a.label}
-                    {canManage && (
+                    {list.canEdit && (
                       <button
                         title="Supprimer l'attribut"
                         onClick={() => {
@@ -258,14 +278,14 @@ export function ListsView({
                 {(list.attributes?.length ?? 0) === 0 && (
                   <span className="text-[10.5px] text-faint">Aucun attribut dédié</span>
                 )}
-                {canManage && (
+                {list.canEdit && (
                   <ListAttrCreator listId={list.id} onCreated={refresh} />
                 )}
               </div>
             </div>
           )}
 
-          {canManage && (
+          {list.canContribute && (
             <footer className="mt-auto flex items-center justify-between border-t border-line px-4 py-2.5">
               <span className="text-[11px] uppercase tracking-wider text-faint">
                 {list.totalItems} contact{list.totalItems > 1 ? "s" : ""}
@@ -281,7 +301,7 @@ export function ListsView({
       {/* Fenêtre de création. */}
       <CreateListDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={refresh} />
 
-      {/* Add contacts dialog */}
+      {/* Fenêtre d’ajout de contacts. */}
       <AddContactsDialog
         list={lists.find((l) => l.id === addOpenFor) ?? null}
         contacts={allContacts}
@@ -314,7 +334,8 @@ export function ListsView({
 // ── Composants auxiliaires ───────────────────────────────────────────────────
 
 function Dropdownish({
-  canManage,
+  canDelete,
+  canImport,
   canPublish,
   published,
   onTogglePublish,
@@ -322,7 +343,8 @@ function Dropdownish({
   onEmbed,
   onImport,
 }: {
-  canManage: boolean;
+  canDelete: boolean;
+  canImport: boolean;
   canPublish: boolean;
   published: boolean;
   onTogglePublish: () => void;
@@ -349,7 +371,7 @@ function Dropdownish({
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-mut hover:bg-hoverstrong"
               >
                 <Globe className="size-4 text-faint" />
-                {published ? "Dépublier" : "Publier"}
+                {published ? "Limiter à l’équipe" : "Partager avec tout le monde"}
               </button>
             )}
             {canPublish && published && (
@@ -363,7 +385,7 @@ function Dropdownish({
                 <Code2 className="size-4 text-faint" /> Code d&apos;intégration
               </button>
             )}
-            {canManage && (
+            {canImport && (
               <button
                 onClick={() => {
                   setOpen(false);
@@ -374,7 +396,7 @@ function Dropdownish({
                 <Download className="size-4 text-faint" /> Importer CSV
               </button>
             )}
-            {canManage && (
+            {canDelete && (
               <button
                 onClick={() => {
                   setOpen(false);
