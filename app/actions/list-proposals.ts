@@ -103,12 +103,12 @@ export async function proposeListChange(input: {
 export async function approveListChangeProposalAction(proposalId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
-  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
 
   await db.$transaction(async (tx) => {
     const proposal = await tx.listChangeProposal.findFirst({
-      where: { id: proposalId, workspaceId: session.workspaceId, status: "PENDING" },
-      include: { list: { select: { id: true, sourcePack: true } } },
+      where: { id: proposalId, status: "PENDING" },
+      include: { list: { select: { id: true, sourcePack: true, workspaceId: true } } },
     });
     if (!proposal?.list.sourcePack) {
       throw new Error("Proposition introuvable ou déjà traitée");
@@ -122,30 +122,59 @@ export async function approveListChangeProposalAction(proposalId: string) {
     });
     if (claimed.count !== 1) throw new Error("Proposition déjà traitée");
 
-    if (action === "ADD") {
-      let contactId = proposal.contactId;
-      if (contactId) {
-        const contact = await tx.contact.findFirst({
-          where: { id: contactId, workspaceId: session.workspaceId },
-          select: { id: true },
-        });
-        if (!contact) throw new Error("Contact introuvable");
-      } else {
-        const person = personSchema.parse(payload);
-        const existing = await tx.contact.findFirst({
+    if (action === "ATTRIBUTE") {
+      if (!proposal.contactId) throw new Error("Contact manquant dans la proposition");
+        const attribute = attributeSchema.parse(payload);
+        const field = await tx.customField.findFirst({
           where: {
-            workspaceId: session.workspaceId,
-            firstName: person.firstName,
-            lastName: person.lastName,
-            institution: person.institution || null,
+            id: attribute.fieldId,
+            listId: proposal.listId,
+            workspaceId: proposal.workspaceId,
           },
           select: { id: true },
         });
-        contactId = existing?.id ?? null;
-        if (!contactId) {
-          const created = await tx.contact.create({
+        if (!field) throw new Error("Attribut introuvable");
+        await tx.customFieldValue.upsert({
+          where: { fieldId_contactId: { fieldId: field.id, contactId: proposal.contactId } },
+          create: {
+            fieldId: field.id,
+            contactId: proposal.contactId,
+            value: attribute.value?.trim() || null,
+          },
+          update: { value: attribute.value?.trim() || null },
+        });
+      return;
+    }
+
+    const person = personSchema.parse(payload);
+    const sourceContact = proposal.contactId
+      ? await tx.contact.findUnique({
+          where: { id: proposal.contactId },
+          select: { firstName: true, lastName: true, institution: true },
+        })
+      : null;
+    const referenceLists = await tx.sharedList.findMany({
+      where: { sourcePack: proposal.list.sourcePack },
+      select: { id: true, workspaceId: true },
+    });
+
+    for (const referenceList of referenceLists) {
+      const identity = sourceContact ?? person;
+      let contact = await tx.contact.findFirst({
+        where: {
+          workspaceId: referenceList.workspaceId,
+          firstName: identity.firstName,
+          lastName: identity.lastName,
+          institution: identity.institution || null,
+        },
+        select: { id: true },
+      });
+
+      if (action === "ADD") {
+        if (!contact) {
+          contact = await tx.contact.create({
             data: {
-              workspaceId: session.workspaceId,
+              workspaceId: referenceList.workspaceId,
               firstName: person.firstName,
               lastName: person.lastName,
               email: person.email || null,
@@ -165,32 +194,21 @@ export async function approveListChangeProposalAction(proposalId: string) {
             },
             select: { id: true },
           });
-          contactId = created.id;
         }
-      }
-      await tx.listItem.upsert({
-        where: { listId_contactId: { listId: proposal.listId, contactId } },
-        create: {
-          listId: proposal.listId,
-          contactId,
-          note: "note" in payload ? payload.note || null : null,
-        },
-        update: {},
-      });
-    } else {
-      if (!proposal.contactId) throw new Error("Contact manquant dans la proposition");
-      const item = await tx.listItem.findFirst({
-        where: { listId: proposal.listId, contactId: proposal.contactId },
-        select: { id: true, contact: { select: { workspaceId: true } } },
-      });
-      if (!item || item.contact.workspaceId !== session.workspaceId) {
-        throw new Error("Contact absent de la liste");
-      }
-
-      if (action === "UPDATE") {
-        const person = personSchema.parse(payload);
+        await tx.listItem.upsert({
+          where: {
+            listId_contactId: { listId: referenceList.id, contactId: contact.id },
+          },
+          create: {
+            listId: referenceList.id,
+            contactId: contact.id,
+            note: person.note || null,
+          },
+          update: {},
+        });
+      } else if (action === "UPDATE" && contact) {
         await tx.contact.update({
-          where: { id: proposal.contactId },
+          where: { id: contact.id },
           data: {
             firstName: person.firstName,
             lastName: person.lastName,
@@ -208,30 +226,27 @@ export async function approveListChangeProposalAction(proposalId: string) {
             photoUrl: person.photoUrl === undefined ? undefined : (person.photoUrl || null),
           },
         });
-      } else if (action === "REMOVE") {
-        await tx.listItem.delete({ where: { id: item.id } });
-      } else if (action === "ATTRIBUTE") {
-        const attribute = attributeSchema.parse(payload);
-        const field = await tx.customField.findFirst({
-          where: {
-            id: attribute.fieldId,
-            listId: proposal.listId,
-            workspaceId: session.workspaceId,
-          },
-          select: { id: true },
-        });
-        if (!field) throw new Error("Attribut introuvable");
-        await tx.customFieldValue.upsert({
-          where: { fieldId_contactId: { fieldId: field.id, contactId: proposal.contactId } },
-          create: {
-            fieldId: field.id,
-            contactId: proposal.contactId,
-            value: attribute.value?.trim() || null,
-          },
-          update: { value: attribute.value?.trim() || null },
+      } else if (action === "REMOVE" && contact) {
+        await tx.listItem.deleteMany({
+          where: { listId: referenceList.id, contactId: contact.id },
         });
       }
     }
+
+    // Une validation globale clôt les doublons créés pour les autres espaces.
+    await tx.listChangeProposal.updateMany({
+      where: {
+        status: "PENDING",
+        action: proposal.action,
+        payload: proposal.payload,
+        list: { sourcePack: proposal.list.sourcePack },
+      },
+      data: {
+        status: "APPROVED",
+        reviewerId: session.user.id,
+        reviewedAt: new Date(),
+      },
+    });
   });
 
   revalidatePath("/lists");
@@ -242,9 +257,9 @@ export async function approveListChangeProposalAction(proposalId: string) {
 export async function rejectListChangeProposalAction(proposalId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
-  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
   await db.listChangeProposal.updateMany({
-    where: { id: proposalId, workspaceId: session.workspaceId, status: "PENDING" },
+    where: { id: proposalId, status: "PENDING" },
     data: { status: "REJECTED", reviewerId: session.user.id, reviewedAt: new Date() },
   });
   revalidatePath("/lists");

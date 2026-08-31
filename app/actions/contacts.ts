@@ -105,7 +105,7 @@ export async function updateContactAction(
     return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
   }
   const d = parsed.data;
-  if (referenceLists.length && session.role !== "ADMIN") {
+  if (referenceLists.length && !session.user.isSuperAdmin) {
     await Promise.all(referenceLists.map((referenceList) =>
       proposeListChange({
         listId: referenceList.id,
@@ -154,7 +154,7 @@ export async function deleteContactAction(contactId: string) {
     },
     select: { id: true, name: true },
   });
-  if (referenceLists.length && session.role !== "ADMIN") {
+  if (referenceLists.length && !session.user.isSuperAdmin) {
     const contact = await db.contact.findFirst({
       where: { id: contactId, workspaceId: session.workspaceId },
       select: {

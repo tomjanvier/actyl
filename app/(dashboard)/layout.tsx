@@ -86,6 +86,7 @@ export default async function DashboardLayout({
           }}
           workspaces={workspaces}
           userName={session.user.name}
+          isSuperAdmin={session.user.isSuperAdmin}
           pinnedCampaigns={pinnedCampaigns}
           pinnedLists={orderedPinnedLists}
           presidentialEnabled={

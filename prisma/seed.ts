@@ -19,7 +19,7 @@ function daysAgo(n: number): Date {
 async function main() {
   console.log("🌱 Seeding Actyl…");
 
-  // Clean slate (FK-safe order)
+  // Remise à zéro dans un ordre compatible avec les clés étrangères.
   await db.sentEmail.deleteMany();
   await db.emailBlast.deleteMany();
   await db.emailTemplate.deleteMany();
@@ -46,24 +46,28 @@ async function main() {
   });
 
   // ── Compte administrateur initial ──────────────────────────────────────────
-  const initialPassword = process.env.SEED_ADMIN_PASSWORD;
+  const initialPassword = process.env.ACTYL_ADMIN_PASSWORD;
   if (!initialPassword || initialPassword.length < 12) {
-    throw new Error("SEED_ADMIN_PASSWORD doit contenir au moins 12 caractères");
+    throw new Error("ACTYL_ADMIN_PASSWORD doit contenir au moins 12 caractères");
   }
-  const passwordHash = await bcrypt.hash(initialPassword, 11);
   const admin = await db.user.create({
     data: {
-      email: process.env.SEED_ADMIN_EMAIL?.trim() || "admin@actyl.org",
-      name: process.env.SEED_ADMIN_NAME?.trim() || "Administrateur Actyl",
-      jobTitle: "Administration",
-      passwordHash,
+      email: process.env.ACTYL_ADMIN_EMAIL ?? "admin@actyl.org",
+      name: "Administrateur Actyl",
+      jobTitle: "Super-administrateur",
+      isSuperAdmin: true,
+      passwordHash: await bcrypt.hash(initialPassword, 11),
     },
   });
-  const adminMembership = await db.membership.create({
+  await db.membership.create({
     data: { userId: admin.id, workspaceId: ws.id, role: "ADMIN" },
   });
 
-  // ── Groups / squads ────────────────────────────────────────────────────────
+  // Les données d'exemple restent attribuées à l'unique compte initial.
+  const campaigner = admin;
+  const activist = admin;
+
+  // ── Groupes et équipes ─────────────────────────────────────────────────────
   const groupParis = await db.group.create({
     data: { workspaceId: ws.id, name: "Équipe Lobby Paris", color: "indigo", description: "Assemblée nationale, Sénat et ministères." },
   });
@@ -73,11 +77,15 @@ async function main() {
   const groupVolunteers = await db.group.create({
     data: { workspaceId: ws.id, name: "Taskforce Bénévoles", color: "emerald", description: "Relais locaux et mobilisation citoyenne." },
   });
+  const memberships = await db.membership.findMany({ where: { workspaceId: ws.id } });
+  for (const m of memberships) {
+    await db.groupMember.create({ data: { groupId: groupParis.id, membershipId: m.id } });
+  }
   await db.groupMember.createMany({
-    data: [groupParis, groupEU, groupVolunteers].map((group) => ({
-      groupId: group.id,
-      membershipId: adminMembership.id,
-    })),
+    data: memberships.slice(0, 3).map((m) => ({ groupId: groupEU.id, membershipId: m.id })),
+  });
+  await db.groupMember.createMany({
+    data: memberships.slice(2).map((m) => ({ groupId: groupVolunteers.id, membershipId: m.id })),
   });
 
   // ── Contacts : annuaire des décideurs ──────────────────────────────────────
@@ -231,19 +239,19 @@ async function main() {
   // Notes privées propres à chaque utilisateur.
   await db.privateNote.createMany({
     data: [
-      { contactId: contactsByKey.vautrin!.id, authorId: admin.id, pinned: true, body: "Cabinet très protégé. Passer par le conseiller parlementaire Étienne M. plutôt que par la ministre directement.", createdAt: daysAgo(12) },
-      { contactId: contactsByKey.pompougnac!.id, authorId: admin.id, body: "Réceptif aux arguments emploi/compétitivité verte. Éviter le vocabulaire « contrainte ».", createdAt: daysAgo(6) },
+      { contactId: contactsByKey.vautrin!.id, authorId: campaigner.id, pinned: true, body: "Cabinet très protégé. Passer par le conseiller parlementaire Étienne M. plutôt que par la ministre directement.", createdAt: daysAgo(12) },
+      { contactId: contactsByKey.pompougnac!.id, authorId: campaigner.id, body: "Réceptif aux arguments emploi/compétitivité verte. Éviter le vocabulaire « contrainte ».", createdAt: daysAgo(6) },
       { contactId: contactsByKey.lachaud!.id, authorId: admin.id, body: "Opposition frontale mais respectueuse. À requalifier si amendement transpartisan.", createdAt: daysAgo(20) },
-      { contactId: contactsByKey.hidalgo!.id, authorId: admin.id, body: "Venue au forum des maires : relancer via son directeur de cabinet avant décembre.", createdAt: daysAgo(3) },
+      { contactId: contactsByKey.hidalgo!.id, authorId: activist.id, body: "Venue au forum des maires : relancer via son directeur de cabinet avant décembre.", createdAt: daysAgo(3) },
     ],
   });
 
   // Données privées propres à chaque utilisateur.
   await db.contactPrivateData.create({
-    data: { contactId: contactsByKey.vautrin!.id, userId: admin.id, rating: 5, tags: "arbitrage-budget,clé-du-vote", status: "À recontacter après le Conseil des ministres" },
+    data: { contactId: contactsByKey.vautrin!.id, userId: campaigner.id, rating: 5, tags: "arbitrage-budget,clé-du-vote", status: "À recontacter après le Conseil des ministres" },
   });
   await db.contactPrivateData.create({
-    data: { contactId: contactsByKey.pompougnac!.id, userId: admin.id, rating: 3, tags: "gironde,balancing" },
+    data: { contactId: contactsByKey.pompougnac!.id, userId: activist.id, rating: 3, tags: "gironde,balancing" },
   });
 
   // ── Listes partagées ───────────────────────────────────────────────────────
@@ -262,7 +270,7 @@ async function main() {
       name: "Exécutifs locaux mobilisables",
       description: "Maires et présidents de région favorables ou hésitants.",
       isPublished: true,
-      createdById: admin.id,
+      createdById: campaigner.id,
     },
   });
   const listMedia = await db.sharedList.create({
@@ -270,7 +278,7 @@ async function main() {
       workspaceId: ws.id,
       name: "Contacts presse climat",
       isPublished: false,
-      createdById: admin.id,
+      createdById: campaigner.id,
     },
   });
   for (const key of ["rousseau", "bellamy", "darmanin", "obono", "pompougnac"]) {
@@ -283,7 +291,7 @@ async function main() {
     await db.listItem.create({ data: { listId: listMedia.id, contactId: contactsByKey[key]!.id } });
   }
 
-  // ── Campaigns ──────────────────────────────────────────────────────────────
+  // ── Campagnes ──────────────────────────────────────────────────────────────
   async function createCampaign(opts: {
     name: string;
     slug: string;
@@ -369,7 +377,7 @@ async function main() {
           campaignId,
           stageId: stages[card.stageIdx]!.id,
           contactId: contactsByKey[card.key]!.id,
-          assignedToId: card.assignee ?? admin.id,
+          assignedToId: card.assignee ?? campaigner.id,
           role: card.role ?? null,
           priority: card.priority ?? "MEDIUM",
           lastTouchAt: daysAgo(card.lastTouch ?? Math.floor(rand() * 14)),
@@ -459,7 +467,7 @@ Respectueusement,
   // ── Envois d'emails et historique exploitable pour les statistiques ───────
   async function makeBlast(campaignId: string, templateId: string, subject: string, body: string, targets: string[], source: "INTERNAL" | "PUBLIC_PAGE", ageDays: number, openedRatio = 0.55) {
     const blast = await db.emailBlast.create({
-      data: { campaignId, templateId, subject, body, source, createdById: admin.id, createdAt: daysAgo(ageDays) },
+      data: { campaignId, templateId, subject, body, source, createdById: campaigner.id, createdAt: daysAgo(ageDays) },
     });
     for (const key of targets) {
       const opened = rand() < openedRatio;

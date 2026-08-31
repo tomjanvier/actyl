@@ -30,6 +30,7 @@ export default async function SettingsPage({
     signupMode,
     installedReferenceLists,
     disabledReferencePacks,
+    workspaces,
   ] =
     await Promise.all([
       db.customField.findMany({
@@ -64,16 +65,30 @@ export default async function SettingsPage({
       }),
       getSegmentsConfig(session.workspaceId),
       getNewsletterConfig(session.workspaceId),
-    db.accountRequest.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "desc" },
-    }),
+    session.user.isSuperAdmin
+      ? db.accountRequest.findMany({
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
     getSignupMode(),
     db.sharedList.findMany({
       where: { workspaceId: session.workspaceId, sourcePack: { not: null } },
       select: { sourcePack: true },
     }),
     getDisabledReferencePacks(session.workspaceId),
+    session.user.isSuperAdmin
+      ? db.workspace.findMany({
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            createdAt: true,
+            _count: { select: { memberships: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -87,6 +102,7 @@ export default async function SettingsPage({
         initialTab={tab ?? null}
         role={session.role}
         isAdmin={session.role === "ADMIN"}
+        isSuperAdmin={session.user.isSuperAdmin}
         canImportContacts={can(session.role, "contact:create")}
         currentUserId={session.user.id}
         currentUser={{
@@ -160,6 +176,13 @@ export default async function SettingsPage({
           apiKeyMasked: maskApiKey(newsletter.apiKey),
           listId: newsletter.listId,
         }}
+        workspaces={workspaces.map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          slug: workspace.slug,
+          memberCount: workspace._count.memberships,
+          createdAt: workspace.createdAt.toISOString(),
+        }))}
       />
     </>
   );

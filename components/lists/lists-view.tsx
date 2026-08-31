@@ -64,7 +64,10 @@ export function ListsView({
     <div className="space-y-5 px-6 py-5">
       {isAdmin && proposals.length > 0 && (
         <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-4">
-          <h2 className="text-[14px] font-semibold text-fg">Propositions à valider ({proposals.length})</h2>
+          <h2 className="text-[14px] font-semibold text-fg">Propositions globales à valider ({proposals.length})</h2>
+          <p className="mt-1 text-[11.5px] text-mut">
+            Une validation est répercutée dans chaque espace utilisant le même référentiel.
+          </p>
           <div className="mt-3 divide-y divide-line rounded-lg border border-line bg-card">
             {proposals.map((proposal) => (
               <div key={proposal.id} className="flex flex-wrap items-center gap-3 p-3">

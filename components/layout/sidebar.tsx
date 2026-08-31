@@ -55,6 +55,7 @@ export function Sidebar({
   workspace,
   workspaces,
   userName,
+  isSuperAdmin = false,
   directorySegments,
   pinnedCampaigns = [],
   pinnedLists = [],
@@ -63,6 +64,7 @@ export function Sidebar({
   workspace: WorkspaceOption;
   workspaces: WorkspaceOption[];
   userName: string;
+  isSuperAdmin?: boolean;
   /** Segments actifs de l'annuaire. */
   directorySegments?: DirectorySegment[];
   pinnedCampaigns?: Array<{ id: string; slug: string; name: string; emoji: string }>;
@@ -174,11 +176,15 @@ export function Sidebar({
                 {ws.id === workspace.id && <Check className="ml-auto !text-indigo-700 dark:text-indigo-400" />}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/sign-up")}>
-              <Plus />
-              Nouvel espace
-            </DropdownMenuItem>
+            {isSuperAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push("/settings?tab=espaces")}>
+                  <Plus />
+                  Nouvel espace
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

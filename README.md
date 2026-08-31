@@ -61,12 +61,12 @@ suivi des décideurs et mobilisation citoyenne.
 
 ```bash
 pnpm install
-SEED_ADMIN_PASSWORD="un-mot-de-passe-fort" pnpm setup
+ACTYL_ADMIN_PASSWORD='un-mot-de-passe-fort' pnpm setup
 pnpm dev          # http://localhost:3000
 ```
 
-Le seed crée uniquement le compte administrateur initial. Son adresse et son
-nom peuvent être définis avec `SEED_ADMIN_EMAIL` et `SEED_ADMIN_NAME`.
+Le peuplement initial crée uniquement le super-administrateur
+`admin@actyl.org`. L’adresse peut être remplacée avec `ACTYL_ADMIN_EMAIL`.
 
 ## Production
 

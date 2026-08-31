@@ -7,6 +7,42 @@ import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { can, ROLES, type Role } from "@/lib/constants";
 import { SEGMENT_SETTING_KEYS } from "@/lib/flags";
 import { workspaceSettingKey } from "@/lib/workspace-settings";
+import { slugify } from "@/lib/utils";
+
+const workspaceSchema = z.object({
+  name: z.string().trim().min(2, "Nom de l’espace requis").max(120),
+  website: z.string().trim().url("URL du site invalide").optional().or(z.literal("")),
+});
+
+/** Crée un espace et y rattache le super-administrateur comme administrateur. */
+export async function createWorkspaceAction(
+  _prev: unknown,
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const session = await getSession();
+  if (!session?.user.isSuperAdmin) return { error: "Réservé au super-administrateur" };
+  const parsed = workspaceSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
+  }
+  let slug = slugify(parsed.data.name) || `espace-${Date.now()}`;
+  if (await db.workspace.findUnique({ where: { slug } })) {
+    slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+  }
+  await db.workspace.create({
+    data: {
+      name: parsed.data.name,
+      slug,
+      website: parsed.data.website || null,
+      memberships: {
+        create: { userId: session.user.id, role: "ADMIN" },
+      },
+    },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
 
 // ── Champs personnalisés ─────────────────────────────────────────────────────
 
@@ -256,7 +292,7 @@ export async function updateProfileAction(
 export async function setSignupModeAction(mode: "OPEN" | "APPROVAL") {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
-  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
   const { setSignupMode } = await import("@/lib/signup-mode");
   await setSignupMode(mode);
   revalidatePath("/settings");
@@ -265,7 +301,7 @@ export async function setSignupModeAction(mode: "OPEN" | "APPROVAL") {
 export async function approveAccountRequestAction(requestId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
-  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
 
   const req = await db.accountRequest.findUnique({ where: { id: requestId } });
   if (!req || req.status !== "PENDING") throw new Error("Demande introuvable");
@@ -298,7 +334,14 @@ export async function approveAccountRequestAction(requestId: string) {
       slug,
       website: req.website,
       phone: req.phone,
-      memberships: { create: { userId: user.id, role: "ADMIN" } },
+      memberships: {
+        create: [
+          { userId: user.id, role: "ADMIN" },
+          ...(user.id === session.user.id
+            ? []
+            : [{ userId: session.user.id, role: "ADMIN" }]),
+        ],
+      },
     },
   });
 
@@ -312,7 +355,7 @@ export async function approveAccountRequestAction(requestId: string) {
 export async function rejectAccountRequestAction(requestId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
-  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
   await db.accountRequest.update({
     where: { id: requestId },
     data: { status: "REJECTED" },

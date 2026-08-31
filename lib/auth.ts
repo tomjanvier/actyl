@@ -69,6 +69,7 @@ export type SessionUser = {
   email: string;
   name: string;
   jobTitle: string | null;
+  isSuperAdmin: boolean;
 };
 
 export type SessionContext = {
@@ -107,12 +108,18 @@ export async function getSession(): Promise<SessionContext | null> {
 
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, jobTitle: true },
+    select: { id: true, email: true, name: true, jobTitle: true, isSuperAdmin: true },
   });
   if (!user) return null;
+  const bootstrapSuperAdminEmail =
+    process.env.ACTYL_SUPER_ADMIN_EMAIL?.trim().toLowerCase() ?? "admin@actyl.org";
 
   return {
-    user,
+    user: {
+      ...user,
+      isSuperAdmin:
+        user.isSuperAdmin || user.email.toLowerCase() === bootstrapSuperAdminEmail,
+    },
     workspaceId: membership.workspaceId,
     role: membership.role as Role,
     workspaceName: membership.workspace.name,

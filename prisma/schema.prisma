@@ -50,6 +50,7 @@ model User {
   name         String
   passwordHash String
   jobTitle     String?
+  isSuperAdmin Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   memberships     Membership[]
