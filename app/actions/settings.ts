@@ -14,6 +14,49 @@ const workspaceSchema = z.object({
   website: z.string().trim().url("URL du site invalide").optional().or(z.literal("")),
 });
 
+const landingSchema = z.object({
+  heroTitle: z.string().trim().min(1).max(120),
+  heroHighlight: z.string().trim().min(1).max(80),
+  heroText: z.string().trim().min(1).max(600),
+  primaryCta: z.string().trim().min(1).max(80),
+  primaryHref: z
+    .string()
+    .trim()
+    .max(300)
+    .refine(
+      (value) => value.startsWith("/") || /^https:\/\//.test(value),
+      "Le lien doit être interne ou utiliser HTTPS",
+    ),
+  footerText: z.string().trim().min(1).max(300),
+});
+
+/** Enregistre le contenu global de la page publique. */
+export async function saveLandingPageSettingsAction(
+  _prev: unknown,
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const session = await getSession();
+  if (!session?.user.isSuperAdmin) {
+    return { error: "Réservé au super-administrateur" };
+  }
+  const parsed = landingSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Contenu invalide" };
+  }
+  await db.$transaction(
+    Object.entries(parsed.data).map(([key, value]) =>
+      db.appSetting.upsert({
+        where: { key: `landing_${key}` },
+        create: { key: `landing_${key}`, value },
+        update: { value },
+      }),
+    ),
+  );
+  revalidatePath("/");
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
 /** Crée un espace et y rattache le super-administrateur comme administrateur. */
 export async function createWorkspaceAction(
   _prev: unknown,

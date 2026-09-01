@@ -32,6 +32,7 @@ import {
   removeGroupMemberAction,
   updateProfileAction,
   createWorkspaceAction,
+  saveLandingPageSettingsAction,
 } from "@/app/actions/settings";
 import {
   importOfficialSourceAction,
@@ -94,6 +95,7 @@ export function SettingsView({
   referencePacks,
   newsletter,
   workspaces,
+  landingSettings,
 }: {
   initialTab: string | null;
   role: string;
@@ -168,6 +170,14 @@ export function SettingsView({
     memberCount: number;
     createdAt: string;
   }>;
+  landingSettings: {
+    heroTitle: string;
+    heroHighlight: string;
+    heroText: string;
+    primaryCta: string;
+    primaryHref: string;
+    footerText: string;
+  };
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -496,10 +506,73 @@ export function SettingsView({
               </section>
               <CreateWorkspaceForm onCreated={refresh} />
             </div>
+            <LandingSettingsForm settings={landingSettings} />
           </TabsContent>
         )}
       </Tabs>
     </div>
+  );
+}
+
+function LandingSettingsForm({
+  settings,
+}: {
+  settings: {
+    heroTitle: string;
+    heroHighlight: string;
+    heroText: string;
+    primaryCta: string;
+    primaryHref: string;
+    footerText: string;
+  };
+}) {
+  const [state, action, pending] = useActionState<
+    { error?: string; ok?: boolean } | undefined,
+    FormData
+  >(saveLandingPageSettingsAction, undefined);
+
+  useEffect(() => {
+    if (state?.ok) toast.success("Page publique enregistrée");
+    if (state?.error) toast.error(state.error);
+  }, [state]);
+
+  return (
+    <form action={action} className="mt-6 rounded-xl border border-line bg-card p-4">
+      <h2 className="text-[14px] font-semibold text-fg">Page publique</h2>
+      <p className="mt-1 text-[11.5px] text-faint">
+        Ce contenu est commun à tous les espaces et modifiable uniquement par le super-administrateur.
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label>Titre principal</Label>
+          <Input name="heroTitle" defaultValue={settings.heroTitle} required />
+        </div>
+        <div>
+          <Label>Texte mis en valeur</Label>
+          <Input name="heroHighlight" defaultValue={settings.heroHighlight} required />
+        </div>
+        <div className="sm:col-span-2">
+          <Label>Texte d’introduction</Label>
+          <Textarea name="heroText" defaultValue={settings.heroText} required />
+        </div>
+        <div>
+          <Label>Libellé du bouton</Label>
+          <Input name="primaryCta" defaultValue={settings.primaryCta} required />
+        </div>
+        <div>
+          <Label>Lien du bouton</Label>
+          <Input name="primaryHref" defaultValue={settings.primaryHref} required />
+        </div>
+        <div className="sm:col-span-2">
+          <Label>Pied de page</Label>
+          <Input name="footerText" defaultValue={settings.footerText} required />
+        </div>
+      </div>
+      <Button type="submit" size="sm" className="mt-4" disabled={pending}>
+        {pending ? <Loader2 className="animate-spin" /> : null}
+        {pending ? "Enregistrement…" : "Enregistrer la page publique"}
+      </Button>
+    </form>
   );
 }
 

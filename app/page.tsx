@@ -13,8 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import { LandingDemoTable } from "@/components/public/landing-demo-table";
+import { getLandingSettings } from "@/lib/landing-settings";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const settings = await getLandingSettings();
+  const primaryButton = (
+    <Button size="lg" className="w-full sm:w-auto">
+      {settings.primaryCta}
+      <ArrowRight />
+    </Button>
+  );
   return (
     <div className="min-h-screen bg-canvas">
       {/* Nav */}
@@ -49,24 +57,24 @@ export default function LandingPage() {
             Open source · MIT · Auto-hébergeable · by PLAID·ACT
           </Badge>
           <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-[52px]">
-            Le CRM de plaidoyer pensé pour les{" "}
+            {settings.heroTitle}{" "}
             <span className="bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">
-              associations et ONG
+              {settings.heroHighlight}
             </span>
           </h1>
           <p className="mt-5 max-w-xl text-balance text-[15px] leading-relaxed text-faint">
-            Organisez vos campagnes de lobbying, suivez chaque décideur dans un
-            pipeline visuel, partagez vos annuaires et mobilisez des milliers de
-            citoyens par email — le tout dans une interface rapide et
-            keyboard-first.
+            {settings.heroText}
           </p>
           <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
-            <Link href="/sign-up" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto">
-                Créer mon espace de travail
-                <ArrowRight />
-              </Button>
-            </Link>
+            {settings.primaryHref.startsWith("https://") ? (
+              <a href={settings.primaryHref} className="w-full sm:w-auto">
+                {primaryButton}
+              </a>
+            ) : (
+              <Link href={settings.primaryHref} className="w-full sm:w-auto">
+                {primaryButton}
+              </Link>
+            )}
             <Link href="/sign-in" className="w-full sm:w-auto">
               <Button size="lg" variant="outline" className="w-full sm:w-auto">
                 Connexion
@@ -143,7 +151,7 @@ export default function LandingPage() {
 
         {/* Footer */}
         <footer className="flex flex-col items-center gap-2 border-t border-line py-10 text-[12.5px] text-faint">
-          <p>Actyl — construit par et pour les plaidoyers citoyens.</p>
+          <p>{settings.footerText}</p>
           <p>Next.js · Prisma · Tailwind CSS · Licence MIT</p>
         </footer>
       </main>
