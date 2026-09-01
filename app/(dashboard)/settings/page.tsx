@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SettingsView } from "@/components/settings/settings-view";
 import { REFERENCE_PACKS } from "@/lib/datasets/reference-packs";
 import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
+import { getLandingSettings } from "@/lib/landing-settings";
 
 export const metadata = { title: "Paramètres" };
 
@@ -31,6 +32,7 @@ export default async function SettingsPage({
     installedReferenceLists,
     disabledReferencePacks,
     workspaces,
+    landingSettings,
   ] =
     await Promise.all([
       db.customField.findMany({
@@ -89,6 +91,7 @@ export default async function SettingsPage({
           },
         })
       : Promise.resolve([]),
+    getLandingSettings(),
   ]);
 
   return (
@@ -183,6 +186,7 @@ export default async function SettingsPage({
           memberCount: workspace._count.memberships,
           createdAt: workspace.createdAt.toISOString(),
         }))}
+        landingSettings={landingSettings}
       />
     </>
   );

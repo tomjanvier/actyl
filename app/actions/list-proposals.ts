@@ -30,6 +30,12 @@ const personSchema = z.object({
   bio: z.string().trim().max(4000).nullable().optional(),
   themes: z.string().trim().max(300).nullable().optional(),
   photoUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
+  sourceSystem: z.string().trim().max(80).nullable().optional(),
+  sourceId: z.string().trim().max(160).nullable().optional(),
+  facebookUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
+  instagramUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
+  youtubeUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
+  mastodonUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
   note: z.string().trim().max(300).nullable().optional(),
 });
 
@@ -150,7 +156,13 @@ export async function approveListChangeProposalAction(proposalId: string) {
     const sourceContact = proposal.contactId
       ? await tx.contact.findUnique({
           where: { id: proposal.contactId },
-          select: { firstName: true, lastName: true, institution: true },
+          select: {
+            firstName: true,
+            lastName: true,
+            institution: true,
+            sourceSystem: true,
+            sourceId: true,
+          },
         })
       : null;
     const referenceLists = await tx.sharedList.findMany({
@@ -160,15 +172,26 @@ export async function approveListChangeProposalAction(proposalId: string) {
 
     for (const referenceList of referenceLists) {
       const identity = sourceContact ?? person;
-      let contact = await tx.contact.findFirst({
-        where: {
-          workspaceId: referenceList.workspaceId,
-          firstName: identity.firstName,
-          lastName: identity.lastName,
-          institution: identity.institution || null,
-        },
-        select: { id: true },
-      });
+      let contact =
+        identity.sourceSystem && identity.sourceId
+          ? await tx.contact.findFirst({
+              where: {
+                workspaceId: referenceList.workspaceId,
+                sourceSystem: identity.sourceSystem,
+                sourceId: identity.sourceId,
+              },
+              select: { id: true },
+            })
+          : null;
+      contact ??= await tx.contact.findFirst({
+          where: {
+            workspaceId: referenceList.workspaceId,
+            firstName: identity.firstName,
+            lastName: identity.lastName,
+            institution: identity.institution || null,
+          },
+          select: { id: true },
+        });
 
       if (action === "ADD") {
         if (!contact) {
@@ -189,6 +212,12 @@ export async function approveListChangeProposalAction(proposalId: string) {
               bio: person.bio || null,
               themes: person.themes || null,
               photoUrl: person.photoUrl || null,
+              sourceSystem: person.sourceSystem || null,
+              sourceId: person.sourceId || null,
+              facebookUrl: person.facebookUrl || null,
+              instagramUrl: person.instagramUrl || null,
+              youtubeUrl: person.youtubeUrl || null,
+              mastodonUrl: person.mastodonUrl || null,
               category: "DECISION_MAKER",
               createdById: proposal.authorId,
             },
@@ -224,6 +253,17 @@ export async function approveListChangeProposalAction(proposalId: string) {
             bio: person.bio === undefined ? undefined : (person.bio || null),
             themes: person.themes === undefined ? undefined : (person.themes || null),
             photoUrl: person.photoUrl === undefined ? undefined : (person.photoUrl || null),
+            sourceSystem:
+              person.sourceSystem === undefined ? undefined : person.sourceSystem,
+            sourceId: person.sourceId === undefined ? undefined : person.sourceId,
+            facebookUrl:
+              person.facebookUrl === undefined ? undefined : (person.facebookUrl || null),
+            instagramUrl:
+              person.instagramUrl === undefined ? undefined : (person.instagramUrl || null),
+            youtubeUrl:
+              person.youtubeUrl === undefined ? undefined : (person.youtubeUrl || null),
+            mastodonUrl:
+              person.mastodonUrl === undefined ? undefined : (person.mastodonUrl || null),
           },
         });
       } else if (action === "REMOVE" && contact) {

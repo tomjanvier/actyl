@@ -30,6 +30,12 @@ function identity(person: Pick<MergePerson, "firstName" | "lastName" | "institut
   return `${norm(person.firstName)}|${norm(person.lastName)}|${norm(person.institution)}`;
 }
 
+function sourceIdentity(person: Pick<MergePerson, "sourceSystem" | "sourceId">) {
+  return person.sourceSystem && person.sourceId
+    ? `${norm(person.sourceSystem)}|${norm(person.sourceId)}`
+    : null;
+}
+
 function toPeople(pack: ReferencePackKey, contacts: ImportedContact[]): MergePerson[] {
   return contacts.map((contact) => ({
     ...contact,
@@ -68,7 +74,9 @@ async function fetchPack(pack: ReferencePackKey): Promise<MergePerson[]> {
   }
 
   const unique = new Map<string, MergePerson>();
-  for (const person of people) unique.set(identity(person), person);
+  for (const person of people) {
+    unique.set(sourceIdentity(person) ?? identity(person), person);
+  }
   const result = [...unique.values()];
   if (result.length < MINIMUM_SOURCE_SIZE[pack]) {
     throw new Error(
@@ -89,10 +97,32 @@ type CurrentContact = {
   party: string | null;
   region: string | null;
   level: string;
+  sourceSystem: string | null;
+  sourceId: string | null;
+  facebookUrl: string | null;
+  instagramUrl: string | null;
+  youtubeUrl: string | null;
+  mastodonUrl: string | null;
 };
 
 function changed(person: MergePerson, contact: CurrentContact) {
-  return (["firstName", "lastName", "email", "photoUrl", "title", "institution", "party", "region", "level"] as const)
+  return ([
+    "firstName",
+    "lastName",
+    "email",
+    "photoUrl",
+    "title",
+    "institution",
+    "party",
+    "region",
+    "level",
+    "sourceSystem",
+    "sourceId",
+    "facebookUrl",
+    "instagramUrl",
+    "youtubeUrl",
+    "mastodonUrl",
+  ] as const)
     .some((field) => String(person[field] ?? "") !== String(contact[field] ?? ""));
 }
 
@@ -122,6 +152,12 @@ export async function syncReferenceListProposals(
                 party: true,
                 region: true,
                 level: true,
+                sourceSystem: true,
+                sourceId: true,
+                facebookUrl: true,
+                instagramUrl: true,
+                youtubeUrl: true,
+                mastodonUrl: true,
               },
             },
           },
@@ -143,7 +179,18 @@ export async function syncReferenceListProposals(
   const pendingAdds = new Set(
     pending.filter((proposal) => proposal.action === "ADD").map((proposal) => proposal.payload),
   );
-  const current = new Map(list.items.map((item) => [identity(item.contact), item.contact]));
+  const currentByIdentity = new Map(
+    list.items.map((item) => [identity(item.contact), item.contact]),
+  );
+  const currentBySource = new Map(
+    list.items.flatMap((item) => {
+      const key = sourceIdentity(item.contact);
+      return key ? [[key, item.contact] as const] : [];
+    }),
+  );
+  const remaining = new Map(
+    list.items.map((item) => [item.contact.id, item.contact]),
+  );
   const proposals: Array<{
     listId: string;
     workspaceId: string;
@@ -157,7 +204,10 @@ export async function syncReferenceListProposals(
 
   for (const person of people) {
     const key = identity(person);
-    const contact = current.get(key);
+    const stableKey = sourceIdentity(person);
+    const contact =
+      (stableKey ? currentBySource.get(stableKey) : undefined) ??
+      currentByIdentity.get(key);
     const payload = JSON.stringify(person);
     if (!contact) {
       if (!pendingAdds.has(payload)) {
@@ -186,10 +236,10 @@ export async function syncReferenceListProposals(
         reason: "Modification détectée dans la source publique",
       });
     }
-    current.delete(key);
+    remaining.delete(contact.id);
   }
 
-  for (const contact of current.values()) {
+  for (const contact of remaining.values()) {
     if (pendingContacts.has(`REMOVE:${contact.id}`)) continue;
     proposals.push({
       listId,

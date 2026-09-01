@@ -144,6 +144,13 @@ model Contact {
   twitter        String?
   linkedin       String?
   website        String?
+  // Identité stable fournie par un référentiel public.
+  sourceSystem   String?
+  sourceId       String?
+  facebookUrl    String?
+  instagramUrl   String?
+  youtubeUrl     String?
+  mastodonUrl    String?
   avatarColor    String   @default("slate")
   createdById    String?
   createdAt      DateTime @default(now())
@@ -175,6 +182,7 @@ model Contact {
   @@index([workspaceId, party])
   @@index([workspaceId, region])
   @@index([workspaceId, category])
+  @@unique([workspaceId, sourceSystem, sourceId])
   @@index([workspaceId, newsletterStatus])
   @@map("contacts")
 }

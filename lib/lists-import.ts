@@ -2,11 +2,11 @@ import "server-only";
 import { db } from "@/lib/db";
 
 /**
- * Fusion « sans écrasement » de personnes dans une liste partagée.
+ * Fusion non destructive de personnes dans une liste partagée.
  *
  * Règles :
- *  - un contact existant de l'annuaire (même prénom + nom + institution,
- *    comparaison insensible à la casse) n'est JAMAIS modifié ;
+ *  - un contact existant n'est jamais écrasé ; seuls les identifiants de
+ *    source et liens sociaux encore vides peuvent être complétés ;
  *  - il est simplement rattaché à la liste s'il n'y figure pas déjà ;
  *  - les éléments déjà présents dans la liste sont conservés tels quels ;
  *  - seuls les contacts inconnus sont créés.
@@ -23,6 +23,12 @@ export type MergePerson = {
   region?: string | null;
   level?: string;
   note?: string | null;
+  sourceSystem?: string | null;
+  sourceId?: string | null;
+  facebookUrl?: string | null;
+  instagramUrl?: string | null;
+  youtubeUrl?: string | null;
+  mastodonUrl?: string | null;
 };
 
 export type MergeStats = {
@@ -71,7 +77,23 @@ function cleanPerson(p: MergePerson): MergePerson | null {
     region: p.region?.trim() || null,
     level,
     note: p.note?.trim().slice(0, 300) || null,
+    sourceSystem: p.sourceSystem?.trim() || null,
+    sourceId: p.sourceId?.trim() || null,
+    facebookUrl: p.facebookUrl?.trim() || null,
+    instagramUrl: p.instagramUrl?.trim() || null,
+    youtubeUrl: p.youtubeUrl?.trim() || null,
+    mastodonUrl: p.mastodonUrl?.trim() || null,
   };
+}
+
+function identityKey(person: Pick<MergePerson, "firstName" | "lastName" | "institution">) {
+  return `${norm(person.firstName)}|${norm(person.lastName)}|${norm(person.institution)}`;
+}
+
+function sourceKey(person: Pick<MergePerson, "sourceSystem" | "sourceId">) {
+  return person.sourceSystem && person.sourceId
+    ? `source:${norm(person.sourceSystem)}|${norm(person.sourceId)}`
+    : null;
 }
 
 /**
@@ -92,20 +114,61 @@ export async function mergePeopleIntoList(
       skipped++;
       continue;
     }
-    cleaned.set(
-      `${norm(person.firstName)}|${norm(person.lastName)}|${norm(person.institution)}`,
-      person,
-    );
+    cleaned.set(sourceKey(person) ?? identityKey(person), person);
   }
 
   // Indexe une seule fois l'annuaire de l'espace avec des clés normalisées.
   const existing = await db.contact.findMany({
     where: { workspaceId },
-    select: { id: true, firstName: true, lastName: true, institution: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      institution: true,
+      sourceSystem: true,
+      sourceId: true,
+      facebookUrl: true,
+      instagramUrl: true,
+      youtubeUrl: true,
+      mastodonUrl: true,
+    },
   });
   const index = new Map<string, string>();
   for (const c of existing) {
-    index.set(`${norm(c.firstName)}|${norm(c.lastName)}|${norm(c.institution)}`, c.id);
+    index.set(identityKey(c), c.id);
+    const stableKey = sourceKey(c);
+    if (stableKey) index.set(stableKey, c.id);
+  }
+
+  // Complète uniquement les métadonnées techniques absentes des fiches déjà
+  // présentes. Les données saisies par les équipes restent prioritaires.
+  const existingById = new Map(existing.map((contact) => [contact.id, contact]));
+  const enrichments = new Map<string, Record<string, string>>();
+  for (const person of cleaned.values()) {
+    const stableKey = sourceKey(person);
+    const contactId =
+      (stableKey ? index.get(stableKey) : undefined) ?? index.get(identityKey(person));
+    if (!contactId) continue;
+    if (stableKey) index.set(stableKey, contactId);
+    const contact = existingById.get(contactId);
+    if (!contact) continue;
+    const data: Record<string, string> = {};
+    for (const field of [
+      "sourceSystem",
+      "sourceId",
+      "facebookUrl",
+      "instagramUrl",
+      "youtubeUrl",
+      "mastodonUrl",
+    ] as const) {
+      if (!contact[field] && person[field]) data[field] = person[field];
+    }
+    if (Object.keys(data).length) enrichments.set(contactId, data);
+  }
+  if (enrichments.size) {
+    await db.$transaction(
+      [...enrichments].map(([id, data]) => db.contact.update({ where: { id }, data })),
+    );
   }
 
   const listItems = await db.listItem.findMany({
@@ -129,6 +192,12 @@ export async function mergePeopleIntoList(
           party: person.party,
           region: person.region,
           level: person.level,
+          sourceSystem: person.sourceSystem,
+          sourceId: person.sourceId,
+          facebookUrl: person.facebookUrl,
+          instagramUrl: person.instagramUrl,
+          youtubeUrl: person.youtubeUrl,
+          mastodonUrl: person.mastodonUrl,
           stance: "UNKNOWN",
           category: "DECISION_MAKER",
           influenceScore: 3,
@@ -141,18 +210,26 @@ export async function mergePeopleIntoList(
   if (missing.length) {
     const refreshed = await db.contact.findMany({
       where: { workspaceId },
-      select: { id: true, firstName: true, lastName: true, institution: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        institution: true,
+        sourceSystem: true,
+        sourceId: true,
+      },
     });
     for (const contact of refreshed) {
-      index.set(
-        `${norm(contact.firstName)}|${norm(contact.lastName)}|${norm(contact.institution)}`,
-        contact.id,
-      );
+      index.set(identityKey(contact), contact.id);
+      const stableKey = sourceKey(contact);
+      if (stableKey) index.set(stableKey, contact.id);
     }
   }
 
-  const toLink = [...cleaned.entries()].flatMap(([key, person]) => {
-    const contactId = index.get(key);
+  const toLink = [...cleaned.values()].flatMap((person) => {
+    const stableKey = sourceKey(person);
+    const contactId =
+      (stableKey ? index.get(stableKey) : undefined) ?? index.get(identityKey(person));
     return contactId && !inList.has(contactId)
       ? [{ listId, contactId, note: person.note }]
       : [];
@@ -206,6 +283,12 @@ const HEADER_ALIASES: Record<keyof MergePerson | "level", string[]> = {
   region: ["region", "région", "circonscription", "territoire"],
   level: ["niveau", "level"],
   note: ["note", "remarque", "statut", "commentaire"],
+  sourceSystem: ["sourcesystem", "source_system", "source"],
+  sourceId: ["sourceid", "source_id", "identifiantsource"],
+  facebookUrl: ["facebook", "facebookurl", "facebook_url"],
+  instagramUrl: ["instagram", "instagramurl", "instagram_url"],
+  youtubeUrl: ["youtube", "youtubeurl", "youtube_url"],
+  mastodonUrl: ["mastodon", "mastodonurl", "mastodon_url"],
 };
 
 /**

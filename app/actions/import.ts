@@ -54,6 +54,12 @@ async function upsertImported(
     party: c.party,
     region: c.region,
     level: c.level,
+    sourceSystem: c.sourceSystem,
+    sourceId: c.sourceId,
+    facebookUrl: c.facebookUrl,
+    instagramUrl: c.instagramUrl,
+    youtubeUrl: c.youtubeUrl,
+    mastodonUrl: c.mastodonUrl,
     note: null,
   }));
   if (listId) {
@@ -76,16 +82,44 @@ async function mergePeopleIntoDirectory(
     party: string | null;
     region: string | null;
     level: string;
+    sourceSystem?: string | null;
+    sourceId?: string | null;
+    facebookUrl?: string | null;
+    instagramUrl?: string | null;
+    youtubeUrl?: string | null;
+    mastodonUrl?: string | null;
   }>,
 ): Promise<Omit<ImportResult, "error" | "ok">> {
   const AVATAR_COLORS = ["slate", "indigo", "emerald", "amber", "rose", "violet", "sky", "teal", "orange", "fuchsia"];
   const existing = await db.contact.findMany({
     where: { workspaceId },
-    select: { id: true, firstName: true, lastName: true, institution: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      institution: true,
+      sourceSystem: true,
+      sourceId: true,
+      facebookUrl: true,
+      instagramUrl: true,
+      youtubeUrl: true,
+      mastodonUrl: true,
+    },
   });
-  const index = new Set(
-    existing.map((c) => `${norm(c.firstName)}|${norm(c.lastName)}|${norm(c.institution)}`),
-  );
+  const index = new Map<string, string>();
+  for (const contact of existing) {
+    index.set(
+      `${norm(contact.firstName)}|${norm(contact.lastName)}|${norm(contact.institution)}`,
+      contact.id,
+    );
+    if (contact.sourceSystem && contact.sourceId) {
+      index.set(
+        `source:${norm(contact.sourceSystem)}|${norm(contact.sourceId)}`,
+        contact.id,
+      );
+    }
+  }
+  const existingById = new Map(existing.map((contact) => [contact.id, contact]));
   let created = 0;
   let skipped = 0;
   let ci = Math.floor(Math.random() * AVATAR_COLORS.length);
@@ -94,8 +128,40 @@ async function mergePeopleIntoDirectory(
       skipped++;
       continue;
     }
-    const key = `${norm(p.firstName)}|${norm(p.lastName)}|${norm(p.institution)}`;
-    if (index.has(key)) continue; // Ne modifie jamais une fiche existante.
+    const identityKey = `${norm(p.firstName)}|${norm(p.lastName)}|${norm(p.institution)}`;
+    const sourceKey =
+      p.sourceSystem && p.sourceId
+        ? `source:${norm(p.sourceSystem)}|${norm(p.sourceId)}`
+        : null;
+    const existingId =
+      (sourceKey ? index.get(sourceKey) : undefined) ?? index.get(identityKey);
+    if (existingId) {
+      const contact = existingById.get(existingId);
+      if (contact) {
+        const data = {
+          ...(!contact.sourceSystem && p.sourceSystem
+            ? { sourceSystem: p.sourceSystem }
+            : {}),
+          ...(!contact.sourceId && p.sourceId ? { sourceId: p.sourceId } : {}),
+          ...(!contact.facebookUrl && p.facebookUrl
+            ? { facebookUrl: p.facebookUrl }
+            : {}),
+          ...(!contact.instagramUrl && p.instagramUrl
+            ? { instagramUrl: p.instagramUrl }
+            : {}),
+          ...(!contact.youtubeUrl && p.youtubeUrl
+            ? { youtubeUrl: p.youtubeUrl }
+            : {}),
+          ...(!contact.mastodonUrl && p.mastodonUrl
+            ? { mastodonUrl: p.mastodonUrl }
+            : {}),
+        };
+        if (Object.keys(data).length) {
+          await db.contact.update({ where: { id: existingId }, data });
+        }
+      }
+      continue;
+    }
     await db.contact.create({
       data: {
         workspaceId,
@@ -108,12 +174,19 @@ async function mergePeopleIntoDirectory(
         party: p.party,
         region: p.region,
         level: p.level,
+        sourceSystem: p.sourceSystem,
+        sourceId: p.sourceId,
+        facebookUrl: p.facebookUrl,
+        instagramUrl: p.instagramUrl,
+        youtubeUrl: p.youtubeUrl,
+        mastodonUrl: p.mastodonUrl,
         stance: "UNKNOWN",
         influenceScore: 3,
         avatarColor: AVATAR_COLORS[ci++ % AVATAR_COLORS.length]!,
       },
     });
-    index.add(key);
+    index.set(identityKey, "created");
+    if (sourceKey) index.set(sourceKey, "created");
     created++;
   }
   return { created, linked: 0, already: 0, skipped };
@@ -228,6 +301,12 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
                   party: true,
                   region: true,
                   level: true,
+                  sourceSystem: true,
+                  sourceId: true,
+                  facebookUrl: true,
+                  instagramUrl: true,
+                  youtubeUrl: true,
+                  mastodonUrl: true,
                 },
               },
             },

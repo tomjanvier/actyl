@@ -11,6 +11,12 @@ export type ImportedContact = {
   party: string | null;
   region: string | null;
   level: string; // EU | NATIONAL | REGIONAL | LOCAL
+  sourceSystem?: string | null;
+  sourceId?: string | null;
+  facebookUrl?: string | null;
+  instagramUrl?: string | null;
+  youtubeUrl?: string | null;
+  mastodonUrl?: string | null;
 };
 
 const UA = { "User-Agent": "Actyl/1.0 (open-source advocacy CRM)" };
@@ -113,6 +119,8 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
       party: groupe,
       region: circo,
       level: "NATIONAL",
+      sourceSystem: "assemblee-nationale",
+      sourceId: actorUid,
     });
   }
   return ensureMinimum("Assemblée nationale", out, 400);
@@ -174,6 +182,8 @@ export async function importSenat(): Promise<ImportedContact[]> {
       party: iGroupe >= 0 ? cols[iGroupe]?.trim() || null : null,
       region: iCirco >= 0 ? cols[iCirco]?.trim() || null : null,
       level: "NATIONAL",
+      sourceSystem: "senat",
+      sourceId: matricule || null,
     });
   }
   await discardUnavailablePhotos(out);
@@ -332,6 +342,8 @@ export async function importParlementEuropeen(
         party: party || group || meps.find((m) => m.identifier === String(p.identifier))?.politicalGroup || null,
         region: "France",
         level: "EU",
+        sourceSystem: "parlement-europeen",
+        sourceId: String(p.identifier),
       });
     }
     done += batch.length;
