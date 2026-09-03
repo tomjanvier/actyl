@@ -75,8 +75,11 @@ Le déploiement de référence tourne sur Vercel avec une base Postgres Neon.
 1. `DATABASE_URL` (Postgres) — provisionné via l'intégration Marketplace
    (`vercel integration add neon`), `prisma db push` pour appliquer le schéma
 2. Variables d'environnement (voir `.env.example`) : `AUTH_SECRET` (32+
-   caractères), `RESEND_API_KEY`, `EMAIL_FROM`, optionnellement
-   `SIGNUP_MODE=APPROVAL`
+   caractères), `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+   et `TURNSTILE_SECRET_KEY`, optionnellement `SIGNUP_MODE=APPROVAL`.
+   La clé publique peut être exposée au navigateur ; le secret reste uniquement
+   dans Vercel, configuré pour Preview et Production. La vérification serveur
+   protège les inscriptions, signatures et interpellations citoyennes.
 3. `pnpm build && pnpm start` — compatible Vercel, Docker, VPS Node.
 
 ## Stack

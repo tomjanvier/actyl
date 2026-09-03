@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { citizenSignAction } from "@/app/actions/mobilization";
 import { Button } from "@/components/ui/button";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
 import { Share, Link2, Mail, MessageCircle } from "lucide-react";
 
 export function PetitionSignForm({
@@ -19,11 +20,12 @@ export function PetitionSignForm({
   const [sending, setSending] = useState(false);
   const [signed, setSigned] = useState<number | null>(null);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (sending) return;
     setSending(true);
-    const res = await citizenSignAction({ campaignSlug, name, email, city });
+    const token = new FormData(e.currentTarget).get("cf-turnstile-response")?.toString();
+    const res = await citizenSignAction({ campaignSlug, name, email, city, turnstileToken: token });
     setSending(false);
     if ("ok" in res && res.ok) {
       setSigned(res.count);
@@ -54,6 +56,7 @@ export function PetitionSignForm({
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Votre nom *" required minLength={2} className={fCls} />
       <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ville" className={fCls} />
       <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email *" type="email" required className={fCls} />
+      <TurnstileWidget />
       <Button type="submit" disabled={sending || !name || !email} className="shrink-0">
         {sending ? "…" : "Je signe"}
       </Button>

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { citizenSendAction } from "@/app/actions/emails";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
 
 export function CitizenForm({
   campaignSlug,
@@ -54,10 +55,11 @@ export function CitizenForm({
     [subject, body, previewName, previewCity],
   );
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (sending) return;
     setSending(true);
+    const token = new FormData(e.currentTarget).get("cf-turnstile-response")?.toString();
     const res = await citizenSendAction({
       campaignSlug,
       name,
@@ -66,6 +68,7 @@ export function CitizenForm({
       email,
       subjectOverride: personalized ? subject : undefined,
       bodyOverride: personalized ? body : undefined,
+      turnstileToken: token,
     });
     setSending(false);
     if ("ok" in res && res.ok) {
@@ -209,6 +212,8 @@ export function CitizenForm({
         <PencilLine className="size-3.5" />
         {personalized ? "Revenir au message type" : "Personnaliser le message"}
       </button>
+
+      <TurnstileWidget />
 
       <Button
         type="submit"
