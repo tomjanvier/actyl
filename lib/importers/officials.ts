@@ -129,11 +129,14 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
 function extractEmail(a: any): string | null {
   const adresses: any[] = a?.adresses?.adresse ?? [];
   for (const adr of adresses) {
-    if (adr?.type === "Mél" && typeof adr?.valeur === "string") {
+    if (typeof adr?.valeur === "string" && /m[eé]l|mail|courriel/i.test(String(adr?.type ?? ""))) {
       const v = adr.valeur.trim();
       if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return v;
     }
   }
+  const fallback = typeof a?.email === "string" ? a.email : typeof a?.hasEmail === "string" ? a.hasEmail : "";
+  const value = fallback.replace(/^mailto:/i, "").trim();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return value;
   return null;
 }
 
@@ -328,7 +331,8 @@ export async function importParlementEuropeen(
       const party = nationalGroupOrg ? await loadOrg(nationalGroupOrg) : "";
       const group = euGroupOrg ? await loadOrg(euGroupOrg) : "";
 
-      const email = typeof p.hasEmail === "string" ? p.hasEmail.replace("mailto:", "") : null;
+      const emailValue = Array.isArray(p.hasEmail) ? p.hasEmail[0] : p.hasEmail;
+      const email = typeof emailValue === "string" ? emailValue.replace(/^mailto:/i, "").trim() : null;
       const firstName = p.givenName ?? "";
       const lastName = p.familyName ?? "";
       if (!firstName && !lastName) continue;
