@@ -21,7 +21,7 @@ import { REFERENCE_PACKS, type ReferencePackKey } from "@/lib/datasets/reference
 import {
   PRESIDENTIELLE_LISTS,
 } from "@/lib/datasets/presidentielle-2027";
-import { syncAllReferenceLists, syncReferenceListProposals } from "@/lib/reference-sync";
+import { syncReferencePackAcrossSpaces, syncReferenceListProposals } from "@/lib/reference-sync";
 import { referencePackSettingKey } from "@/lib/reference-pack-settings";
 import { ensurePresidentialModuleScope } from "@/lib/presidential-module";
 
@@ -36,16 +36,16 @@ export type ImportResult = {
 };
 
 /** Lance la synchronisation mutualisée de tous les référentiels actifs. */
-export async function syncAllReferencePacksAction(): Promise<ImportResult & { lists?: number; errors?: unknown[] }> {
+export async function syncAllReferencePacksAction(key: ReferencePackKey): Promise<ImportResult & { lists?: number }> {
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
   if (!session.user.isSuperAdmin) return { error: "Seul le super-administrateur peut synchroniser tous les espaces" };
   try {
-    const result = await syncAllReferenceLists();
+    const result = await syncReferencePackAcrossSpaces(key);
     revalidatePath("/settings");
     revalidatePath("/lists");
     revalidatePath("/presidentielle");
-    return { ok: true, lists: result.lists, proposed: result.proposals, errors: result.errors };
+    return { ok: true, lists: result.lists, proposed: result.proposals };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Synchronisation impossible" };
   }

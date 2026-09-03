@@ -995,7 +995,7 @@ function ImportOfficials({
     setRunning(operation);
     const res =
       action === "sync"
-        ? await syncAllReferencePacksAction()
+        ? await syncAllReferencePacksAction(pack.key)
         : await setReferencePackEnabledAction(pack.key, action === "enable");
     setRunning(null);
     if (res.error) {
@@ -1003,11 +1003,7 @@ function ImportOfficials({
       return;
     }
     if (action === "sync") {
-      if ("errors" in res && Array.isArray(res.errors) && res.errors.length) {
-        toast.warning(`${res.proposed ?? 0} proposition(s) créée(s), mais certains packs n'ont pas répondu.`);
-      } else {
-        toast.success(res.proposed ? `${res.proposed} modification(s) à valider dans les listes` : "Référentiels à jour");
-      }
+      toast.success(res.proposed ? `${res.proposed} modification(s) à valider dans les listes` : "Référentiel à jour");
     } else {
       toast.success(action === "enable" ? "Référentiel activé" : "Référentiel désactivé");
     }

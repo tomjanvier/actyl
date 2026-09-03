@@ -340,3 +340,22 @@ export async function syncAllReferenceLists() {
     .filter((error): error is { pack: ReferencePackKey; error: string } => !!error);
   return { lists: lists.length, proposals, errors };
 }
+
+/** Synchronise un seul référentiel actif dans tous les espaces concernés. */
+export async function syncReferencePackAcrossSpaces(pack: ReferencePackKey) {
+  const lists = await db.sharedList.findMany({
+    where: { sourcePack: pack },
+    select: { id: true, workspaceId: true },
+  });
+  if (!lists.length) return { lists: 0, proposals: 0 };
+  const people = await fetchPack(pack);
+  let proposals = 0;
+  for (let index = 0; index < lists.length; index += LIST_SYNC_CONCURRENCY) {
+    const batch = lists.slice(index, index + LIST_SYNC_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((list) => syncReferenceListProposals(list.id, list.workspaceId, pack, people)),
+    );
+    proposals += results.reduce((total, result) => total + result.proposals, 0);
+  }
+  return { lists: lists.length, proposals };
+}
