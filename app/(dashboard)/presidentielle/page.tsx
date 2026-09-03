@@ -4,11 +4,14 @@ import { db } from "@/lib/db";
 import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
 import { PageHeader } from "@/components/layout/page-header";
 import { CampaignTeamsView } from "@/components/campaign-teams/campaign-teams-view";
+import { ensurePresidentialModuleScope } from "@/lib/presidential-module";
 
 export const metadata = { title: "Présidentielle 2027" };
 
 export default async function PresidentiellePage() {
   const session = await requireSession();
+  // Répare aussi les espaces où la liste a été installée avant le module.
+  await ensurePresidentialModuleScope(session.workspaceId, session.user.id);
   const [disabledPacks, presidentialList] = await Promise.all([
     getDisabledReferencePacks(session.workspaceId),
     db.sharedList.findFirst({

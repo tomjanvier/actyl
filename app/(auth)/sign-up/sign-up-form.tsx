@@ -6,6 +6,7 @@ import { signUpAction, type ActionState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/controls";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
 
 export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
@@ -96,6 +97,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
             {state.error}
           </p>
         )}
+        <TurnstileWidget />
         <Button type="submit" disabled={pending} className="mt-1 w-full">
           {pending
             ? "Envoi…"

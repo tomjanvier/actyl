@@ -13,6 +13,7 @@ import {
 import { slugify } from "@/lib/utils";
 import { getSignupMode } from "@/lib/signup-mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Nom trop court"),
@@ -40,6 +41,8 @@ export async function signUpAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
   }
+  const captcha = await verifyTurnstileToken(String(formData.get("cf-turnstile-response") ?? ""));
+  if (!captcha.ok) return { error: captcha.error };
   const { name, email, password, workspaceName, website, phone } = parsed.data;
   const mode = await getSignupMode();
 

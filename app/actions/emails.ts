@@ -15,6 +15,7 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { upsertSupporter } from "@/lib/supporters";
 import { normalizeFr } from "@/lib/utils";
 import { getCampaignAccess } from "@/lib/campaign-access";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 type Result = { ok?: boolean; error?: string; sent?: number; failed?: number };
 
@@ -224,6 +225,7 @@ export async function citizenSendAction(input: {
   subjectOverride?: string;
   bodyOverride?: string;
   targetContactId?: string;
+  turnstileToken?: string;
 }): Promise<
   | { ok: true; simulated: boolean; recipientCount: number }
   | { error: string }
@@ -240,6 +242,8 @@ export async function citizenSendAction(input: {
   if (!city) return { error: "Votre ville est requise." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email))
     return { error: "Adresse email invalide." };
+  const captcha = await verifyTurnstileToken(input.turnstileToken);
+  if (!captcha.ok) return { error: captcha.error };
 
   // Limite les textes libres stockés en base et envoyés par email.
   const subjectOverride = input.subjectOverride?.trim().slice(0, MAX_SUBJECT) || undefined;

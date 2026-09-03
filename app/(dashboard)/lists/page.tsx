@@ -99,21 +99,22 @@ export default async function ListsPage() {
           select: { listId: true, contactId: true },
         })
       : Promise.resolve([]),
-    session.user.isSuperAdmin
-      ? db.listChangeProposal.findMany({
-          where: {
-            status: "PENDING",
-            list: { sourcePack: { not: null } },
-          },
-          orderBy: { createdAt: "asc" },
-          take: 200,
-          include: {
-            list: { select: { name: true } },
-            author: { select: { name: true } },
-            contact: { select: { firstName: true, lastName: true } },
-          },
-        })
-      : Promise.resolve([]),
+    db.listChangeProposal.findMany({
+      where: {
+        status: "PENDING",
+        list: {
+          sourcePack: { not: null },
+          ...(session.user.isSuperAdmin ? {} : { workspaceId: session.workspaceId }),
+        },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 200,
+      include: {
+        list: { select: { name: true } },
+        author: { select: { name: true } },
+        contact: { select: { firstName: true, lastName: true } },
+      },
+    }),
     getListShortcutIds(session.workspaceId, session.user.id),
   ]);
   const shortcutSet = new Set(shortcutIds);

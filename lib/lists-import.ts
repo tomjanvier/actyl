@@ -96,6 +96,11 @@ function sourceKey(person: Pick<MergePerson, "sourceSystem" | "sourceId">) {
     : null;
 }
 
+function emailKey(person: Pick<MergePerson, "email">) {
+  const email = person.email?.trim().toLowerCase();
+  return email && email.includes("@") ? `email:${email}` : null;
+}
+
 /**
  * Fusionne les personnes dans la liste sans toucher aux données existantes.
  * Les compteurs détaillés permettent à l'interface d'expliquer le résultat.
@@ -114,7 +119,7 @@ export async function mergePeopleIntoList(
       skipped++;
       continue;
     }
-    cleaned.set(sourceKey(person) ?? identityKey(person), person);
+    cleaned.set(sourceKey(person) ?? emailKey(person) ?? identityKey(person), person);
   }
 
   // Indexe une seule fois l'annuaire de l'espace avec des clés normalisées.
@@ -125,6 +130,7 @@ export async function mergePeopleIntoList(
       firstName: true,
       lastName: true,
       institution: true,
+      email: true,
       sourceSystem: true,
       sourceId: true,
       facebookUrl: true,
@@ -138,6 +144,8 @@ export async function mergePeopleIntoList(
     index.set(identityKey(c), c.id);
     const stableKey = sourceKey(c);
     if (stableKey) index.set(stableKey, c.id);
+    const contactEmail = emailKey(c);
+    if (contactEmail) index.set(contactEmail, c.id);
   }
 
   // Complète uniquement les métadonnées techniques absentes des fiches déjà
@@ -148,9 +156,10 @@ export async function mergePeopleIntoList(
     const stableKey = sourceKey(person);
     const contactId =
       (stableKey ? index.get(stableKey) : undefined) ?? index.get(identityKey(person));
-    if (!contactId) continue;
-    if (stableKey) index.set(stableKey, contactId);
-    const contact = existingById.get(contactId);
+    const matchedId = contactId ?? index.get(emailKey(person) ?? "");
+    if (!matchedId) continue;
+    if (stableKey) index.set(stableKey, matchedId);
+    const contact = existingById.get(matchedId);
     if (!contact) continue;
     const data: Record<string, string> = {};
     for (const field of [
@@ -163,7 +172,7 @@ export async function mergePeopleIntoList(
     ] as const) {
       if (!contact[field] && person[field]) data[field] = person[field];
     }
-    if (Object.keys(data).length) enrichments.set(contactId, data);
+    if (Object.keys(data).length) enrichments.set(matchedId, data);
   }
   if (enrichments.size) {
     await db.$transaction(
@@ -215,6 +224,7 @@ export async function mergePeopleIntoList(
         firstName: true,
         lastName: true,
         institution: true,
+        email: true,
         sourceSystem: true,
         sourceId: true,
       },
@@ -223,6 +233,8 @@ export async function mergePeopleIntoList(
       index.set(identityKey(contact), contact.id);
       const stableKey = sourceKey(contact);
       if (stableKey) index.set(stableKey, contact.id);
+      const contactEmail = emailKey(contact);
+      if (contactEmail) index.set(contactEmail, contact.id);
     }
   }
 

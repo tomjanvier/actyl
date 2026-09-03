@@ -13,6 +13,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { upsertSupporter } from "@/lib/supporters";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 // Limites strictes contre le gonflement de la base par les formulaires publics.
 const MAX_NAME = 80;
@@ -78,6 +79,7 @@ export async function citizenSignAction(input: {
   name: string;
   email: string;
   city?: string;
+  turnstileToken?: string;
 }): Promise<
   | { ok: true; count: number }
   | { error: string }
@@ -88,6 +90,8 @@ export async function citizenSignAction(input: {
   if (name.length < 2) return { error: "Votre nom est requis." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return { error: "Adresse email invalide." };
+  const captcha = await verifyTurnstileToken(input.turnstileToken);
+  if (!captcha.ok) return { error: captcha.error };
 
   // Anti-abuse: 10 signatures per minute per IP
   const rl = rateLimit(`petition-sign:${await clientIp()}`, 10);
