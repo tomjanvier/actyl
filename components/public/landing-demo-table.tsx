@@ -6,7 +6,8 @@ const listSelection = {
   description: true,
   items: {
     orderBy: { contact: { lastName: "asc" } },
-    take: 12,
+    // La table embarquée gère elle-même la recherche et la pagination visuelle.
+    take: 1000,
     select: {
       contact: {
         select: {
