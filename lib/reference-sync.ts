@@ -57,6 +57,12 @@ async function fetchPack(pack: ReferencePackKey): Promise<MergePerson[]> {
         note: `Synchronisation source publique — ${pack}`,
       })),
     );
+    // Les portraits sont enrichis depuis Wikipédia sans remplacer une photo
+    // déjà saisie par une équipe. Une indisponibilité reste non bloquante.
+    const enriched = await Promise.all(
+      people.map(async (person) => ({ ...person, photoUrl: await wikipediaPhoto(person.firstName, person.lastName) })),
+    );
+    people = enriched;
   } else {
     const contacts =
       pack === "deputes"
@@ -84,6 +90,24 @@ async function fetchPack(pack: ReferencePackKey): Promise<MergePerson[]> {
     );
   }
   return result;
+}
+
+async function wikipediaPhoto(firstName: string, lastName: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await fetch(
+      `https://fr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(`${firstName} ${lastName}`)}`,
+      { headers: { Accept: "application/json", "User-Agent": "Actyl/1.0 (open-source advocacy CRM)" }, signal: controller.signal, cache: "no-store" },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { thumbnail?: { source?: string } };
+    return data.thumbnail?.source ?? null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 type CurrentContact = {
