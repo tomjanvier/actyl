@@ -66,6 +66,53 @@ model User {
   listChangeProposals         ListChangeProposal[] @relation("ProposalAuthor")
   reviewedListChangeProposals ListChangeProposal[] @relation("ProposalReviewer")
   politicalPositions PoliticalPosition[]
+  oidcCodes       OidcAuthorizationCode[]
+  oidcTokens      OidcAccessToken[]
+}
+
+model OidcClient {
+  id                String   @id @default(cuid())
+  clientId          String   @unique
+  name              String
+  redirectUris      String
+  clientSecretHash  String?
+  createdAt         DateTime @default(now())
+  revokedAt         DateTime?
+  codes             OidcAuthorizationCode[]
+  tokens            OidcAccessToken[]
+  @@map("oidc_clients")
+}
+
+model OidcAuthorizationCode {
+  id            String   @id @default(cuid())
+  codeHash      String   @unique
+  clientId      String
+  userId        String
+  redirectUri   String
+  codeChallenge String
+  scope         String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime @default(now())
+  client        OidcClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+  @@map("oidc_authorization_codes")
+}
+
+model OidcAccessToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  clientId  String
+  userId    String
+  scope     String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  client    OidcClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+  @@map("oidc_access_tokens")
 }
 
 model Membership {
