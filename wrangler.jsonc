@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Worker de production pour Actyl (Next.js via @opennextjs/cloudflare).
+  // Les secrets ne sont JAMAIS stockés ici : `wrangler secret put` + `.dev.vars` en local.
+  "name": "actyl-cloudflare",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  // Déclencheur planifié : remplace le cron Vercel (`vercel.json`).
+  // La route `/api/cron/reference-packs` reste protégée par CRON_SECRET.
+  // ATTENTION : le traitement actuel (imports open-data, `maxDuration: 300`)
+  // dépasse les limites Workers — voir CLOUDFLARE_DEPLOYMENT.md avant production.
+  "triggers": {
+    "crons": ["0 4 * * 1"]
+  },
+  // Variables PUBLIQUES uniquement (préfixe NEXT_PUBLIC_*).
+  // IMPORTANT : ne jamais mettre de chaîne vide — une var vide écrase les
+  // défauts du code au runtime. Omettre tant que la valeur réelle est inconnue.
+  "vars": {},
+  // Garde-fous de consommation : à activer sur plan Paid.
+  // "limits": { "cpu_ms": 50 },
+  "env": {
+    "preview": {
+      "name": "actyl-cloudflare-preview"
+    },
+    "production": {
+      "name": "actyl-cloudflare"
+    }
+  }
+}
