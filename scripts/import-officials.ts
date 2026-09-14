@@ -2,14 +2,12 @@
  * Importe les députés (AN), sénateurs et eurodéputés français dans le
  * workspace de démo. Usage : pnpm tsx scripts/import-officials.ts [an|senat|pe]
  */
-import { PrismaClient } from "@prisma/client";
+import { db } from "../lib/db";
 import {
   importAssembleeNationale,
   importSenat,
   importParlementEuropeen,
 } from "../lib/importers/officials";
-
-const db = new PrismaClient();
 const colors = ["slate","indigo","emerald","amber","rose","violet","sky","teal","orange","fuchsia"];
 let ci = 0;
 

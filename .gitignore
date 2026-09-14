@@ -31,9 +31,16 @@ yarn-error.log*
 # Prisma
 /prisma/dev.db
 /prisma/dev.db-journal
+/generated/
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
 .vercel
 .env*
+
+# Cloudflare Workers / OpenNext
+.dev.vars
+.open-next/
+.wrangler/
+cloudflare-env.d.ts

@@ -1,0 +1,32 @@
+# Variables locales du Worker (wrangler dev / preview). NE JAMAIS COMMITER.
+# Copier vers `.dev.vars` puis renseigner. Production/preview : `wrangler secret put`.
+#
+#   cp .dev.vars.example .dev.vars
+#   pnpm build:cf && pnpm preview
+#
+# Base PRISMA POSTGRES (URL directe, console Prisma → Connect) pour tester le
+# Worker contre la vraie base :
+# DATABASE_URL="postgres://identifier:key@db.prisma.io:5432/postgres?sslmode=require"
+# Transition : URL Neon DIRECTE acceptée (branche HTTP de lib/db.ts).
+DATABASE_URL="postgresql://user:password@ep-xxxx.eu-west-3.aws.neon.tech/actyl?sslmode=require"
+
+# openssl rand -base64 32 (32+ caractères, identique à la prod pour tester les sessions)
+AUTH_SECRET="change-me-32-chars-minimum-local-dev-only"
+
+# Même valeur que le header Authorization du cron (route /api/cron/reference-packs)
+CRON_SECRET="change-me-local-cron-secret"
+
+# Turnstile : clés de test Cloudflare (https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY="1x00000000000000000000BB"
+TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
+
+# Resend : vide = envois simulés et tracés en base (comportement existant conservé)
+RESEND_API_KEY=""
+EMAIL_FROM="Actyl <noreply@example.org>"
+
+# Optionnel
+LANDING_DEMO_LIST_ID=""
+SEED_ADMIN_EMAIL="admin@actyl.org"
+SEED_ADMIN_PASSWORD=""
+SEED_ADMIN_NAME="Administrateur Actyl"
+ACTYL_SUPER_ADMIN_EMAIL="admin@actyl.org"

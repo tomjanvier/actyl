@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { db } from "../lib/db";
 import bcrypt from "bcryptjs";
-
-const db = new PrismaClient();
 
 // Générateur pseudo-aléatoire déterministe pour des données reproductibles.
 let seedState = 42;
