@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/command";
 
 type CampaignOption = { id: string; slug: string; name: string; emoji: string; pinned: boolean };
+type CampaignsResponse = { campaigns?: CampaignOption[] };
 
 export function CommandMenu({
   trigger,
@@ -50,7 +51,9 @@ export function CommandMenu({
   useEffect(() => {
     if (!open || campaigns.length) return;
     void fetch("/api/command/campaigns")
-      .then((r) => (r.ok ? r.json() : { campaigns: [] }))
+      .then(async (r): Promise<CampaignsResponse> =>
+        r.ok ? ((await r.json()) as CampaignsResponse) : { campaigns: [] },
+      )
       .then((d) => setCampaigns(d.campaigns ?? []))
       .catch(() => {});
   }, [open, campaigns.length]);
