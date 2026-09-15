@@ -31,7 +31,16 @@
       "name": "actyl-cloudflare-preview"
     },
     "production": {
-      "name": "actyl-cloudflare"
+      "name": "actyl-cloudflare",
+      "vars": {
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe"
+      },
+      "routes": [
+        {
+          "pattern": "actyl.org",
+          "custom_domain": true
+        }
+      ]
     }
   }
 }

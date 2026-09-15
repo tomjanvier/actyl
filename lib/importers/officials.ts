@@ -252,6 +252,7 @@ function parseCsvLine(line: string): string[] {
 
 const EP_BASE = "https://data.europarl.europa.eu/api/v2";
 const LD = { Accept: "application/ld+json" };
+type EuropeanParliamentResponse = { data?: any[] };
 
 export async function importParlementEuropeen(
   onProgress?: (done: number, total: number) => void,
@@ -270,7 +271,7 @@ export async function importParlementEuropeen(
       60_000,
     );
     if (!res.ok) throw new Error(`API Parlement européen indisponible (${res.status})`);
-    const json = await res.json();
+    const json = (await res.json()) as EuropeanParliamentResponse;
     const data: any[] = json?.data ?? [];
     meps.push(...data
       .filter((d) => d["api:country-of-representation"] === "FR")
@@ -294,7 +295,7 @@ export async function importParlementEuropeen(
     try {
       const res = await fetchWithTimeout(`${EP_BASE}/${orgId}`, { headers: LD }, 30_000);
       if (res.ok) {
-        const json = await res.json();
+        const json = (await res.json()) as EuropeanParliamentResponse;
         const label = json?.data?.[0]?.label ?? "";
         orgCache.set(orgId, label);
         return label;
@@ -309,7 +310,8 @@ export async function importParlementEuropeen(
     const settled = await Promise.allSettled(
       batch.map((m) =>
         fetchWithTimeout(`${EP_BASE}/meps/${m.identifier}`, { headers: LD }, 30_000).then(
-          (r) => (r.ok ? r.json() : null),
+          async (r): Promise<EuropeanParliamentResponse | null> =>
+            r.ok ? ((await r.json()) as EuropeanParliamentResponse) : null,
         ),
       ),
     );
