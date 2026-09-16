@@ -49,6 +49,9 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
+  // Lien stable vers l'identité Act (SSO OIDC) ; null pour les comptes
+  // créés par mot de passe avant l'activation du SSO.
+  actSub       String?  @unique
   jobTitle     String?
   isSuperAdmin Boolean  @default(false)
   createdAt    DateTime @default(now())
