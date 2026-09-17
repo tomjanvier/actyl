@@ -39,10 +39,17 @@ suivi des décideurs et mobilisation citoyenne.
   : newsletter, signatures de pétition (Petitioner) et dons (Givoly).
   Tokens Bearer créés dans Paramètres → API & intégrations ; seul un hash
   SHA-256 est stocké, révocable à tout moment :
+  - `GET /api/v1/petitions` — pétitions publiées triées par titre
+  - `GET /api/v1/petitions/{slug}` — détail et nombre de signatures
   - `POST /api/v1/supporters` — `{email, fullName?, city?, source?, tags?[]}`
   - `POST /api/v1/petitions/{slug}/signatures` — `{name, email, city?}`
   - `POST /api/v1/donations` — `{email, amount|amountCents, provider?, …}`
   - `GET /api/v1/ping` — vérification du token
+
+  Les routes acceptent `OPTIONS` (204), renvoient les en-têtes CORS et sont
+  limitées à 60 requêtes par minute et par couple token/adresse IP. Pour une
+  vérification manuelle : tester `ping`, les deux routes de pétitions, un slug
+  inconnu (404), un faux token (401), puis une 61e requête dans la minute (429).
 - **Annuaire étendu (optionnel)** : activez les segments adhérent·e·s,
   bénévoles, donateur·ice·s et soutiens dans Paramètres → API & intégrations ;
   le menu latéral filtre alors le répertoire par catégorie.

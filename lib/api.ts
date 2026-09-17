@@ -82,7 +82,7 @@ export const apiCorsHeaders: Record<string, string> = {
 };
 
 export function apiJson(
-  body: Record<string, unknown>,
+  body: unknown,
   status = 200,
 ): Response {
   return new Response(JSON.stringify(body), {

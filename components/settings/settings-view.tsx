@@ -96,6 +96,7 @@ export function SettingsView({
   newsletter,
   workspaces,
   landingSettings,
+  oidcClients,
 }: {
   initialTab: string | null;
   role: string;
@@ -178,6 +179,15 @@ export function SettingsView({
     primaryHref: string;
     footerText: string;
   };
+  oidcClients: Array<{
+    id: string;
+    clientId: string;
+    name: string;
+    redirectUris: string[];
+    revokedAt: string | null;
+    createdAt: string;
+    tokenCount: number;
+  }>;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -467,8 +477,11 @@ export function SettingsView({
 
         {/* ── API et intégrations ── */}
         <TabsContent value="api" className="mt-5 outline-none">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <ApiTokensCard tokens={apiTokens} isAdmin={isAdmin} onChanged={refresh} />
+            {(isAdmin || isSuperAdmin) && (
+              <OidcClientsCard clients={oidcClients} onChanged={refresh} />
+            )}
           </div>
         </TabsContent>
 
@@ -1355,6 +1368,90 @@ function ApiTokensCard({
         {tokens.length === 0 && (
           <li className="px-4 py-8 text-center text-[12.5px] text-faint">
             Aucun token pour l&apos;instant.
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+// ── Clients OIDC ────────────────────────────────────────────────────────────
+
+function OidcClientsCard({
+  clients,
+  onChanged,
+}: {
+  clients: Array<{
+    id: string;
+    clientId: string;
+    name: string;
+    redirectUris: string[];
+    revokedAt: string | null;
+    createdAt: string;
+    tokenCount: number;
+  }>;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function setRevoked(clientId: string, revoked: boolean) {
+    const action = revoked ? "révoquer" : "réactiver";
+    if (!confirm(`Voulez-vous ${action} ce client OIDC ?`)) return;
+    setBusy(clientId);
+    const response = await fetch("/api/admin/oidc/clients", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, revoked }),
+    }).catch(() => null);
+    setBusy(null);
+    if (!response?.ok) {
+      toast.error("La modification du client OIDC a échoué.");
+      return;
+    }
+    toast.success(revoked ? "Client OIDC révoqué" : "Client OIDC réactivé");
+    onChanged();
+  }
+
+  return (
+    <div className="rounded-xl border border-line bg-card">
+      <div className="border-b border-line px-4 py-3">
+        <h3 className="text-[13.5px] font-semibold text-fg">Clients « Se connecter avec Act »</h3>
+        <p className="mt-1 text-[11.5px] text-faint">
+          Révoquer un client invalide également tous ses jetons d&apos;accès existants.
+        </p>
+      </div>
+      <ul>
+        {clients.map((client) => {
+          const revoked = !!client.revokedAt;
+          return (
+            <li key={client.id} className="border-b border-linesoft px-4 py-3 last:border-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className={cn("text-[13px] font-medium text-fg", revoked && "line-through opacity-60")}>
+                    {client.name}
+                  </p>
+                  <p className="truncate font-mono text-[11px] text-faint">{client.clientId}</p>
+                </div>
+                <Button
+                  variant={revoked ? "outline" : "ghost"}
+                  size="sm"
+                  disabled={busy === client.id}
+                  onClick={() => void setRevoked(client.id, !revoked)}
+                >
+                  {busy === client.id ? <Loader2 className="animate-spin" /> : null}
+                  {revoked ? "Réactiver" : "Révoquer"}
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] text-faint">
+                {client.redirectUris.join(" · ")} · {client.tokenCount} jeton(s) · créé {timeAgo(client.createdAt)}
+                {client.revokedAt ? ` · révoqué ${timeAgo(client.revokedAt)}` : ""}
+              </p>
+            </li>
+          );
+        })}
+        {clients.length === 0 && (
+          <li className="px-4 py-8 text-center text-[12.5px] text-faint">
+            Aucun client OIDC enregistré.
           </li>
         )}
       </ul>

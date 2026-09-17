@@ -34,5 +34,17 @@ production. Ne jamais utiliser un émetteur HTTP hors environnement local.
 
 WordPress et Givoly doivent conserver leur propre session locale après le
 rappel OIDC ; le logout centralisé est disponible pour terminer la session Act.
-La révocation administrative des clients et des jetons fera l'objet d'un écran
-d'administration dédié avant activation à grande échelle.
+Les clients sont administrés dans **Paramètres → API & intégrations**. Une
+révocation conserve le client mais invalide immédiatement ses jetons d'accès ;
+une réactivation n'annule pas cette révocation des anciens jetons.
+
+## Scénario manuel de révocation
+
+1. Obtenir un code puis un jeton d'accès pour un client actif et vérifier que
+   `GET /oauth/userinfo` répond 200.
+2. Révoquer ce client depuis **Paramètres → API & intégrations**.
+3. Vérifier que le même jeton reçoit désormais `401 invalid_token` sur
+   `userinfo`, que `authorize` refuse le client et que `token` refuse tout code
+   encore en attente.
+4. Réactiver le client : un nouveau flux peut aboutir, mais l'ancien jeton reste
+   révoqué.
