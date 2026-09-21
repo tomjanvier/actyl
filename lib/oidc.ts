@@ -66,8 +66,8 @@ export async function token(request: Request) {
 export async function userinfo(request: Request) {
   const raw = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!raw) return error("invalid_token", 401);
-  const token = await db.oidcAccessToken.findUnique({ where: { tokenHash: hash(raw) }, include: { user: { include: { memberships: true } } } });
-  if (!token || token.revokedAt || token.expiresAt < new Date()) return error("invalid_token", 401);
+  const token = await db.oidcAccessToken.findUnique({ where: { tokenHash: hash(raw) }, include: { client: true, user: { include: { memberships: true } } } });
+  if (!token || token.revokedAt || token.client.revokedAt || token.expiresAt < new Date()) return error("invalid_token", 401);
   return Response.json({ sub: token.user.id, email: token.user.email, email_verified: true, name: token.user.name, roles: [...new Set(token.user.memberships.map((m) => m.role.toLowerCase()))] });
 }
 

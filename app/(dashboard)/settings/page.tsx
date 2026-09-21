@@ -33,6 +33,7 @@ export default async function SettingsPage({
     disabledReferencePacks,
     workspaces,
     landingSettings,
+    oidcClients,
   ] =
     await Promise.all([
       db.customField.findMany({
@@ -92,6 +93,20 @@ export default async function SettingsPage({
         })
       : Promise.resolve([]),
     getLandingSettings(),
+    session.role === "ADMIN" || session.user.isSuperAdmin
+      ? db.oidcClient.findMany({
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            clientId: true,
+            name: true,
+            redirectUris: true,
+            revokedAt: true,
+            createdAt: true,
+            _count: { select: { tokens: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -187,6 +202,15 @@ export default async function SettingsPage({
           createdAt: workspace.createdAt.toISOString(),
         }))}
         landingSettings={landingSettings}
+        oidcClients={oidcClients.map((client) => ({
+          id: client.id,
+          clientId: client.clientId,
+          name: client.name,
+          redirectUris: client.redirectUris.split("\n").filter(Boolean),
+          revokedAt: client.revokedAt?.toISOString() ?? null,
+          createdAt: client.createdAt.toISOString(),
+          tokenCount: client._count.tokens,
+        }))}
       />
     </>
   );

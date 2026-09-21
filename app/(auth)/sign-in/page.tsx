@@ -5,8 +5,11 @@ export const metadata = { title: "Connexion" };
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
-  return <SignInForm next={next} />;
+  const { next, error } = await searchParams;
+  const actSsoEnabled = Boolean(
+    (process.env.ACT_SSO_ISSUER ?? "").trim() && (process.env.ACT_SSO_CLIENT_ID ?? "").trim(),
+  );
+  return <SignInForm next={next} actError={error} actSsoEnabled={actSsoEnabled} />;
 }
