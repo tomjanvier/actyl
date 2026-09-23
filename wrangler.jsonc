@@ -33,7 +33,10 @@
     "production": {
       "name": "actyl-cloudflare",
       "vars": {
-        "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe"
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
+        // Origine publique : base de la redirect_uri SSO
+        // (`https://actyl.org/api/auth/act/callback`, à enregistrer côté Act).
+        "NEXT_PUBLIC_APP_URL": "https://actyl.org"
       },
       "routes": [
         {

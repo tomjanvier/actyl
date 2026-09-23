@@ -36,8 +36,12 @@ Worker : **`actyl-cloudflare`** · preview : **`actyl-cloudflare-preview`**.
 | `TURNSTILE_SECRET_KEY` | privée | secret |
 | `RESEND_API_KEY` | privée (vide = simulation tracée en base) | secret |
 | `EMAIL_FROM` | privée | secret (ou `vars` si non sensible — ici en secret) |
+| `ACT_SSO_ISSUER` (ex. `https://act.plaidact.org`) | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
+| `ACT_SSO_CLIENT_ID` | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
+| `ACT_SSO_CLIENT_SECRET` (vide = client public PKCE) | privée, serveur | secret |
 | `SEED_ADMIN_*`, `ACTYL_SUPER_ADMIN_EMAIL` | setup local uniquement | `.env` local |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | **publique** | `wrangler.jsonc` → `vars` |
+| `NEXT_PUBLIC_APP_URL` | **publique** (base de la `redirect_uri` SSO) | `wrangler.jsonc` → `vars` (prod : `https://actyl.org` ; preview : origine `*.workers.dev` enregistrée côté Act) |
 | `LANDING_DEMO_LIST_ID` | **publique** | `wrangler.jsonc` → `vars` |
 
 Ne jamais committer de vraie clé. Les `.env*` et `.dev.vars` sont gitignorés.

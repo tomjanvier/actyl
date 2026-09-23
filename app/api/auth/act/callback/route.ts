@@ -7,6 +7,7 @@ import { slugify } from "@/lib/utils";
 import {
   ACT_SSO_NEXT_COOKIE,
   ACT_SSO_STATE_COOKIE,
+  ACT_SSO_VERIFIER_COOKIE,
   exchangeCode,
   fetchActUserinfo,
   getActDiscovery,
@@ -14,6 +15,7 @@ import {
   mapActRoles,
   safeNextPath,
 } from "@/lib/act-sso";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 /**
  * GET /api/auth/act/callback — retour OIDC d'Act.
@@ -25,10 +27,12 @@ import {
  * 4. Crée la session Actyl (+ rattachement à l'espace par défaut si besoin).
  */
 export async function GET(request: Request) {
-  const config = getActSsoConfig();
+  const rl = rateLimit(`act-sso-callback:${await clientIp()}`, 10);
   const appUrl =
     (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/+$/, "") ||
     new URL(request.url).origin;
+  if (!rl.allowed) return NextResponse.redirect(`${appUrl}/sign-in?error=act_failed`);
+  const config = getActSsoConfig();
   if (!config) return NextResponse.redirect(`${appUrl}/sign-in?error=act_unconfigured`);
 
   const url = new URL(request.url);
@@ -40,12 +44,16 @@ export async function GET(request: Request) {
   if (!code || !state) return NextResponse.redirect(`${appUrl}/sign-in?error=act_state`);
 
   const jar = await cookies();
-  const verifier = jar.get(`${ACT_SSO_STATE_COOKIE}:${state}`)?.value;
+  const expectedState = jar.get(ACT_SSO_STATE_COOKIE)?.value;
+  const verifier = jar.get(ACT_SSO_VERIFIER_COOKIE)?.value;
   const next = safeNextPath(jar.get(ACT_SSO_NEXT_COOKIE)?.value);
   // État à usage unique dans tous les cas.
-  jar.delete(`${ACT_SSO_STATE_COOKIE}:${state}`);
+  jar.delete(ACT_SSO_STATE_COOKIE);
+  jar.delete(ACT_SSO_VERIFIER_COOKIE);
   jar.delete(ACT_SSO_NEXT_COOKIE);
-  if (!verifier) return NextResponse.redirect(`${appUrl}/sign-in?error=act_state`);
+  if (!verifier || !expectedState || expectedState !== state) {
+    return NextResponse.redirect(`${appUrl}/sign-in?error=act_state`);
+  }
 
   const discovery = await getActDiscovery(config.issuer);
   if (!discovery) return NextResponse.redirect(`${appUrl}/sign-in?error=act_unreachable`);

@@ -9,7 +9,7 @@
  * - ACT_SSO_ISSUER    ex. https://act.plaidact.org
  * - ACT_SSO_CLIENT_ID ex. actyl-prod (enregistré côté Act)
  * - ACT_SSO_CLIENT_SECRET (vide pour client public, PKCE seul)
- * - NEXT_PUBLIC_APP_URL ex. https://actyl.plaidact.org (callback)
+ * - NEXT_PUBLIC_APP_URL ex. https://actyl.org (callback)
  *
  * Sans ces variables, le bouton « Se connecter avec Act » est masqué
  * et les routes répondent 503 (le login mot de passe reste disponible).
@@ -18,6 +18,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 
 export const ACT_SSO_STATE_COOKIE = "actyl_act_sso_state";
+export const ACT_SSO_VERIFIER_COOKIE = "actyl_act_sso_verifier";
 export const ACT_SSO_NEXT_COOKIE = "actyl_act_sso_next";
 const STATE_TTL_SECONDS = 600;
 
@@ -32,6 +33,8 @@ export function getActSsoConfig(): ActSsoConfig | null {
   const issuer = (process.env.ACT_SSO_ISSUER ?? "").trim().replace(/\/+$/, "");
   const clientId = (process.env.ACT_SSO_CLIENT_ID ?? "").trim();
   if (!issuer || !clientId) return null;
+  // Défaut :3001 car Act (fournisseur OIDC) occupe :3000 en dev local
+  // (les deux apps tournent côte à côte pour tester le SSO).
   const base =
     (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/+$/, "") ||
     "http://localhost:3001";
