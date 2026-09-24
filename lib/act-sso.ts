@@ -82,7 +82,10 @@ export async function getActDiscovery(issuer: string): Promise<{
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("[act-sso] discovery HTTP", res.status);
+      return null;
+    }
     const data = (await res.json()) as Record<string, unknown>;
     if (
       typeof data.authorization_endpoint !== "string" ||
@@ -91,16 +94,23 @@ export async function getActDiscovery(issuer: string): Promise<{
     ) {
       return null;
     }
-    if (data.issuer !== issuer) return null;
+    if (data.issuer !== issuer) {
+      console.error("[act-sso] discovery issuer mismatch");
+      return null;
+    }
     for (const endpoint of [data.authorization_endpoint, data.token_endpoint, data.userinfo_endpoint]) {
-      if (new URL(endpoint).origin !== new URL(issuer).origin) return null;
+      if (new URL(endpoint).origin !== new URL(issuer).origin) {
+        console.error("[act-sso] discovery endpoint origin mismatch");
+        return null;
+      }
     }
     return {
       authorization_endpoint: data.authorization_endpoint,
       token_endpoint: data.token_endpoint,
       userinfo_endpoint: data.userinfo_endpoint,
     };
-  } catch {
+  } catch (error) {
+    console.error("[act-sso] discovery failed", error instanceof Error ? error.message : "unknown");
     return null;
   }
 }
