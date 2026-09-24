@@ -79,7 +79,7 @@ export async function getActDiscovery(issuer: string): Promise<{
   try {
     const res = await fetch(`${issuer}/.well-known/openid-configuration`, {
       cache: "no-store",
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
