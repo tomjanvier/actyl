@@ -38,6 +38,14 @@ export function getActSsoConfig(): ActSsoConfig | null {
   const base =
     (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/+$/, "") ||
     "http://localhost:3001";
+  try {
+    for (const value of [issuer, base]) {
+      const url = new URL(value);
+      if (url.username || url.password || url.search || url.hash || url.pathname !== "/") return null;
+      if (url.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) return null;
+    }
+  } catch { return null; }
+  if (process.env.NODE_ENV === "production" && !process.env.ACT_SSO_CLIENT_SECRET) return null;
   return {
     issuer,
     clientId,
@@ -71,6 +79,8 @@ export async function getActDiscovery(issuer: string): Promise<{
   try {
     const res = await fetch(`${issuer}/.well-known/openid-configuration`, {
       cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as Record<string, unknown>;
@@ -80,6 +90,10 @@ export async function getActDiscovery(issuer: string): Promise<{
       typeof data.userinfo_endpoint !== "string"
     ) {
       return null;
+    }
+    if (data.issuer !== issuer) return null;
+    for (const endpoint of [data.authorization_endpoint, data.token_endpoint, data.userinfo_endpoint]) {
+      if (new URL(endpoint).origin !== new URL(issuer).origin) return null;
     }
     return {
       authorization_endpoint: data.authorization_endpoint,
@@ -149,6 +163,8 @@ export async function exchangeCode(
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
       cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { access_token?: string };
@@ -167,10 +183,13 @@ export async function fetchActUserinfo(
     const res = await fetch(userinfoEndpoint, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as ActUserinfo;
-    if (!data.sub || !data.email) return null;
+    if (typeof data.sub !== "string" || !data.sub || typeof data.email !== "string" || !data.email || data.email_verified !== true) return null;
+    if (data.roles && (!Array.isArray(data.roles) || data.roles.some((role) => typeof role !== "string"))) return null;
     return data;
   } catch {
     return null;
