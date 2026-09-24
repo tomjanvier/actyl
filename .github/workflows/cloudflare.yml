@@ -1,0 +1,130 @@
+# Déploiement Cloudflare Workers via @opennextjs/cloudflare
+# - PR → build + deploy preview (actyl-cloudflare-preview)
+# - push sur main → deploy production (actyl-cloudflare) + domaine actyl.org
+#
+# Secrets requis dans GitHub (Settings → Secrets → Actions) :
+#   CLOUDFLARE_API_TOKEN  (Workers → Manage Account → API Tokens → Edit Cloudflare Workers, zone:actyl.org)
+#   CLOUDFLARE_ACCOUNT_ID (Workers → Overview → Account ID)
+# Les secrets applicatifs (DATABASE_URL Prisma Postgres directe, AUTH_SECRET, etc.)
+# sont posés côté Cloudflare via `wrangler secret put --env preview/production`
+# (jamais dans GitHub). Voir CLOUDFLARE_DEPLOYMENT.md §2-5.
+name: Cloudflare Deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint · Typecheck · Build (Cloudflare)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build Cloudflare (OpenNext + patch WASM Prisma)
+        run: pnpm build:cf
+
+      - name: Vérifier artefacts OpenNext
+        run: |
+          ls -lh .open-next/worker.js
+          ls -lh .open-next/server-functions/default/handler.mjs
+          ls -lh .open-next/server-functions/default/prisma-query-compiler.wasm || echo "WASM manquant"
+          test -f .open-next/worker.js || (echo "worker.js manquant" && exit 1)
+
+  deploy-preview:
+    name: Deploy preview (PR)
+    if: github.event_name == 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:cf
+
+      - name: Deploy preview (actyl-cloudflare-preview)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env preview
+
+  deploy-production:
+    name: Deploy production (main)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: production
+      url: https://actyl.org
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build:cf
+
+      - name: Deploy production (actyl-cloudflare)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env production
