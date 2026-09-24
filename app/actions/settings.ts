@@ -209,11 +209,16 @@ export async function addMembershipToGroupAction(input: {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  const [group, membership] = await Promise.all([
+    db.group.findFirst({ where: { id: input.groupId, workspaceId: session.workspaceId }, select: { id: true } }),
+    db.membership.findFirst({ where: { id: input.membershipId, workspaceId: session.workspaceId }, select: { id: true } }),
+  ]);
+  if (!group || !membership) throw new Error("Groupe ou membre introuvable");
   await db.groupMember.upsert({
     where: {
-      groupId_membershipId: { groupId: input.groupId, membershipId: input.membershipId },
+      groupId_membershipId: { groupId: group.id, membershipId: membership.id },
     },
-    create: { groupId: input.groupId, membershipId: input.membershipId },
+    create: { groupId: group.id, membershipId: membership.id },
     update: {},
   });
   revalidatePath("/settings");
@@ -223,7 +228,7 @@ export async function removeGroupMemberAction(groupMemberId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
-  await db.groupMember.deleteMany({ where: { id: groupMemberId } });
+  await db.groupMember.deleteMany({ where: { id: groupMemberId, group: { workspaceId: session.workspaceId } } });
   revalidatePath("/settings");
 }
 

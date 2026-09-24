@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { createSession, hashPassword, setWorkspaceCookie } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { slugify } from "@/lib/utils";
 import {
   ACT_SSO_NEXT_COOKIE,
   ACT_SSO_STATE_COOKIE,
@@ -62,12 +61,12 @@ export async function GET(request: Request) {
   if (!tokens) return NextResponse.redirect(`${appUrl}/sign-in?error=act_token`);
 
   const identity = await fetchActUserinfo(discovery.userinfo_endpoint, tokens.accessToken);
-  if (!identity || identity.email_verified === false) {
+  if (!identity || identity.email_verified !== true) {
     return NextResponse.redirect(`${appUrl}/sign-in?error=act_identity`);
   }
   const email = identity.email.trim().toLowerCase();
   const name = identity.name?.trim() || email;
-  const { isSuperAdmin, membershipRole } = mapActRoles(identity.roles ?? []);
+  const { membershipRole } = mapActRoles(identity.roles ?? []);
 
   try {
     // Liaison par sub Act, puis par email (comptes préexistants conservés).
@@ -75,12 +74,11 @@ export async function GET(request: Request) {
     if (!user) {
       const byEmail = await db.user.findUnique({ where: { email } });
       if (byEmail) {
+        if (byEmail.actSub && byEmail.actSub !== identity.sub) throw new Error("ACT_IDENTITY_CONFLICT");
         user = await db.user.update({
           where: { id: byEmail.id },
           data: {
             actSub: byEmail.actSub ?? identity.sub,
-            // Additif : on accorde le super-admin, on ne le retire jamais via SSO.
-            ...(isSuperAdmin && !byEmail.isSuperAdmin ? { isSuperAdmin: true } : {}),
           },
         });
       } else {
@@ -91,12 +89,10 @@ export async function GET(request: Request) {
             // Mot de passe aléatoire inutilisable : la connexion passe par Act.
             passwordHash: await hashPassword(randomBytes(32).toString("base64url")),
             actSub: identity.sub,
-            isSuperAdmin,
+            isSuperAdmin: false,
           },
         });
       }
-    } else if (isSuperAdmin && !user.isSuperAdmin) {
-      user = await db.user.update({ where: { id: user.id }, data: { isSuperAdmin: true } });
     }
 
     // Rattachement : conserve les memberships existants ; sinon rattache à
@@ -108,17 +104,19 @@ export async function GET(request: Request) {
     });
     let workspaceId = memberships[0]?.workspaceId;
     if (!workspaceId) {
-      const oldest = await db.workspace.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } });
-      if (oldest) {
-        workspaceId = oldest.id;
-        await db.membership.create({ data: { userId: user.id, workspaceId, role: membershipRole } });
-      } else {
-        const workspace = await db.workspace.create({
-          data: { name: "Équipe", slug: `equipe-${slugify(email.split("@")[0] ?? "act")}` },
-        });
-        workspaceId = workspace.id;
-        await db.membership.create({ data: { userId: user.id, workspaceId, role: "ADMIN" } });
-      }
+      // L'espace cible est explicite : aucune adhésion automatique à un autre locataire.
+      const configuredWorkspace = process.env.ACT_SSO_WORKSPACE_ID;
+      const configuredSlug = process.env.ACT_SSO_WORKSPACE_SLUG;
+      if (!configuredWorkspace && !configuredSlug) throw new Error("ACT_WORKSPACE_REQUIRED");
+      const workspace = configuredWorkspace
+        ? await db.workspace.findUnique({ where: { id: configuredWorkspace }, select: { id: true } })
+        : await db.workspace.upsert({ where: { slug: configuredSlug! }, create: { slug: configuredSlug!, name: "PLAID·ACT" }, update: {}, select: { id: true } });
+      if (!workspace) throw new Error("ACT_WORKSPACE_UNKNOWN");
+      workspaceId = workspace.id;
+      await db.membership.upsert({
+        where: { userId_workspaceId: { userId: user.id, workspaceId } },
+        create: { userId: user.id, workspaceId, role: membershipRole }, update: {},
+      });
     }
 
     await createSession(user.id);

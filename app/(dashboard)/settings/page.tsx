@@ -93,7 +93,7 @@ export default async function SettingsPage({
         })
       : Promise.resolve([]),
     getLandingSettings(),
-    session.role === "ADMIN" || session.user.isSuperAdmin
+    session.user.isSuperAdmin
       ? db.oidcClient.findMany({
           orderBy: { createdAt: "desc" },
           select: {

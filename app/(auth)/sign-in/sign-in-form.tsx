@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState } from "react";
 import Link from "next/link";
 import { signInAction, type ActionState } from "@/app/actions/auth";
@@ -45,7 +46,7 @@ export function SignInForm({
             href={actStartHref}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-medium ring-1 ring-inset ring-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20"
           >
-            <span aria-hidden="true">◉</span> Se connecter avec Act
+            <Image src="/act-mark.svg" width={24} height={24} alt="" /> Se connecter avec Act
           </a>
           {actError && ACT_ERRORS[actError] && (
             <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-700 dark:text-rose-400 ring-1 ring-inset ring-rose-500/20">

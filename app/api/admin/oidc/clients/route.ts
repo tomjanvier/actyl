@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 async function isOidcAdmin() {
   const session = await getSession();
-  return !!session && (session.role === "ADMIN" || session.user.isSuperAdmin);
+  return !!session?.user.isSuperAdmin;
 }
 
 export async function GET() {
