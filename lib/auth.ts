@@ -112,13 +112,13 @@ export async function getSession(): Promise<SessionContext | null> {
   });
   if (!user) return null;
   const bootstrapSuperAdminEmail =
-    process.env.ACTYL_SUPER_ADMIN_EMAIL?.trim().toLowerCase() ?? "admin@actyl.org";
+    process.env.ACTYL_SUPER_ADMIN_EMAIL?.trim().toLowerCase();
 
   return {
     user: {
       ...user,
       isSuperAdmin:
-        user.isSuperAdmin || user.email.toLowerCase() === bootstrapSuperAdminEmail,
+        user.isSuperAdmin || (!!bootstrapSuperAdminEmail && user.email.toLowerCase() === bootstrapSuperAdminEmail),
     },
     workspaceId: membership.workspaceId,
     role: membership.role as Role,

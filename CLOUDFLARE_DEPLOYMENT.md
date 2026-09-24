@@ -39,6 +39,7 @@ Worker : **`actyl-cloudflare`** · preview : **`actyl-cloudflare-preview`**.
 | `ACT_SSO_ISSUER` (ex. `https://act.plaidact.org`) | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
 | `ACT_SSO_CLIENT_ID` | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
 | `ACT_SSO_CLIENT_SECRET` (vide = client public PKCE) | privée, serveur | secret |
+| `ACT_SSO_WORKSPACE_SLUG` ou `ACT_SSO_WORKSPACE_ID` | privée, serveur | secret ; espace de rattachement des nouveaux comptes SSO |
 | `SEED_ADMIN_*`, `ACTYL_SUPER_ADMIN_EMAIL` | setup local uniquement | `.env` local |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | **publique** | `wrangler.jsonc` → `vars` |
 | `NEXT_PUBLIC_APP_URL` | **publique** (base de la `redirect_uri` SSO) | `wrangler.jsonc` → `vars` (prod : `https://actyl.org` ; preview : origine `*.workers.dev` enregistrée côté Act) |
@@ -82,6 +83,7 @@ wrangler secret put CRON_SECRET --env preview
 wrangler secret put TURNSTILE_SECRET_KEY --env preview
 wrangler secret put RESEND_API_KEY --env preview   # optionnel (vide = simulé)
 wrangler secret put EMAIL_FROM --env preview
+wrangler secret put ACT_SSO_WORKSPACE_SLUG --env preview
 
 # 2. Build + déploiement preview (demande confirmation, ne touche pas la prod)
 pnpm build:cf
@@ -98,6 +100,7 @@ wrangler secret put CRON_SECRET --env production
 wrangler secret put TURNSTILE_SECRET_KEY --env production
 wrangler secret put RESEND_API_KEY --env production
 wrangler secret put EMAIL_FROM --env production
+wrangler secret put ACT_SSO_WORKSPACE_SLUG --env production
 
 pnpm build:cf
 wrangler deploy --env production

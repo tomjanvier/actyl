@@ -10,7 +10,7 @@ const opaque = () => randomBytes(32).toString("base64url");
 const error = (message: string, status = 400) => Response.json({ error: message }, { status });
 
 export function issuer() {
-  return (process.env.ACT_OIDC_ISSUER ?? "https://act.plaidact.org").replace(/\/$/, "");
+  return (process.env.ACT_OIDC_ISSUER ?? "https://actyl.org").replace(/\/$/, "");
 }
 
 export function discovery() {
@@ -60,7 +60,7 @@ export async function token(request: Request) {
   if (claimed.count !== 1) return error("invalid_grant");
   const accessToken = opaque();
   await db.oidcAccessToken.create({ data: { tokenHash: hash(accessToken), clientId: client.id, userId: stored.userId, scope: stored.scope, expiresAt: new Date(Date.now() + TOKEN_TTL * 1000) } });
-  return Response.json({ access_token: accessToken, token_type: "Bearer", expires_in: TOKEN_TTL, scope: stored.scope });
+  return Response.json({ access_token: accessToken, token_type: "Bearer", expires_in: TOKEN_TTL, scope: stored.scope }, { headers: { "Cache-Control": "no-store", Pragma: "no-cache" } });
 }
 
 export async function userinfo(request: Request) {
@@ -68,14 +68,19 @@ export async function userinfo(request: Request) {
   if (!raw) return error("invalid_token", 401);
   const token = await db.oidcAccessToken.findUnique({ where: { tokenHash: hash(raw) }, include: { client: true, user: { include: { memberships: true } } } });
   if (!token || token.revokedAt || token.client.revokedAt || token.expiresAt < new Date()) return error("invalid_token", 401);
-  return Response.json({ sub: token.user.id, email: token.user.email, email_verified: true, name: token.user.name, roles: [...new Set(token.user.memberships.map((m) => m.role.toLowerCase()))] });
+  return Response.json({ sub: token.user.id, email: token.user.email, email_verified: true, name: token.user.name, roles: [...new Set(token.user.memberships.map((m) => m.role.toLowerCase()))] }, { headers: { "Cache-Control": "private, no-store", Pragma: "no-cache" } });
 }
 
 export async function registerClient(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") return error("forbidden", 403);
-  const body = await request.json() as { client_id?: string; name?: string; redirect_uris?: string[]; client_secret?: string };
-  if (!body.client_id || !body.name || !body.redirect_uris?.length || body.redirect_uris.some((uri) => !uri.startsWith("https://"))) return error("invalid_request");
-  const created = await db.oidcClient.create({ data: { clientId: body.client_id, name: body.name, redirectUris: body.redirect_uris.join("\n"), clientSecretHash: body.client_secret ? hash(body.client_secret) : null } });
-  return Response.json({ client_id: created.clientId, name: created.name, redirect_uris: body.redirect_uris }, { status: 201 });
+  if (!session?.user.isSuperAdmin) return error("forbidden", 403);
+  const body = await request.json().catch(() => null) as { client_id?: unknown; name?: unknown; redirect_uris?: unknown; client_secret?: unknown } | null;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return error("invalid_request");
+  const clientId = typeof body.client_id === "string" ? body.client_id.trim() : "";
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const redirectUris = Array.isArray(body.redirect_uris) ? body.redirect_uris.filter((uri): uri is string => typeof uri === "string" && uri.length <= 2048) : [];
+  const clientSecret = typeof body.client_secret === "string" ? body.client_secret : "";
+  if (!/^[A-Za-z0-9._-]{3,64}$/.test(clientId) || !name || name.length > 120 || !redirectUris.length || redirectUris.length > 20 || redirectUris.some((uri) => !uri.startsWith("https://")) || (clientSecret && clientSecret.length < 32)) return error("invalid_request");
+  const created = await db.oidcClient.create({ data: { clientId, name, redirectUris: redirectUris.join("\n"), clientSecretHash: clientSecret ? hash(clientSecret) : null } });
+  return Response.json({ client_id: created.clientId, name: created.name, redirect_uris: redirectUris }, { status: 201 });
 }
