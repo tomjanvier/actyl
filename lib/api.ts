@@ -87,7 +87,12 @@ export function apiJson(
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...apiCorsHeaders },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "private, no-store",
+      Vary: "Authorization",
+      ...apiCorsHeaders,
+    },
   });
 }
 
