@@ -66,7 +66,7 @@ function EntityAvatar({
         loading="lazy"
         referrerPolicy="no-referrer"
         className={cn(
-          "inline-flex shrink-0 select-none items-center justify-center rounded-lg object-cover ring-1 ring-inset ring-white/10 dark:ring-white/10",
+          "inline-flex shrink-0 select-none items-center justify-center rounded-lg object-cover ring-1 ring-inset ring-line",
           sizes[size],
           className,
         )}

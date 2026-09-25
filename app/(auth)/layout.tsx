@@ -1,5 +1,5 @@
-import { Landmark } from "lucide-react";
 import Link from "next/link";
+import { ActylLogo } from "@/components/layout/actyl-logo";
 
 export default function AuthLayout({
   children,
@@ -8,16 +8,8 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <Link
-        href="/"
-        className="mb-8 flex items-center gap-2.5 text-fg transition-colors hover:text-white"
-      >
-        <span className="flex size-9 items-center justify-center rounded-xl bg-indigo-600/20 ring-1 ring-inset ring-indigo-500/30">
-          <Landmark className="size-4.5 text-indigo-700 dark:text-indigo-400" />
-        </span>
-        <span className="text-[15px] font-semibold tracking-tight">
-          Actyl
-        </span>
+      <Link href="/" aria-label="Accueil Actyl" className="mb-8">
+        <ActylLogo className="h-10 w-[158px]" priority />
       </Link>
       {children}
       <p className="mt-8 max-w-sm text-center text-[12px] leading-relaxed text-faint">

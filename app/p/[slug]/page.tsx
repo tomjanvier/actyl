@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { CitizenForm } from "@/components/public/citizen-form";
 import { PetitionSignForm, ShareSection } from "@/components/public/petition-and-share";
+import { ActylLogo } from "@/components/layout/actyl-logo";
 
 export const metadata = { title: "Interpellation citoyenne" };
 
@@ -98,18 +99,18 @@ export default async function PublicCampaignPage({
           )}
           <div className="mt-5 flex items-center justify-center gap-6 text-[13px]">
             <span>
-              <strong className="text-emerald-400 tabular-nums">{totalEmails}</strong>{" "}
-              <span className="text-zinc-500">emails déjà envoyés</span>
+              <strong className="text-plum-700 tabular-nums dark:text-coral-300">{totalEmails}</strong>{" "}
+              <span className="text-faint">emails déjà envoyés</span>
             </span>
             {petition && (
               <span>
-                <strong className="text-indigo-400 tabular-nums">{signatureCount}</strong>{" "}
-                <span className="text-zinc-500">signatures</span>
+                <strong className="text-plum-700 tabular-nums dark:text-coral-300">{signatureCount}</strong>{" "}
+                <span className="text-faint">signatures</span>
               </span>
             )}
             <span>
-              <strong className="text-indigo-400 tabular-nums">{targets.length}</strong>{" "}
-              <span className="text-zinc-500">décideurs ciblés</span>
+              <strong className="text-plum-700 tabular-nums dark:text-coral-300">{targets.length}</strong>{" "}
+              <span className="text-faint">décideurs ciblés</span>
             </span>
           </div>
         </header>
@@ -154,24 +155,24 @@ export default async function PublicCampaignPage({
 
         {/* Petition */}
         {petition && (
-          <section className="mt-10 rounded-2xl border border-white/[0.07] bg-card p-6">
-            <h2 className="text-[17px] font-semibold text-zinc-50">
+          <section className="mt-10 rounded-2xl border border-line bg-card p-6">
+            <h2 className="text-[17px] font-semibold text-fg">
               🖊️ {petition.title}
             </h2>
-            <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-zinc-400">
+            <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-mut">
               {petition.description}
             </p>
             {/* Progress */}
             <div className="mt-5">
               <div className="flex items-baseline justify-between text-[12.5px]">
-                <span className="font-semibold text-indigo-400 tabular-nums">
+                <span className="font-semibold text-plum-700 tabular-nums dark:text-coral-300">
                   {signatureCount} signatures
                 </span>
-                <span className="text-zinc-600">objectif : {petition.goal}</span>
+                <span className="text-faint">objectif : {petition.goal}</span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-elev">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-indigo-400"
+                  className="h-full rounded-full bg-accent"
                   style={{
                     width: `${Math.min(100, Math.max(signatureCount > 0 ? 3 : 0, Math.round((signatureCount / Math.max(petition.goal, 1)) * 100)))}%`,
                   }}
@@ -180,7 +181,7 @@ export default async function PublicCampaignPage({
             </div>
             <PetitionSignForm campaignSlug={slug} signatureCount={signatureCount} />
             {petition.signatures.length > 0 && (
-              <p className="mt-4 truncate text-[11.5px] leading-relaxed text-zinc-600">
+              <p className="mt-4 truncate text-[11.5px] leading-relaxed text-faint">
                 Derniers signataires :{" "}
                 {petition.signatures
                   .map((s) => s.name + (s.city ? ` (${s.city})` : ""))
@@ -194,6 +195,7 @@ export default async function PublicCampaignPage({
         <ShareSection title={campaign.name} />
 
         <footer className="mt-12 border-t border-line pt-6 text-center">
+          <ActylLogo className="mb-4 h-7 w-[112px]" />
           <p className="text-[11.5px] leading-relaxed text-faint">
             Propulsé par{" "}
             <Link href="/" className="text-faint hover:text-mut">

@@ -28,6 +28,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { ActylLogo } from "@/components/layout/actyl-logo";
 
 export function CampaignHeader({
   campaign,
@@ -59,7 +60,9 @@ export function CampaignHeader({
   return (
     <div className="border-b border-line px-6 pb-4 pt-5">
       <nav className="mb-1 flex items-center gap-1 text-[12px] text-faint">
-        <span>Actyl</span>
+        <Link href="/" aria-label="Accueil Actyl" className="mr-0.5">
+          <ActylLogo variant="icon" className="size-4" />
+        </Link>
         <span>/</span>
         <Link href="/campaigns" className="transition-colors hover:text-mut">
           Campagnes
@@ -101,7 +104,7 @@ export function CampaignHeader({
                       >
                         <span className={cn("size-2 rounded-full", CAMPAIGN_STATUS_META[s].dot)} />
                         {CAMPAIGN_STATUS_META[s].label}
-                        {s === campaign.status && <span className="ml-auto text-indigo-700 dark:text-indigo-400">✓</span>}
+                        {s === campaign.status && <span className="ml-auto text-coral-700 dark:text-coral-400">✓</span>}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -159,7 +162,7 @@ export function CampaignHeader({
                 href={`/p/${campaign.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 transition-colors hover:text-indigo-700 dark:text-indigo-400"
+                className="inline-flex items-center gap-1 transition-colors hover:text-coral-700 dark:text-coral-400"
                 title={`Page publique : /p/${campaign.slug}`}
               >
                 <Globe className="size-3" /> /p/{campaign.slug} ↗
@@ -169,7 +172,7 @@ export function CampaignHeader({
                   key={g.name}
                   className={cn(
                     "rounded-md px-1.5 py-0.5 text-[10.5px] ring-1 ring-inset",
-                    SQUAD_TINTS[g.color] ?? SQUAD_TINTS.indigo,
+                    SQUAD_TINTS[g.color] ?? SQUAD_TINTS.coral,
                   )}
                 >
                   {g.name}
@@ -233,7 +236,7 @@ function TabLink({ href, label }: { href: string; label: string }) {
 }
 
 const SQUAD_TINTS: Record<string, string> = {
-  indigo: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-indigo-500/20",
+  coral: "bg-coral-500/10 text-coral-700 dark:text-coral-300 ring-coral-500/20",
   sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/20",
   emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20",
   amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/20",
