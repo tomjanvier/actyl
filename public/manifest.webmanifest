@@ -7,6 +7,7 @@
   "background_color": "#F7F1E8",
   "theme_color": "#2B1533",
   "icons": [
-    { "src": "/brand/actyl-clair-icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    { "src": "/brand/actyl-clair-icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/brand/actyl-sombre-icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }
