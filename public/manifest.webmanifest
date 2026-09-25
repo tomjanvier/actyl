@@ -1,0 +1,12 @@
+{
+  "name": "Actyl",
+  "short_name": "Actyl",
+  "description": "CRM de plaidoyer open-source.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F1E8",
+  "theme_color": "#2B1533",
+  "icons": [
+    { "src": "/brand/actyl-clair-icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
