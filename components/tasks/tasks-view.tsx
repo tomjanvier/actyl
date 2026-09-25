@@ -119,7 +119,7 @@ export function TasksView({
                   {t.contact && (
                     <Link
                       href="/contacts"
-                      className="inline-flex items-center gap-1 hover:text-indigo-700 dark:hover:text-indigo-400"
+                      className="inline-flex items-center gap-1 hover:text-coral-700 dark:hover:text-coral-400"
                     >
                       <EntityAvatar name={t.contact.name} color={t.contact.avatarColor} size="sm" />
                       {t.contact.name}
@@ -200,7 +200,7 @@ function QuickAddForm({
   return (
     <form action={action} className="h-fit rounded-xl border border-dashed border-line bg-card p-4">
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <Plus className="size-4 text-indigo-700 dark:text-indigo-400" /> Nouvelle tâche
+        <Plus className="size-4 text-coral-700 dark:text-coral-400" /> Nouvelle tâche
       </h3>
       <Label className="mb-1 block">Intitulé *</Label>
       <Input name="title" placeholder="Relancer le cabinet…" required className="mb-3" />

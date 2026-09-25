@@ -36,7 +36,7 @@ import {
 const SOURCE_META: Record<string, { label: string; badge: string; icon: typeof Mail }> = {
   interpellation: {
     label: "Interpellation",
-    badge: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 ring-indigo-500/20",
+    badge: "bg-coral-500/10 text-coral-700 dark:text-coral-400 ring-coral-500/20",
     icon: Mail,
   },
   petition: {
@@ -128,7 +128,7 @@ export function SupportersView({
         <div className="rounded-xl border border-line bg-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Soutiens</p>
           <p className="mt-1 flex items-center gap-2 text-2xl font-semibold tabular-nums text-fg">
-            <Users className="size-4.5 text-indigo-700 dark:text-indigo-400" />
+            <Users className="size-4.5 text-coral-700 dark:text-coral-400" />
             {total.toLocaleString("fr-FR")}
           </p>
         </div>
@@ -152,7 +152,7 @@ export function SupportersView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un soutien…"
-            className="h-9 w-64 rounded-lg border border-line bg-elev pl-8.5 pr-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-indigo-500/60"
+            className="h-9 w-64 rounded-lg border border-line bg-elev pl-8.5 pr-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
           />
         </div>
         <select
@@ -160,7 +160,7 @@ export function SupportersView({
           onChange={(e) => setSourceF(e.target.value)}
           className={cn(
             "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised",
-            sourceF && "border-indigo-500/40",
+            sourceF && "border-coral-500/40",
           )}
         >
           <option value="">Toutes origines</option>
@@ -174,7 +174,7 @@ export function SupportersView({
             onChange={(e) => setTagF(e.target.value)}
             className={cn(
               "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised",
-              tagF && "border-indigo-500/40",
+              tagF && "border-coral-500/40",
             )}
           >
             <option value="">Tous les tags</option>
@@ -186,7 +186,7 @@ export function SupportersView({
         <Buttonish onClick={exportCsv} disabled={!filtered.length} />
         <button
           onClick={() => setBroadcastOpen(true)}
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-indigo-500"
+          className="inline-flex h-9 items-center gap-2 rounded-lg bg-coral-600 px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-coral-500"
         >
           <Send className="size-3.5" /> Emailing
         </button>
@@ -237,7 +237,7 @@ export function SupportersView({
                     <span
                       key={t}
                       title={t}
-                      className="max-w-20 truncate rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-400"
+                      className="max-w-20 truncate rounded-md bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-400"
                     >
                       {t}
                     </span>
@@ -372,12 +372,12 @@ function BroadcastDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={sourceF} onChange={(e) => setSourceF(e.target.value)} className={cn(selCls, sourceF && "border-indigo-500/40")}>
+          <select value={sourceF} onChange={(e) => setSourceF(e.target.value)} className={cn(selCls, sourceF && "border-coral-500/40")}>
             <option value="">Toutes origines</option>
             {sources.map((s) => <option key={s} value={s}>{SOURCE_META[s]?.label ?? s}</option>)}
           </select>
           {tags.length > 0 && (
-            <select value={tagF} onChange={(e) => setTagF(e.target.value)} className={cn(selCls, tagF && "border-indigo-500/40")}>
+            <select value={tagF} onChange={(e) => setTagF(e.target.value)} className={cn(selCls, tagF && "border-coral-500/40")}>
               <option value="">Tous les tags</option>
               {tags.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -471,7 +471,7 @@ function TagEditor({
           {parseTags(supporter?.tags).map((t) => (
             <span
               key={t}
-              className="inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-2 py-0.5 text-[11.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-400"
+              className="inline-flex items-center gap-1 rounded-md bg-coral-500/10 px-2 py-0.5 text-[11.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-400"
             >
               {t}
               <button
@@ -484,7 +484,7 @@ function TagEditor({
                       .join(", "),
                   )
                 }
-                className="text-indigo-700/60 hover:text-rose-600 dark:text-indigo-400/60"
+                className="text-coral-700/60 hover:text-rose-600 dark:text-coral-400/60"
               >
                 <X className="size-3" />
               </button>
@@ -499,7 +499,7 @@ function TagEditor({
           onChange={(e) => setValue(e.target.value)}
           placeholder="bénévole, donateur, region:Île-de-France…"
           maxLength={300}
-          className="h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-indigo-500/60"
+          className="h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
         />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -519,7 +519,7 @@ function Buttonish({ onClick, disabled }: { onClick: () => void; disabled?: bool
     <button
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-9 items-center gap-2 rounded-lg border border-line px-3 text-[12.5px] font-medium text-mut transition-colors hover:border-indigo-500/50 hover:text-indigo-700 dark:hover:text-indigo-400 disabled:opacity-40"
+      className="inline-flex h-9 items-center gap-2 rounded-lg border border-line px-3 text-[12.5px] font-medium text-mut transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:hover:text-coral-400 disabled:opacity-40"
     >
       <Download className="size-4" /> Exporter CSV
     </button>

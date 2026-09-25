@@ -91,17 +91,17 @@ export function EmbedListTable({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher…"
-              className="h-8 w-36 rounded-lg border border-line bg-elev pl-7 pr-2 text-[12px] text-fg outline-none focus:border-indigo-500/60"
+              className="h-8 w-36 rounded-lg border border-line bg-elev pl-7 pr-2 text-[12px] text-fg outline-none focus:border-coral-500/60"
             />
           </div>
-          <select value={levelF} onChange={(e) => setLevelF(e.target.value)} className={cn(selCls, levelF && "border-indigo-500/40")}>
+          <select value={levelF} onChange={(e) => setLevelF(e.target.value)} className={cn(selCls, levelF && "border-coral-500/40")}>
             <option value="">Niveau</option>
             {LEVELS.map((l) => (
               <option key={l} value={l}>{LEVEL_META[l].label}</option>
             ))}
           </select>
           {parties.length > 0 && (
-            <select value={partyF} onChange={(e) => setPartyF(e.target.value)} className={cn(selCls, partyF && "border-indigo-500/40")}>
+            <select value={partyF} onChange={(e) => setPartyF(e.target.value)} className={cn(selCls, partyF && "border-coral-500/40")}>
               <option value="">Parti</option>
               {parties.map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -109,7 +109,7 @@ export function EmbedListTable({
             </select>
           )}
           {institutions.length > 1 && (
-            <select value={institutionF} onChange={(e) => setInstitutionF(e.target.value)} className={cn(selCls, institutionF && "border-indigo-500/40")}>
+            <select value={institutionF} onChange={(e) => setInstitutionF(e.target.value)} className={cn(selCls, institutionF && "border-coral-500/40")}>
               <option value="">Institution</option>
               {institutions.map((i) => (
                 <option key={i} value={i}>{i}</option>
@@ -119,7 +119,7 @@ export function EmbedListTable({
           <button
             onClick={exportCsv}
             title="Exporter en CSV"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line px-2.5 text-[12px] text-mut transition-colors hover:border-indigo-500/50 hover:text-indigo-700 dark:hover:text-indigo-400"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line px-2.5 text-[12px] text-mut transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:hover:text-coral-400"
           >
             <Download className="size-3.5" /> CSV
           </button>

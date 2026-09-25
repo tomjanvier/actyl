@@ -194,7 +194,7 @@ function CreateEventForm({ onCreated }: { onCreated: () => void }) {
   return (
     <form action={action} className="h-fit rounded-xl border border-dashed border-line bg-card p-4">
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <Plus className="size-4 text-indigo-700 dark:text-indigo-400" /> Nouvel événement
+        <Plus className="size-4 text-coral-700 dark:text-coral-400" /> Nouvel événement
       </h3>
       <Label className="mb-1 block">Titre *</Label>
       <Input name="title" placeholder="Réunion publique — quartier Nord" required className="mb-3" />

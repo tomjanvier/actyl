@@ -178,13 +178,13 @@ export function SignaturesView({
         <div className="rounded-xl border border-line bg-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Signatures</p>
           <p className="mt-1 flex items-center gap-2 text-2xl font-semibold tabular-nums text-fg">
-            <Users className="size-4.5 text-indigo-700 dark:text-indigo-400" />
+            <Users className="size-4.5 text-coral-700 dark:text-coral-400" />
             {petition.totalSignatures.toLocaleString("fr-FR")}
             <span className="text-[13px] font-normal text-mut">/ {petition.goal.toLocaleString("fr-FR")}</span>
           </p>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-hover">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-indigo-400"
+              className="h-full rounded-full bg-gradient-to-r from-coral-600 to-coral-400"
               style={{
                 width: `${Math.min(100, Math.round((petition.totalSignatures / Math.max(petition.goal, 1)) * 100))}%`,
               }}
@@ -226,7 +226,7 @@ export function SignaturesView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un signataire…"
-            className="h-9 w-60 rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none placeholder:text-faint focus:border-indigo-500/60"
+            className="h-9 w-60 rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
           />
           {query && (
             <button
@@ -243,7 +243,7 @@ export function SignaturesView({
             onChange={(e) => setCityF(e.target.value)}
             className={cn(
               "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised",
-              cityF && "border-indigo-500/40",
+              cityF && "border-coral-500/40",
             )}
           >
             <option value="">Toutes villes</option>
@@ -289,7 +289,7 @@ export function SignaturesView({
               type="checkbox"
               checked={allChecked}
               onChange={toggleAll}
-              className="size-3.5 accent-indigo-600"
+              className="size-3.5 accent-coral-600"
               aria-label="Tout sélectionner sur la page"
             />
             Signataire
@@ -305,7 +305,7 @@ export function SignaturesView({
                 type="checkbox"
                 checked={checked.has(s.id)}
                 onChange={() => toggle(s.id)}
-                className="size-3.5 accent-indigo-600"
+                className="size-3.5 accent-coral-600"
                 aria-label={`Sélectionner ${s.name}`}
               />
               <EntityAvatar name={s.name} size="md" />

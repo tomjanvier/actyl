@@ -17,7 +17,7 @@ export const ROLE_META: Record<
     label: "Responsable campagne",
     description:
       "Crée des campagnes et ses listes, contribue aux référentiels, déclenche les envois d'emails.",
-    badge: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/20",
+    badge: "bg-coral-500/10 text-coral-300 ring-coral-500/20",
   },
   MEMBER: {
     label: "Militant·e",
@@ -162,8 +162,8 @@ export const CAMPAIGN_STATUS_META: Record<
   },
   ACTIVE: {
     label: "Active",
-    badge: "bg-indigo-500/10 text-indigo-300 ring-indigo-500/20",
-    dot: "bg-indigo-400",
+    badge: "bg-coral-500/10 text-coral-300 ring-coral-500/20",
+    dot: "bg-coral-400",
   },
   PAUSED: {
     label: "En pause",
@@ -210,8 +210,8 @@ export const STAGE_KIND_META: Record<
     glow: "",
   },
   ACTIVE: {
-    headerDot: "bg-indigo-500",
-    headerText: "text-indigo-300",
+    headerDot: "bg-coral-500",
+    headerText: "text-coral-300",
     glow: "",
   },
   WON: {
@@ -239,7 +239,7 @@ export const CUSTOM_FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
 
 export const AVATAR_COLORS: Record<string, string> = {
   slate: "bg-slate-600",
-  indigo: "bg-indigo-600",
+  indigo: "bg-coral-600",
   emerald: "bg-emerald-600",
   amber: "bg-amber-600",
   rose: "bg-rose-600",

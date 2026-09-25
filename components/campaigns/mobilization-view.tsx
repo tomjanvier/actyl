@@ -61,13 +61,13 @@ export function MobilizationView({
                 Impact
               </h3>
               <p className="flex items-center gap-2 text-[26px] font-semibold tabular-nums text-fg">
-                <Users className="size-5 text-indigo-700 dark:text-indigo-400" />
+                <Users className="size-5 text-coral-700 dark:text-coral-400" />
                 {petition.signatureCount}
                 <span className="text-[13px] font-normal text-mut">/ {petition.goal} signatures</span>
               </p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-hover">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-indigo-400"
+                  className="h-full rounded-full bg-gradient-to-r from-coral-600 to-coral-400"
                   style={{
                     width: `${Math.min(100, Math.round((petition.signatureCount / Math.max(petition.goal, 1)) * 100))}%`,
                   }}
@@ -97,7 +97,7 @@ export function MobilizationView({
               {canManage && (
                 <Link
                   href={`/campaigns/${campaignId}/signatures`}
-                  className="mt-3 flex items-center justify-between rounded-lg bg-elev px-2.5 py-2 text-[12.5px] font-medium text-mut transition-colors hover:text-indigo-700 dark:hover:text-indigo-400"
+                  className="mt-3 flex items-center justify-between rounded-lg bg-elev px-2.5 py-2 text-[12.5px] font-medium text-mut transition-colors hover:text-coral-700 dark:hover:text-coral-400"
                 >
                   Gérer les signataires
                   <Users className="size-3.5" />
@@ -153,7 +153,7 @@ function PetitionEditor({
     <form action={action} className="max-w-2xl rounded-xl border border-line bg-card p-5">
       <input type="hidden" name="campaignId" value={campaignId} />
       <h2 className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-fg">
-        <Megaphone className="size-4 text-indigo-700 dark:text-indigo-400" />
+        <Megaphone className="size-4 text-coral-700 dark:text-coral-400" />
         Pétition publique de la campagne
       </h2>
 

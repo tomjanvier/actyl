@@ -315,7 +315,7 @@ function Column({
           ref={setNodeRef}
           className={cn(
             "flex min-h-[120px] flex-col gap-2 p-2 transition-colors",
-            isOver && "rounded-b-xl bg-indigo-500/[0.05]",
+            isOver && "rounded-b-xl bg-coral-500/[0.05]",
           )}
         >
           {cards.map((card) => (
@@ -430,7 +430,7 @@ function KanbanCardView({
       </div>
 
       {card.role && (
-        <p className="mt-2 inline-block rounded bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 dark:text-indigo-300 ring-1 ring-inset ring-indigo-500/20">
+        <p className="mt-2 inline-block rounded bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 dark:text-coral-300 ring-1 ring-inset ring-coral-500/20">
           {card.role}
         </p>
       )}
@@ -508,7 +508,7 @@ function CardMenu({
                   >
                     <span className={cn("size-2 rounded-full", PRIORITY_DOT[p])} />
                     {PRIORITY_META[p].label}
-                    {card.priority === p && <span className="ml-auto text-indigo-700 dark:text-indigo-400">✓</span>}
+                    {card.priority === p && <span className="ml-auto text-coral-700 dark:text-coral-400">✓</span>}
                   </button>
                 ))}
                 <div className="my-1 h-px bg-elev" />
@@ -533,7 +533,7 @@ function CardMenu({
 
 const AVATAR_BG: Record<string, string> = {
   slate: "bg-slate-600",
-  indigo: "bg-indigo-600",
+  indigo: "bg-coral-600",
   emerald: "bg-emerald-600",
   amber: "bg-amber-600",
   rose: "bg-rose-600",
@@ -564,7 +564,7 @@ function ActivityPanel({
     <div className="fixed bottom-0 right-0 top-0 z-30 flex w-80 flex-col border-l border-line bg-sidebar pt-4 shadow-2xl shadow-black/60">
       <header className="flex items-center justify-between border-b border-line px-4 pb-3">
         <h3 className="flex items-center gap-2 text-[13px] font-semibold text-fg">
-          <History className="size-4 text-indigo-700 dark:text-indigo-400" /> Activité récente
+          <History className="size-4 text-coral-700 dark:text-coral-400" /> Activité récente
         </h3>
         <button onClick={onClose} className="text-faint hover:text-mut">
           ✕
@@ -620,7 +620,7 @@ function AddTargetDialog({
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Rechercher un décideur…"
         autoFocus
-        className="h-9 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-indigo-500/60"
+        className="h-9 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
       />
       <div className="max-h-72 overflow-y-auto rounded-lg border border-line">
         {filtered.slice(0, 60).map((c) => (
@@ -636,7 +636,7 @@ function AddTargetDialog({
                   e.target.checked ? [...s, c.id] : s.filter((id) => id !== c.id),
                 )
               }
-              className="size-3.5 accent-indigo-500"
+              className="size-3.5 accent-coral-500"
             />
             <span
               className={cn(

@@ -78,7 +78,7 @@ export default async function CampaignsPage() {
           can(session.role, "campaign:create") ? (
             <Link
               href="/campaigns?new=1"
-              className="inline-flex h-8 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-xs font-medium text-white transition-colors hover:bg-indigo-500"
+              className="inline-flex h-8 items-center gap-2 rounded-lg bg-coral-600 px-3 text-xs font-medium text-white transition-colors hover:bg-coral-500"
             >
               + Nouvelle campagne
             </Link>

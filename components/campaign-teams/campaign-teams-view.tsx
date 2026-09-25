@@ -44,7 +44,7 @@ type Team = {
 
 const STATUS_COLUMNS = [
   { key: "OFFICIAL", label: "Candidatures officielles", accent: "border-emerald-500/40" },
-  { key: "LIKELY", label: "Candidatures probables", accent: "border-indigo-500/40" },
+  { key: "LIKELY", label: "Candidatures probables", accent: "border-coral-500/40" },
   { key: "WATCH", label: "À surveiller", accent: "border-amber-500/40" },
   { key: "UNKNOWN", label: "À qualifier", accent: "border-zinc-500/40" },
 ] as const;
@@ -302,7 +302,7 @@ function CampaignTeamCard({
       {!compact && team.members.length > 5 && (
         <button
           type="button"
-          className="mt-2 text-[11.5px] font-medium text-indigo-700 dark:text-indigo-400"
+          className="mt-2 text-[11.5px] font-medium text-coral-700 dark:text-coral-400"
           onClick={onToggle}
         >
           {expanded ? "Réduire à 5 membres" : `Afficher les ${team.members.length - 5} autres membres`}

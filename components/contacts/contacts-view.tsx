@@ -348,7 +348,7 @@ export function ContactsView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un décideur…"
-            className="h-9 w-full rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-indigo-500/60 sm:w-64"
+            className="h-9 w-full rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-coral-500/60 sm:w-64"
           />
           {query && (
             <button
@@ -439,7 +439,7 @@ export function ContactsView({
           value={themeQuery}
           onChange={(e) => setThemeQuery(e.target.value)}
           placeholder="Thématique…"
-          className="h-9 w-32 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-indigo-500/60"
+          className="h-9 w-32 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-coral-500/60"
         />
 
         {newsletterEnabled && (
@@ -458,7 +458,7 @@ export function ContactsView({
         )}
 
         {newsletterEnabled && checked.size > 0 && (
-          <span className="flex flex-wrap items-center gap-2 rounded-lg bg-indigo-500/[0.06] px-2 py-1 ring-1 ring-inset ring-indigo-500/20">
+          <span className="flex flex-wrap items-center gap-2 rounded-lg bg-coral-500/[0.06] px-2 py-1 ring-1 ring-inset ring-coral-500/20">
             <span className="text-[12px] tabular-nums text-mut">
               {checked.size} sélection
             </span>
@@ -528,7 +528,7 @@ export function ContactsView({
                       type="checkbox"
                       checked={allChecked}
                       onChange={toggleAllNewsletter}
-                      className="size-3.5 accent-indigo-600"
+                      className="size-3.5 accent-coral-600"
                       aria-label="Tout sélectionner (avec email)"
                     />
                   </th>
@@ -555,7 +555,7 @@ export function ContactsView({
                   <tr
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
-                    className={cn("cursor-pointer", checked.has(c.id) && "bg-indigo-500/[0.04]")}
+                    className={cn("cursor-pointer", checked.has(c.id) && "bg-coral-500/[0.04]")}
                   >
                     {newsletterEnabled && (
                       <td onClick={(e) => e.stopPropagation()}>
@@ -572,7 +572,7 @@ export function ContactsView({
                             })
                           }
                           title={c.email ? "" : "Pas d'email sur cette fiche"}
-                          className="size-3.5 accent-indigo-600 disabled:opacity-30"
+                          className="size-3.5 accent-coral-600 disabled:opacity-30"
                         />
                       </td>
                     )}
@@ -584,7 +584,7 @@ export function ContactsView({
                             {fullName(c)}
                           </p>
                           {priv?.tags && (
-                            <p className="truncate text-[11px] text-indigo-700 dark:text-indigo-400/80">
+                            <p className="truncate text-[11px] text-coral-700 dark:text-coral-400/80">
                               🔖 {priv.tags.split(",")[0]}
                             </p>
                           )}
@@ -756,5 +756,5 @@ function CustomCell({
 }
 
 const filterCls =
-  "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-indigo-500/60 [&>option]:bg-raised";
-const activeCls = "border-indigo-500/40 text-indigo-700 dark:text-indigo-300";
+  "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-coral-500/60 [&>option]:bg-raised";
+const activeCls = "border-coral-500/40 text-coral-700 dark:text-coral-300";

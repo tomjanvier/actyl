@@ -25,7 +25,7 @@ function Badge({
 
 const avatarColorMap: Record<string, string> = {
   slate: "bg-slate-600",
-  indigo: "bg-indigo-600",
+  indigo: "bg-coral-600",
   emerald: "bg-emerald-600",
   amber: "bg-amber-600",
   rose: "bg-rose-600",

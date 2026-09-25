@@ -189,7 +189,7 @@ export function Sidebar({
               <DropdownMenuItem key={ws.id} onClick={() => void switchWorkspace(ws.id)}>
                 <span>{ws.logoEmoji}</span>
                 <span className="truncate">{ws.name}</span>
-                {ws.id === workspace.id && <Check className="ml-auto !text-indigo-700 dark:text-indigo-400" />}
+                {ws.id === workspace.id && <Check className="ml-auto !text-coral-700 dark:text-coral-400" />}
               </DropdownMenuItem>
             ))}
             {isSuperAdmin && (
@@ -226,7 +226,7 @@ export function Sidebar({
                     : "text-faint hover:bg-elev hover:text-mut",
                 )}
               >
-                <item.icon className={cn("size-4 shrink-0", active && "text-indigo-700 dark:text-indigo-400")} />
+                <item.icon className={cn("size-4 shrink-0", active && "text-coral-700 dark:text-coral-400")} />
                 {!collapsed && item.label}
               </Link>
               {item.href === "/campaigns" && !collapsed && pinnedCampaigns.length > 0 && (
