@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Landmark,
   KanbanSquare,
   Megaphone,
   Users,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ActylLogo } from "@/components/layout/actyl-logo";
 
 import { LandingDemoTable } from "@/components/public/landing-demo-table";
 import { getLandingSettings } from "@/lib/landing-settings";
@@ -27,14 +27,9 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-canvas">
       {/* Nav */}
       <header className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-indigo-600/20 ring-1 ring-inset ring-indigo-500/30">
-            <Landmark className="size-4 text-indigo-700 dark:text-indigo-400" />
-          </span>
-          <span className="text-[14px] font-semibold tracking-tight text-fg">
-            Actyl
-          </span>
-        </div>
+        <Link href="/" aria-label="Accueil Actyl">
+          <ActylLogo className="h-9 w-[142px]" priority />
+        </Link>
         <nav className="flex items-center gap-3">
           <Link href="/sign-in">
             <Button variant="ghost" size="sm">
@@ -58,7 +53,7 @@ export default async function LandingPage() {
           </Badge>
           <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-[52px]">
             {settings.heroTitle}{" "}
-            <span className="bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">
+            <span className="text-coral-700 dark:text-coral-300">
               {settings.heroHighlight}
             </span>
           </h1>
@@ -121,7 +116,7 @@ export default async function LandingPage() {
               key={f.title}
               className="group rounded-xl border border-line bg-card p-5 transition-colors hover:border-line"
             >
-              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-elev text-mut ring-1 ring-inset ring-line transition-colors group-hover:text-indigo-700 dark:text-indigo-300">
+              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-elev text-mut ring-1 ring-inset ring-line transition-colors group-hover:text-coral-700 dark:text-coral-300">
                 <f.icon className="size-4.5" />
               </div>
               <h3 className="text-[14px] font-semibold text-fg">
@@ -138,7 +133,7 @@ export default async function LandingPage() {
         <section className="pb-20">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-[18px] font-semibold tracking-tight text-zinc-50">
+              <h2 className="text-[18px] font-semibold tracking-tight text-fg">
                 Un annuaire des décideurs, en accès direct
               </h2>
               <p className="mt-1 text-[13px] text-mut">

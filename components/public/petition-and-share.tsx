@@ -42,7 +42,7 @@ export function PetitionSignForm({
         {/* ActionButton-style ladder: signature → email → share */}
         <a
           href="#interpeller"
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-[13px] font-semibold text-white transition-colors hover:bg-indigo-500"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-ink transition-colors hover:bg-accent-hover"
         >
           <Mail className="size-4" />
           Franchisez le pas : écrivez aussi à vos décideurs
@@ -82,12 +82,12 @@ export function ShareSection({ title }: { title: string }) {
   }
 
   return (
-    <section className="mt-10 rounded-2xl border border-white/[0.07] bg-card p-6 text-center">
-      <Share className="mx-auto mb-2 size-5 text-indigo-400" />
-      <h2 className="text-[15px] font-semibold text-zinc-50">
+    <section className="mt-10 rounded-2xl border border-line bg-card p-6 text-center">
+      <Share className="mx-auto mb-2 size-5 text-coral-700 dark:text-coral-300" />
+      <h2 className="text-[15px] font-semibold text-fg">
         Faites circuler — c&apos;est là que tout se joue
       </h2>
-      <p className="mx-auto mt-1 max-w-md text-[12.5px] leading-relaxed text-zinc-500">
+      <p className="mx-auto mt-1 max-w-md text-[12.5px] leading-relaxed text-mut">
         Une campagne n&apos;a d&apos;impact que par son nombre de soutiens.
         Envoyez cette page à vos proches en 10 secondes.
       </p>
@@ -111,7 +111,7 @@ export function ShareSection({ title }: { title: string }) {
 }
 
 const fCls =
-  "h-10 w-full rounded-lg border border-white/[0.09] bg-white/[0.04] px-3 text-[13px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-indigo-500/60 sm:flex-1";
+  "h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-coral-500 focus:ring-2 focus:ring-accent-ring sm:flex-1";
 
 const shareBtn =
-  "inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.09] bg-white/[0.04] px-3.5 text-[12.5px] font-medium text-zinc-300 transition-colors hover:border-indigo-500/40 hover:text-indigo-300";
+  "inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-elev px-3.5 text-[12.5px] font-medium text-mut transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:hover:text-coral-300";

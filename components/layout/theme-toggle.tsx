@@ -8,7 +8,6 @@ export function ThemeToggle() {
   const [dark, setDark] = useState(true);
 
   useEffect(() => {
-    setDark(!document.documentElement.classList.contains("dark") === false);
     // Se synchronise avec le script qui évite le clignotement initial.
     setDark(document.documentElement.classList.contains("dark"));
   }, []);

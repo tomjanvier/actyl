@@ -36,6 +36,7 @@ import { EntityAvatar } from "@/components/ui/badge";
 import { CommandMenu } from "@/components/layout/command-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { PlaidActCredit } from "@/components/layout/plaidact-credit";
+import { ActylLogo } from "@/components/layout/actyl-logo";
 
 export type WorkspaceOption = {
   id: string;
@@ -139,6 +140,21 @@ export function Sidebar({
         collapsed ? "w-[56px] max-md:!w-[min(86vw,300px)]" : "w-[228px]",
       )}
     >
+      <div
+        className={cn(
+          "flex h-14 shrink-0 items-center border-b border-line px-3",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        <Link href="/" aria-label="Accueil Actyl">
+          <ActylLogo
+            variant={collapsed ? "icon" : "lockup"}
+            className={collapsed ? "size-7" : "h-7 w-[116px]"}
+            priority
+          />
+        </Link>
+      </div>
+
       {/* Sélecteur d’espace de travail. */}
       <div className={cn("flex items-center gap-2 px-3 pb-2 pt-4", collapsed && "justify-center px-0")}>
         <Button variant="ghost" size="icon-sm" className="ml-auto md:hidden" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu">

@@ -4,20 +4,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 disabled:pointer-events-none disabled:opacity-45 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13px] font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring disabled:pointer-events-none disabled:opacity-45 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-indigo-600 text-white shadow-sm hover:bg-indigo-500",
+          "bg-accent text-accent-ink shadow-sm hover:bg-accent-hover",
         secondary:
           "bg-elev text-fg ring-1 ring-inset ring-line hover:bg-hoverstrong",
         outline:
-          "border border-white/10 bg-transparent text-mut hover:bg-elev hover:text-fg",
+          "border border-line bg-transparent text-mut hover:bg-elev hover:text-fg",
         ghost: "text-mut hover:bg-elev hover:text-fg",
         destructive:
           "bg-rose-600/90 text-white hover:bg-rose-500",
-        link: "text-indigo-700 dark:text-indigo-400 underline-offset-4 hover:underline",
+        link: "text-coral-700 underline-offset-4 hover:text-coral-600 hover:underline dark:text-coral-300",
       },
       size: {
         default: "h-9 px-3.5",

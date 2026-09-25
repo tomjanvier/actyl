@@ -50,7 +50,7 @@ const Switch = ({
 }: React.ComponentProps<typeof SwitchPrimitive.Root>) => (
   <SwitchPrimitive.Root
     className={cn(
-      "peer inline-flex h-[20px] w-[36px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-indigo-600 data-[state=unchecked]:bg-hoverstrong",
+      "peer inline-flex h-[20px] w-[36px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-accent data-[state=unchecked]:bg-hoverstrong",
       className,
     )}
     {...props}
@@ -81,13 +81,13 @@ const Checkbox = ({
 }: React.ComponentProps<typeof CheckboxPrimitive.Root>) => (
   <CheckboxPrimitive.Root
     className={cn(
-      "peer size-4 shrink-0 rounded border border-white/15 bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-indigo-500 data-[state=checked]:bg-indigo-600 data-[state=indeterminate]:border-indigo-500 data-[state=indeterminate]:bg-indigo-600",
+      "peer size-4 shrink-0 rounded border border-line bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent",
       className,
     )}
     checked={checked}
     {...props}
   >
-    <CheckboxPrimitive.Indicator className="flex items-center justify-center text-white">
+    <CheckboxPrimitive.Indicator className="flex items-center justify-center text-accent-ink">
       {checked === "indeterminate" ? (
         <Minus className="size-3" />
       ) : (

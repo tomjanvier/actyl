@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   description:
     "CRM de plaidoyer open-source : campagnes de lobbying, suivi des décideurs et mobilisation citoyenne.",
   applicationName: "Actyl",
+  icons: {
+    icon: "/brand/actyl-sombre-icone.svg",
+  },
 };
 
 const themeScript = `(function(){try{var t=localStorage.getItem("actyl_theme");if(t==="light"){document.documentElement.classList.remove("dark")}else{document.documentElement.classList.add("dark")}}catch(e){document.documentElement.classList.add("dark")}})()`;

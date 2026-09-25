@@ -11,7 +11,7 @@ export function PlaidActCredit({ className }: { className?: string }) {
     >
       by{" "}
       <span className="font-semibold tracking-wide">
-        PLAID<span className="text-indigo-700 dark:text-indigo-400">·</span>ACT
+        PLAID<span className="text-coral-700 dark:text-coral-300">·</span>ACT
       </span>
     </a>
   );

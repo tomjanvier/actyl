@@ -7,47 +7,55 @@
 :root {
   color-scheme: light;
 
-  --canvas: #f4f0e8;
-  --sidebar: #ebe6da;
-  --raised: #fffdf8;
-  --overlay: #26312b;
+  --canvas: #f7f1e8;
+  --sidebar: #f2e9de;
+  --raised: #fffcf7;
+  --overlay: #2b1533;
 
-  --fg: #202b25;
-  --mut: #5b675f;
-  --faint: #879189;
+  --fg: #2b1533;
+  --mut: #67536d;
+  --faint: #88788d;
 
-  --line: rgba(32, 43, 37, 0.12);
-  --line-soft: rgba(32, 43, 37, 0.07);
+  --line: rgba(43, 21, 51, 0.13);
+  --line-soft: rgba(43, 21, 51, 0.075);
 
-  --hover: rgba(32, 43, 37, 0.055);
-  --elev: rgba(32, 43, 37, 0.065);
-  --hoverstrong: rgba(32, 43, 37, 0.12);
+  --hover: rgba(43, 21, 51, 0.055);
+  --elev: rgba(43, 21, 51, 0.07);
+  --hoverstrong: rgba(43, 21, 51, 0.12);
 
-  --card: #fffdf8;
-
-  --accent: #bc4a32;
+  --card: #fffcf7;
+  --accent: #f25f4c;
+  --accent-hover: #dc4c3a;
+  --accent-soft: rgba(242, 95, 76, 0.12);
+  --accent-ring: rgba(242, 95, 76, 0.34);
+  --accent-ink: #16091c;
 }
 
 .dark {
   color-scheme: dark;
 
-  --canvas: #111815;
-  --sidebar: #151e1a;
-  --raised: #1b2721;
-  --overlay: #24332a;
+  --canvas: #16091c;
+  --sidebar: #1d0d24;
+  --raised: #2b1533;
+  --overlay: #2b1533;
 
-  --fg: #edf2e8;
-  --mut: #aab6aa;
-  --faint: #778579;
+  --fg: #f7f1e8;
+  --mut: #c9bbc7;
+  --faint: #a28fa7;
 
-  --line: rgba(237, 242, 232, 0.1);
-  --line-soft: rgba(237, 242, 232, 0.06);
+  --line: rgba(247, 241, 232, 0.12);
+  --line-soft: rgba(247, 241, 232, 0.07);
 
-  --hover: rgba(237, 242, 232, 0.05);
-  --elev: rgba(237, 242, 232, 0.07);
-  --hoverstrong: rgba(237, 242, 232, 0.13);
+  --hover: rgba(247, 241, 232, 0.055);
+  --elev: rgba(247, 241, 232, 0.075);
+  --hoverstrong: rgba(247, 241, 232, 0.13);
 
-  --card: rgba(255, 255, 255, 0.035);
+  --card: rgba(247, 241, 232, 0.045);
+  --accent: #f25f4c;
+  --accent-hover: #fa7563;
+  --accent-soft: rgba(242, 95, 76, 0.14);
+  --accent-ring: rgba(242, 95, 76, 0.38);
+  --accent-ink: #16091c;
 }
 
 /* ── Register tokens as Tailwind utilities ──────────────────────────────── */
@@ -69,17 +77,47 @@
   --color-elev: var(--elev);
   --color-hoverstrong: var(--hoverstrong);
 
-  --color-indigo-50: #fff4ed;
-  --color-indigo-100: #ffe1d1;
-  --color-indigo-200: #ffc4aa;
-  --color-indigo-300: #f9a27e;
-  --color-indigo-400: #ed7c5a;
-  --color-indigo-500: #d55f40;
-  --color-indigo-600: #bc4a32;
-  --color-indigo-700: #993a2b;
-  --color-indigo-800: #7c3228;
-  --color-indigo-900: #662c24;
-  --color-indigo-950: #38140f;
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ring: var(--accent-ring);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-plum-50: #f8f3f8;
+  --color-plum-100: #eadbea;
+  --color-plum-200: #d5b9d5;
+  --color-plum-300: #b98dba;
+  --color-plum-400: #966197;
+  --color-plum-500: #754577;
+  --color-plum-600: #5c315e;
+  --color-plum-700: #2b1533;
+  --color-plum-800: #240f2b;
+  --color-plum-900: #1c0b22;
+  --color-plum-950: #16091c;
+
+  --color-coral-50: #fff4f0;
+  --color-coral-100: #ffe4dc;
+  --color-coral-200: #ffcabc;
+  --color-coral-300: #fca28b;
+  --color-coral-400: #f98068;
+  --color-coral-500: #f25f4c;
+  --color-coral-600: #dc4c3a;
+  --color-coral-700: #b93a2c;
+  --color-coral-800: #963027;
+  --color-coral-900: #792921;
+  --color-coral-950: #42120f;
+
+  --color-indigo-50: #fff4f0;
+  --color-indigo-100: #ffe4dc;
+  --color-indigo-200: #ffcabc;
+  --color-indigo-300: #fca28b;
+  --color-indigo-400: #f98068;
+  --color-indigo-500: #f25f4c;
+  --color-indigo-600: #dc4c3a;
+  --color-indigo-700: #b93a2c;
+  --color-indigo-800: #963027;
+  --color-indigo-900: #792921;
+  --color-indigo-950: #42120f;
 }
 
 html {
