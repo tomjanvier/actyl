@@ -7,47 +7,47 @@
 :root {
   color-scheme: light;
 
-  --canvas: #f7f7f8;
-  --sidebar: #eff0f2;
-  --raised: #ffffff;
-  --overlay: #27272a;
+  --canvas: #f4f0e8;
+  --sidebar: #ebe6da;
+  --raised: #fffdf8;
+  --overlay: #26312b;
 
-  --fg: #18181b;
-  --mut: #55555e;
-  --faint: #83838d;
+  --fg: #202b25;
+  --mut: #5b675f;
+  --faint: #879189;
 
-  --line: rgba(9, 9, 11, 0.1);
-  --line-soft: rgba(9, 9, 11, 0.06);
+  --line: rgba(32, 43, 37, 0.12);
+  --line-soft: rgba(32, 43, 37, 0.07);
 
-  --hover: rgba(9, 9, 11, 0.04);
-  --elev: rgba(9, 9, 11, 0.055);
-  --hoverstrong: rgba(9, 9, 11, 0.1);
+  --hover: rgba(32, 43, 37, 0.055);
+  --elev: rgba(32, 43, 37, 0.065);
+  --hoverstrong: rgba(32, 43, 37, 0.12);
 
-  --card: #ffffff;
+  --card: #fffdf8;
 
-  --accent: #6366f1;
+  --accent: #bc4a32;
 }
 
 .dark {
   color-scheme: dark;
 
-  --canvas: #09090b;
-  --sidebar: #0c0c0f;
-  --raised: #131316;
-  --overlay: #1c1c21;
+  --canvas: #111815;
+  --sidebar: #151e1a;
+  --raised: #1b2721;
+  --overlay: #24332a;
 
-  --fg: #f4f4f5;
-  --mut: #a1a1aa;
-  --faint: #71717a;
+  --fg: #edf2e8;
+  --mut: #aab6aa;
+  --faint: #778579;
 
-  --line: rgba(255, 255, 255, 0.07);
-  --line-soft: rgba(255, 255, 255, 0.045);
+  --line: rgba(237, 242, 232, 0.1);
+  --line-soft: rgba(237, 242, 232, 0.06);
 
-  --hover: rgba(255, 255, 255, 0.035);
-  --elev: rgba(255, 255, 255, 0.05);
-  --hoverstrong: rgba(255, 255, 255, 0.1);
+  --hover: rgba(237, 242, 232, 0.05);
+  --elev: rgba(237, 242, 232, 0.07);
+  --hoverstrong: rgba(237, 242, 232, 0.13);
 
-  --card: rgba(255, 255, 255, 0.025);
+  --card: rgba(255, 255, 255, 0.035);
 }
 
 /* ── Register tokens as Tailwind utilities ──────────────────────────────── */
@@ -68,6 +68,18 @@
   --color-hover: var(--hover);
   --color-elev: var(--elev);
   --color-hoverstrong: var(--hoverstrong);
+
+  --color-indigo-50: #fff4ed;
+  --color-indigo-100: #ffe1d1;
+  --color-indigo-200: #ffc4aa;
+  --color-indigo-300: #f9a27e;
+  --color-indigo-400: #ed7c5a;
+  --color-indigo-500: #d55f40;
+  --color-indigo-600: #bc4a32;
+  --color-indigo-700: #993a2b;
+  --color-indigo-800: #7c3228;
+  --color-indigo-900: #662c24;
+  --color-indigo-950: #38140f;
 }
 
 html {
@@ -76,14 +88,23 @@ html {
 
 body {
   background-color: var(--canvas);
+  background-image: radial-gradient(80rem 30rem at 100% -8%, color-mix(in oklab, var(--accent) 8%, transparent), transparent 68%);
   color: var(--fg);
+  font-family: var(--font-dm-sans), "Avenir Next", "Segoe UI", sans-serif;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--font-fraunces), Georgia, serif;
+  letter-spacing: -0.025em;
+}
+
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
+  background: color-mix(in oklab, var(--accent) 28%, transparent);
 }
 
 /* Scrollbars — slim & unobtrusive (Twenty-style) */
@@ -108,7 +129,7 @@ body {
 
 /* Focus ring consistency */
 :focus-visible {
-  outline: 2px solid rgba(129, 140, 248, 0.55);
+  outline: 2px solid color-mix(in oklab, var(--accent) 62%, transparent);
   outline-offset: 2px;
 }
 
