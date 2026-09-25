@@ -12,6 +12,7 @@ export default async function TasksPage() {
     db.task.findMany({
       where: { workspaceId: session.workspaceId },
       orderBy: [{ done: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
+      take: 500,
       include: {
         contact: {
           select: {

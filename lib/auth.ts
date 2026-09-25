@@ -8,6 +8,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -81,8 +82,7 @@ export type SessionContext = {
   logoEmoji: string;
 };
 
-/** Retourne l'utilisateur connecté et son espace actif, ou null. */
-export async function getSession(): Promise<SessionContext | null> {
+async function readSession(): Promise<SessionContext | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -127,6 +127,8 @@ export async function getSession(): Promise<SessionContext | null> {
     logoEmoji: membership.workspace.logoEmoji,
   };
 }
+
+export const getSession = cache(readSession);
 
 /** Protection serveur redirigeant vers /sign-in sans authentification. */
 export async function requireSession(): Promise<SessionContext> {

@@ -42,11 +42,13 @@ export function can(role: Role | undefined, action: string): boolean {
       "list:create", "list:edit",
       "email:send", "template:manage",
       "contact:create", "contact:edit",
+      "task:edit", "task:delete",
       "note:add",
     ],
     MEMBER: [
       "card:create", "card:move", "card:edit",
       "contact:create", "contact:edit",
+      "task:edit",
       "list:create", "list:edit",
       "note:add",
     ],

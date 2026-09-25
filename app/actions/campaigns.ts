@@ -332,6 +332,13 @@ export async function assignCardAction(cardId: string, userId: string | null) {
     },
   });
   if (!card) throw new Error("Carte introuvable");
+  if (userId) {
+    const membership = await db.membership.findFirst({
+      where: { userId, workspaceId: session.workspaceId },
+      select: { userId: true },
+    });
+    if (!membership) throw new Error("Membre introuvable");
+  }
   await db.kanbanCard.update({
     where: { id: cardId },
     data: { assignedToId: userId, lastTouchAt: new Date() },

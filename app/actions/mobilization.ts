@@ -228,7 +228,7 @@ export async function createTaskAction(
 ): Promise<{ error?: string; ok?: boolean }> {
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
-  if (session.role === "OBSERVER") return { error: "Permission refusée" };
+  if (!can(session.role, "task:edit")) return { error: "Permission refusée" };
 
   const title = String(formData.get("title") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
@@ -236,6 +236,17 @@ export async function createTaskAction(
   const dueDateRaw = String(formData.get("dueDate") ?? "");
   const assignedToId = String(formData.get("assignedToId") ?? "");
   if (title.length < 3) return { error: "Intitulé requis" };
+
+  const [contact, assignedMembership] = await Promise.all([
+    contactId
+      ? db.contact.findFirst({ where: { id: contactId, workspaceId: session.workspaceId }, select: { id: true } })
+      : null,
+    assignedToId
+      ? db.membership.findFirst({ where: { userId: assignedToId, workspaceId: session.workspaceId }, select: { userId: true } })
+      : null,
+  ]);
+  if (contactId && !contact) return { error: "Contact introuvable" };
+  if (assignedToId && !assignedMembership) return { error: "Membre introuvable" };
 
   await db.task.create({
     data: {
@@ -255,6 +266,7 @@ export async function createTaskAction(
 export async function toggleTaskDoneAction(taskId: string, done: boolean) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
+  if (!can(session.role, "task:edit")) throw new Error("Permission refusée");
   const task = await db.task.findFirst({
     where: { id: taskId, workspaceId: session.workspaceId },
   });
@@ -266,6 +278,7 @@ export async function toggleTaskDoneAction(taskId: string, done: boolean) {
 export async function deleteTaskAction(taskId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
+  if (!can(session.role, "task:delete")) throw new Error("Permission refusée");
   const task = await db.task.findFirst({
     where: { id: taskId, workspaceId: session.workspaceId },
   });
