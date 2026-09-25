@@ -46,7 +46,7 @@ export function SignInForm({
             href={actStartHref}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-medium ring-1 ring-inset ring-coral-500/30 bg-coral-500/10 text-coral-700 dark:text-coral-300 hover:bg-coral-500/20"
           >
-            <Image src="/act-mark.svg" width={24} height={24} alt="" /> Se connecter avec Act
+            <Image src="/brand/act-clair-icone.svg" width={24} height={24} alt="" /> Se connecter avec Act
           </a>
           {actError && ACT_ERRORS[actError] && (
             <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-[12.5px] text-rose-700 dark:text-rose-400 ring-1 ring-inset ring-rose-500/20">
