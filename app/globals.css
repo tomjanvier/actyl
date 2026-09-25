@@ -7,12 +7,21 @@
 :root {
   color-scheme: light;
 
-  --canvas: #f7f1e8;
+  --brand-coral: #F25F4C;
+  --brand-plum: #2B1533;
+  --brand-ink: #16091C;
+  --brand-cream: #F7F1E8;
+  --brand-lavender: #C4B5FD;
+  --brand-primary: var(--brand-coral);
+  --brand-accent: var(--brand-lavender);
+  --focus: var(--brand-plum);
+
+  --canvas: var(--brand-cream);
   --sidebar: #f2e9de;
   --raised: #fffcf7;
-  --overlay: #2b1533;
+  --overlay: var(--brand-plum);
 
-  --fg: #2b1533;
+  --fg: var(--brand-plum);
   --mut: #67536d;
   --faint: #88788d;
 
@@ -24,22 +33,22 @@
   --hoverstrong: rgba(43, 21, 51, 0.12);
 
   --card: #fffcf7;
-  --accent: #f25f4c;
+  --accent: var(--brand-primary);
   --accent-hover: #dc4c3a;
   --accent-soft: rgba(242, 95, 76, 0.12);
   --accent-ring: rgba(242, 95, 76, 0.34);
-  --accent-ink: #16091c;
+  --accent-ink: var(--brand-ink);
 }
 
 .dark {
   color-scheme: dark;
 
-  --canvas: #16091c;
+  --canvas: var(--brand-ink);
   --sidebar: #1d0d24;
-  --raised: #2b1533;
-  --overlay: #2b1533;
+  --raised: var(--brand-plum);
+  --overlay: var(--brand-plum);
 
-  --fg: #f7f1e8;
+  --fg: var(--brand-cream);
   --mut: #c9bbc7;
   --faint: #a28fa7;
 
@@ -51,15 +60,23 @@
   --hoverstrong: rgba(247, 241, 232, 0.13);
 
   --card: rgba(247, 241, 232, 0.045);
-  --accent: #f25f4c;
+  --accent: var(--brand-primary);
   --accent-hover: #fa7563;
   --accent-soft: rgba(242, 95, 76, 0.14);
   --accent-ring: rgba(242, 95, 76, 0.38);
-  --accent-ink: #16091c;
+  --accent-ink: var(--brand-ink);
+  --focus: var(--brand-cream);
 }
 
 /* ── Register tokens as Tailwind utilities ──────────────────────────────── */
 @theme inline {
+  --color-brand-coral: var(--brand-coral);
+  --color-brand-plum: var(--brand-plum);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-lavender: var(--brand-lavender);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-accent: var(--brand-accent);
   --color-canvas: var(--canvas);
   --color-sidebar: var(--sidebar);
   --color-raised: var(--raised);
@@ -106,18 +123,6 @@
   --color-coral-800: #963027;
   --color-coral-900: #792921;
   --color-coral-950: #42120f;
-
-  --color-indigo-50: #fff4f0;
-  --color-indigo-100: #ffe4dc;
-  --color-indigo-200: #ffcabc;
-  --color-indigo-300: #fca28b;
-  --color-indigo-400: #f98068;
-  --color-indigo-500: #f25f4c;
-  --color-indigo-600: #dc4c3a;
-  --color-indigo-700: #b93a2c;
-  --color-indigo-800: #963027;
-  --color-indigo-900: #792921;
-  --color-indigo-950: #42120f;
 }
 
 html {
@@ -167,7 +172,7 @@ h3 {
 
 /* Focus ring consistency */
 :focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--accent) 62%, transparent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 

@@ -84,7 +84,7 @@ export function PaginationBar({
             aria-current="page"
             className={cn(
               linkCls,
-              "bg-indigo-600 text-white ring-indigo-600",
+              "bg-coral-600 text-white ring-coral-600",
             )}
           >
             {p}

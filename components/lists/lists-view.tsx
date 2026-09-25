@@ -242,7 +242,7 @@ export function ListsView({
               <li className="px-2 pb-1 pt-1">
                 <button
                   type="button"
-                  className="w-full rounded-lg px-2 py-1.5 text-left text-[11.5px] font-medium text-indigo-700 hover:bg-hover dark:text-indigo-400"
+                  className="w-full rounded-lg px-2 py-1.5 text-left text-[11.5px] font-medium text-coral-700 hover:bg-hover dark:text-coral-400"
                   onClick={() => router.push(`/contacts?list=${encodeURIComponent(list.id)}`)}
                 >
                   Voir les {list.totalItems - 5} autres dans le répertoire
@@ -262,7 +262,7 @@ export function ListsView({
                 {(list.attributes ?? []).map((a) => (
                   <span
                     key={a.id}
-                    className="inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-400"
+                    className="inline-flex items-center gap-1 rounded-md bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-400"
                   >
                     {a.label}
                     {list.canEdit && (
@@ -271,7 +271,7 @@ export function ListsView({
                         onClick={() => {
                           void deleteListFieldAction(a.id).then(refresh);
                         }}
-                        className="text-indigo-700/60 hover:text-rose-600 dark:text-indigo-400/60"
+                        className="text-coral-700/60 hover:text-rose-600 dark:text-coral-400/60"
                       >
                         <X className="size-2.5" />
                       </button>
@@ -547,7 +547,7 @@ function AddContactsDialog({
                     e.target.checked ? [...s, c.id] : s.filter((id) => id !== c.id),
                   )
                 }
-                className="size-3.5 accent-indigo-500"
+                className="size-3.5 accent-coral-500"
               />
               <EntityAvatar name={fullName(c)} color={c.avatarColor} size="sm" photoUrl={c.photoUrl} />
               <span className="min-w-0 flex-1 truncate text-[12.5px] text-mut">
@@ -623,12 +623,12 @@ function ListAttrCreator({
         autoFocus
         maxLength={60}
         placeholder="Ex : Commission, Mandat…"
-        className="h-6 w-40 rounded-md border border-line bg-elev px-1.5 text-[11px] text-fg outline-none focus:border-indigo-500/60"
+        className="h-6 w-40 rounded-md border border-line bg-elev px-1.5 text-[11px] text-fg outline-none focus:border-coral-500/60"
       />
       <button
         onClick={() => void create()}
         disabled={busy || !label.trim()}
-        className="text-[11px] font-medium text-indigo-700 hover:text-indigo-600 disabled:opacity-40 dark:text-indigo-400"
+        className="text-[11px] font-medium text-coral-700 hover:text-coral-600 disabled:opacity-40 dark:text-coral-400"
       >
         ok
       </button>

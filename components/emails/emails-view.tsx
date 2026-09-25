@@ -163,7 +163,7 @@ export function EmailsView({
                         "inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium ring-1 ring-inset",
                         b.source === "PUBLIC_PAGE"
                           ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20"
-                          : "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 ring-indigo-500/20",
+                          : "bg-coral-500/10 text-coral-700 dark:text-coral-300 ring-coral-500/20",
                       )}
                     >
                       {b.source === "PUBLIC_PAGE" ? <Users className="size-3" /> : <Send className="size-3" />}
@@ -314,7 +314,7 @@ function SendTab({
           <div className="mt-4 flex items-baseline justify-between">
             <Label>Cibles avec email ({selectedTargets.length}/{targets.length})</Label>
             <button
-              className="text-[11px] text-indigo-700 dark:text-indigo-400 hover:text-indigo-700 dark:text-indigo-300"
+              className="text-[11px] text-coral-700 dark:text-coral-400 hover:text-coral-700 dark:text-coral-300"
               onClick={() =>
                 setSelectedTargets((s) =>
                   s.length === targets.length ? [] : targets.map((t) => t.contact.id),
@@ -393,7 +393,7 @@ function SendTab({
             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
               {EMAIL_VARIABLES.map((v) => (
                 <p key={v.key} className="text-[11px] text-faint">
-                  <code className="text-indigo-700 dark:text-indigo-400/80">{v.key}</code> — {v.desc}
+                  <code className="text-coral-700 dark:text-coral-400/80">{v.key}</code> — {v.desc}
                 </p>
               ))}
             </div>
@@ -420,7 +420,7 @@ function SendTab({
                           : s.filter((id) => id !== t.contact.id),
                       )
                     }
-                    className="size-3.5 accent-indigo-500"
+                    className="size-3.5 accent-coral-500"
                   />
                   <EntityAvatar name={fullName(t.contact)} color={t.contact.avatarColor} size="sm" />
                   <span className="min-w-0 flex-1 truncate text-[12.5px] text-mut">
@@ -659,14 +659,14 @@ function TemplateEditorDialog({
 
 function VariableHelp() {
   return (
-    <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/[0.04] p-3">
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+    <div className="rounded-lg border border-coral-500/15 bg-coral-500/[0.04] p-3">
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-coral-700 dark:text-coral-300">
         Variables disponibles
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1">
         {EMAIL_VARIABLES.map((v) => (
           <p key={v.key} className="text-[11px] text-faint">
-            <code className="text-indigo-700 dark:text-indigo-400/80">{v.key}</code>
+            <code className="text-coral-700 dark:text-coral-400/80">{v.key}</code>
           </p>
         ))}
       </div>

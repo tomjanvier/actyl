@@ -91,7 +91,7 @@ export function ImportListDialog({
           rows={8}
           spellCheck={false}
           placeholder={"prénom;nom;parti;institution\nJordan;Bardella;Rassemblement national;Présidentielle 2027"}
-          className="w-full resize-y rounded-lg border border-line bg-canvas px-2.5 py-2 font-mono text-[12px] text-fg outline-none focus:border-indigo-500/60"
+          className="w-full resize-y rounded-lg border border-line bg-canvas px-2.5 py-2 font-mono text-[12px] text-fg outline-none focus:border-coral-500/60"
         />
 
         <div className="flex items-center justify-between">

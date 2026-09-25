@@ -480,7 +480,7 @@ function SocialLinks({ contact, large }: { contact: ContactRow; large?: boolean 
           rel="noopener noreferrer"
           title={label}
           className={cn(
-            "inline-flex items-center justify-center rounded-lg border border-line text-faint transition-colors hover:border-indigo-500/50 hover:text-indigo-700 dark:text-indigo-300",
+            "inline-flex items-center justify-center rounded-lg border border-line text-faint transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:text-coral-300",
             large ? "size-9" : "size-7",
           )}
         >
@@ -539,9 +539,9 @@ function PrivateLayer({
   return (
     <>
       {/* Couche personnelle. */}
-      <section className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.04] p-4">
+      <section className="rounded-xl border border-coral-500/15 bg-coral-500/[0.04] p-4">
         <header className="mb-3 flex items-center gap-2">
-          <Star className="size-3.5 text-indigo-700 dark:text-indigo-400" />
+          <Star className="size-3.5 text-coral-700 dark:text-coral-400" />
           <h3 className="text-[12.5px] font-semibold text-fg">
             Mon espace privé
           </h3>
@@ -654,7 +654,7 @@ function OrgNotesLayer({
 
   return (
     <>
-      <p className="rounded-lg border border-indigo-500/20 bg-indigo-500/[0.05] px-3 py-2 text-[12px] leading-relaxed text-mut">
+      <p className="rounded-lg border border-coral-500/20 bg-coral-500/[0.05] px-3 py-2 text-[12px] leading-relaxed text-mut">
         🤝 Ces notes sont partagées avec toute votre organisation : chacun peut
         enrichir la connaissance collective sur ce décideur.
       </p>

@@ -129,7 +129,7 @@ export function CitizenForm({
   return (
     <form id="interpeller" onSubmit={submit} className="mt-10 scroll-mt-6">
       <h2 className="mb-4 flex items-center gap-2 text-center text-[15px] font-semibold text-fg">
-        <Mail className="size-4 text-indigo-700 dark:text-indigo-400" />
+        <Mail className="size-4 text-coral-700 dark:text-coral-400" />
         Ajoutez votre voix en une minute
       </h2>
 
@@ -207,7 +207,7 @@ export function CitizenForm({
       <button
         type="button"
         onClick={() => setPersonalized((p) => !p)}
-        className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] text-indigo-700 dark:text-indigo-400 transition-colors hover:text-indigo-700 dark:text-indigo-300"
+        className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] text-coral-700 dark:text-coral-400 transition-colors hover:text-coral-700 dark:text-coral-300"
       >
         <PencilLine className="size-3.5" />
         {personalized ? "Revenir au message type" : "Personnaliser le message"}
@@ -239,4 +239,4 @@ export function CitizenForm({
 }
 
 const fieldCls =
-  "h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-indigo-500/60 focus:bg-elev";
+  "h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-coral-500/60 focus:bg-elev";

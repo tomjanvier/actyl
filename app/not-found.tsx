@@ -10,7 +10,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/contacts"
-        className="mt-2 inline-flex h-9 items-center rounded-lg bg-indigo-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-indigo-500"
+        className="mt-2 inline-flex h-9 items-center rounded-lg bg-coral-600 px-4 text-[13px] font-medium text-white transition-colors hover:bg-coral-500"
       >
         Retour à l&apos;espace de travail
       </Link>

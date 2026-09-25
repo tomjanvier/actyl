@@ -294,7 +294,7 @@ export function SettingsView({
                 >
                   <div className="flex items-start justify-between">
                     <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-fg">
-                      <span className={cn("size-2.5 rounded-full", GROUP_DOT[g.color] ?? "bg-indigo-500")} />
+                      <span className={cn("size-2.5 rounded-full", GROUP_DOT[g.color] ?? "bg-coral-500")} />
                       {g.name}
                     </h3>
                     {isAdmin && (
@@ -372,7 +372,7 @@ export function SettingsView({
                     <p className="truncate text-[13px] font-medium text-fg">
                       {m.name}
                       {m.userId === currentUserId && (
-                        <span className="ml-1.5 text-[10.5px] text-indigo-700 dark:text-indigo-400">vous</span>
+                        <span className="ml-1.5 text-[10.5px] text-coral-700 dark:text-coral-400">vous</span>
                       )}
                     </p>
                     <p className="truncate text-[11px] text-faint">
@@ -699,7 +699,7 @@ function ModulesCard({
                 className="flex min-h-11 items-center justify-between rounded-lg border border-line px-3 text-left text-[12.5px] text-mut hover:bg-hover disabled:opacity-50"
               >
                 {label}
-                <span className={cn("h-5 w-9 rounded-full p-0.5 transition-colors", segments[key] ? "bg-indigo-600" : "bg-elev ring-1 ring-inset ring-line")}>
+                <span className={cn("h-5 w-9 rounded-full p-0.5 transition-colors", segments[key] ? "bg-coral-600" : "bg-elev ring-1 ring-inset ring-line")}>
                   <span className={cn("block size-4 rounded-full bg-white transition-transform", segments[key] ? "translate-x-4" : "translate-x-0")} />
                 </span>
               </button>
@@ -743,7 +743,7 @@ function CreateFieldForm({ onCreated }: { onCreated: () => void }) {
       className="h-fit rounded-xl border border-dashed border-line bg-card p-4"
     >
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <Plus className="size-4 text-indigo-700 dark:text-indigo-400" /> Nouveau champ personnalisé
+        <Plus className="size-4 text-coral-700 dark:text-coral-400" /> Nouveau champ personnalisé
       </h3>
       <Label className="mb-1 block">Libellé *</Label>
       <Input name="label" placeholder="Commission parlementaire" required className="mb-3" />
@@ -792,7 +792,7 @@ function CreateGroupForm({
       className="h-fit rounded-xl border border-dashed border-line bg-card p-4"
     >
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <Plus className="size-4 text-indigo-700 dark:text-indigo-400" /> Nouvelle équipe
+        <Plus className="size-4 text-coral-700 dark:text-coral-400" /> Nouvelle équipe
       </h3>
       <Label className="mb-1 block">Nom *</Label>
       <Input name="name" placeholder="Cellule Européenne" required className="mb-3" />
@@ -840,7 +840,7 @@ function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
       className="rounded-xl border border-dashed border-line bg-card p-4"
     >
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <UserPlus className="size-4 text-indigo-700 dark:text-indigo-400" /> Inviter un membre
+        <UserPlus className="size-4 text-coral-700 dark:text-coral-400" /> Inviter un membre
       </h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
@@ -931,7 +931,7 @@ function ProfileForm({
 }
 
 const GROUP_DOT: Record<string, string> = {
-  indigo: "bg-indigo-500",
+  indigo: "bg-coral-500",
   sky: "bg-sky-500",
   emerald: "bg-emerald-500",
   amber: "bg-amber-500",
@@ -1312,8 +1312,8 @@ function ApiTokensCard({
       )}
 
       {freshToken && (
-        <div className="border-b border-line bg-indigo-500/[0.06] px-4 py-3">
-          <p className="mb-1.5 text-[12px] font-medium text-indigo-700 dark:text-indigo-300">
+        <div className="border-b border-line bg-coral-500/[0.06] px-4 py-3">
+          <p className="mb-1.5 text-[12px] font-medium text-coral-700 dark:text-coral-300">
             Copiez ce token maintenant — il ne sera plus jamais affiché :
           </p>
           <div className="flex items-center gap-2">
@@ -1340,7 +1340,7 @@ function ApiTokensCard({
       <ul>
         {tokens.map((t) => (
           <li key={t.id} className="flex items-center gap-3 border-b border-linesoft px-4 py-2.5 last:border-0">
-            <Plug className={cn("size-4 shrink-0", t.revoked ? "text-faint line-through" : "text-indigo-700 dark:text-indigo-400")} />
+            <Plug className={cn("size-4 shrink-0", t.revoked ? "text-faint line-through" : "text-coral-700 dark:text-coral-400")} />
             <div className="min-w-0 flex-1">
               <p className={cn("truncate text-[13px] font-medium text-fg", t.revoked && "line-through opacity-50")}>
                 {t.name}
@@ -1533,7 +1533,7 @@ function NewsletterCard({
   return (
     <div className={cn(
       "max-w-3xl rounded-xl border bg-card transition-colors",
-      enabled ? "border-indigo-500/40 ring-1 ring-inset ring-indigo-500/20" : "border-line",
+      enabled ? "border-coral-500/40 ring-1 ring-inset ring-coral-500/20" : "border-line",
     )}>
       <div className="flex items-start justify-between gap-4 border-b border-line p-5">
         <div className="max-w-xl">
@@ -1541,7 +1541,7 @@ function NewsletterCard({
             <Mail className="size-4.5 text-sky-600 dark:text-sky-400" />
             Module newsletter — EmailOctopus
             {enabled && (
-              <span className="rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-500/20 dark:text-indigo-300">
+              <span className="rounded-md bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-300">
                 Actif
               </span>
             )}
@@ -1565,7 +1565,7 @@ function NewsletterCard({
           }
           className={cn(
             "relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50",
-            enabled ? "bg-indigo-600" : "bg-elev ring-1 ring-inset ring-line",
+            enabled ? "bg-coral-600" : "bg-elev ring-1 ring-inset ring-line",
           )}
         >
           <span
