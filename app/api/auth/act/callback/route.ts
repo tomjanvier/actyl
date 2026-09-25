@@ -122,7 +122,16 @@ export async function GET(request: Request) {
     await createSession(user.id);
     await setWorkspaceCookie(workspaceId);
     return NextResponse.redirect(`${appUrl}${next}`);
-  } catch {
+  } catch (error) {
+    const reason = error instanceof Error && [
+      "ACT_IDENTITY_CONFLICT",
+      "ACT_WORKSPACE_REQUIRED",
+      "ACT_WORKSPACE_UNKNOWN",
+    ].includes(error.message)
+      ? error.message
+      : "ACT_SESSION_OR_DATABASE_FAILURE";
+    // Un code borné suffit au diagnostic ; aucune identité ni erreur SQL n'est journalisée.
+    console.error("[act-sso] account provisioning failed", reason);
     return NextResponse.redirect(`${appUrl}/sign-in?error=act_failed`);
   }
 }
