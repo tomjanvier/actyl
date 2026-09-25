@@ -176,11 +176,16 @@ export async function exchangeCode(
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Ne journalise ni le corps de réponse OIDC ni les secrets du client.
+      console.error("[act-sso] token endpoint HTTP", res.status);
+      return null;
+    }
     const data = (await res.json()) as { access_token?: string };
     if (!data.access_token) return null;
     return { accessToken: data.access_token };
   } catch {
+    console.error("[act-sso] token exchange failed");
     return null;
   }
 }
@@ -196,12 +201,16 @@ export async function fetchActUserinfo(
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("[act-sso] userinfo endpoint HTTP", res.status);
+      return null;
+    }
     const data = (await res.json()) as ActUserinfo;
     if (typeof data.sub !== "string" || !data.sub || typeof data.email !== "string" || !data.email || data.email_verified !== true) return null;
     if (data.roles && (!Array.isArray(data.roles) || data.roles.some((role) => typeof role !== "string"))) return null;
     return data;
   } catch {
+    console.error("[act-sso] userinfo request failed");
     return null;
   }
 }
