@@ -124,7 +124,7 @@ export function SupportersView({
   return (
     <div className="flex min-h-[calc(100vh-89px)] flex-col">
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 px-6 pt-5 sm:grid-cols-3 lg:max-w-2xl">
+      <div className="grid grid-cols-1 gap-3 px-4 pt-5 sm:grid-cols-3 sm:px-6 lg:max-w-2xl">
         <div className="rounded-xl border border-line bg-card p-4">
           <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Soutiens</p>
           <p className="mt-1 flex items-center gap-2 text-2xl font-semibold tabular-nums text-fg">
@@ -145,14 +145,14 @@ export function SupportersView({
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 px-6 py-4">
-        <div className="relative">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-4 sm:px-6">
+        <div className="relative w-full sm:w-auto">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un soutien…"
-            className="h-9 w-64 rounded-lg border border-line bg-elev pl-8.5 pr-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
+            className="h-11 w-full rounded-lg border border-line bg-elev pl-8.5 pr-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60 sm:h-9 sm:w-64"
           />
         </div>
         <select
@@ -193,7 +193,7 @@ export function SupportersView({
       </div>
 
       {/* Table */}
-      <div className="px-6 pb-10">
+      <div className="px-4 pb-10 sm:px-6">
         <ul className="overflow-hidden rounded-xl border border-line">
           {filtered.map((s) => {
             const meta = SOURCE_META[s.source ?? ""];
@@ -201,7 +201,7 @@ export function SupportersView({
             return (
               <li
                 key={s.id}
-                className="flex items-center gap-3 border-b border-linesoft px-4 py-2.5 last:border-0 hover:bg-hover"
+                className="flex items-center gap-2 border-b border-linesoft px-3 py-2.5 last:border-0 hover:bg-hover sm:gap-3 sm:px-4"
               >
                 <EntityAvatar name={s.name} size="md" />
                 <div className="min-w-0 flex-1">
@@ -254,7 +254,7 @@ export function SupportersView({
                 <button
                   title="Modifier les tags"
                   onClick={() => setEditing(s)}
-                  className="shrink-0 rounded-md p-1 text-faint transition-colors hover:bg-hover hover:text-mut"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-md text-faint transition-colors hover:bg-hover hover:text-mut sm:size-9"
                 >
                   <Tag className="size-3.5" />
                 </button>

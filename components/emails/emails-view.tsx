@@ -105,7 +105,7 @@ export function EmailsView({
 
   return (
     <div className="flex min-h-[calc(100vh-137px)] flex-col">
-      <div className="px-6 pt-4">
+      <div className="px-4 pt-4 sm:px-6">
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="envoyer"><Send /> Envoyer</TabsTrigger>

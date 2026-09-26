@@ -135,7 +135,7 @@ export function Sidebar({
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setMobileOpen(false)} />}
     <aside
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-line bg-sidebar transition-[width] duration-200 max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:w-[min(86vw,300px)] max-md:shadow-2xl",
+        "sticky top-0 flex h-dvh shrink-0 flex-col border-r border-line bg-sidebar transition-[width] duration-200 max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:w-[min(86vw,300px)] max-md:shadow-2xl",
         !mobileOpen && "max-md:-translate-x-full",
         collapsed ? "w-[56px] max-md:!w-[min(86vw,300px)]" : "w-[228px]",
       )}
@@ -219,7 +219,7 @@ export function Sidebar({
                 onClick={() => setMobileOpen(false)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors",
+                  "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors md:min-h-8",
                   collapsed && "w-9 justify-center px-0",
                   active && !searchCategory
                     ? "bg-hoverstrong font-medium text-fg"
@@ -267,7 +267,7 @@ export function Sidebar({
                         key={seg.key || "all"}
                         href={seg.key ? `/contacts?category=${seg.key}` : "/contacts"}
                         className={cn(
-                          "flex h-6.5 items-center justify-between rounded-md px-1.5 text-[12px] transition-colors",
+                          "flex min-h-11 items-center justify-between rounded-md px-1.5 text-[12px] transition-colors md:min-h-8",
                           segActive
                             ? "bg-elev font-medium text-fg"
                             : "text-faint hover:bg-elev hover:text-mut",

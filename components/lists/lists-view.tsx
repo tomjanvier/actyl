@@ -61,7 +61,7 @@ export function ListsView({
   }, [router]);
 
   return (
-    <div className="space-y-5 px-6 py-5">
+    <div className="space-y-5 px-4 py-5 sm:px-6">
       {isAdmin && proposals.length > 0 && (
         <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-4">
           <h2 className="text-[14px] font-semibold text-fg">Propositions globales à valider ({proposals.length})</h2>

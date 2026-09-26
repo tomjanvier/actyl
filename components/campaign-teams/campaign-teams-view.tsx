@@ -96,9 +96,9 @@ export function CampaignTeamsView({
   }
 
   return (
-    <div className="space-y-5 px-6 py-5">
+    <div className="space-y-5 px-4 py-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative min-w-64 max-w-xl flex-1">
+        <div className="relative min-w-0 max-w-xl flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
           <Input
             value={query}

@@ -17,7 +17,17 @@ const eslintConfig = [
       ],
     },
   },
-  { ignores: [".next/**", ".open-next/**", "node_modules/**", "next-env.d.ts", "prisma/*.db", "generated/**"] },
+  {
+    ignores: [
+      ".next/**",
+      ".open-next/**",
+      "node_modules/**",
+      "next-env.d.ts",
+      "cloudflare-env.d.ts",
+      "prisma/*.db",
+      "generated/**",
+    ],
+  },
 ];
 
 export default eslintConfig;

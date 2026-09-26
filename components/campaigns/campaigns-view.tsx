@@ -70,7 +70,7 @@ export function CampaignsView({
   }, [params]);
 
   return (
-    <div className="px-6 py-5">
+    <div className="px-4 py-5 sm:px-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {campaigns.map((c) => {
           const statusMeta =
