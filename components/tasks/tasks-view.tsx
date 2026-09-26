@@ -55,7 +55,7 @@ export function TasksView({
         : tasks;
 
   return (
-    <div className="grid grid-cols-1 gap-6 px-6 py-5 lg:grid-cols-[1fr_360px]">
+    <div className="grid grid-cols-1 gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <div>
         <div className="mb-3 flex items-center gap-1 rounded-lg bg-elev p-1 ring-1 ring-inset ring-line w-fit">
           {(

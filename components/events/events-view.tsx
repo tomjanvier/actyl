@@ -51,7 +51,7 @@ export function EventsView({
   const past = events.filter((e) => new Date(e.startsAt).getTime() < now);
 
   return (
-    <div className="grid grid-cols-1 gap-6 px-6 py-5 lg:grid-cols-[1fr_360px]">
+    <div className="grid grid-cols-1 gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <div className="flex flex-col gap-5">
         <Section title="À venir" events={upcoming} emptyLabel="Aucun événement à venir." canManage={canManage} canDelete={canDelete} onRefresh={refresh} />
         {past.length > 0 && (
