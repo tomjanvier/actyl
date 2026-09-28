@@ -181,7 +181,9 @@ export async function launchBlastAction(input: {
         const result = await dispatchEmail({
           to: t.email!,
           subject: renderTemplate(template.subject, ctx),
-          html: wrapEmailHtml(renderTemplate(template.body, ctx), session.user.name),
+          html: wrapEmailHtml(renderTemplate(template.body, ctx), session.user.name, null, {
+            workspaceName: session.workspaceName,
+          }),
         });
         await db.sentEmail.create({
           data: {
@@ -338,7 +340,9 @@ export async function citizenSendAction(input: {
       const result = await dispatchEmail({
         to: t.email!,
         subject,
-        html: wrapEmailHtml(body, `${name} — citoyen·ne · ${city}`),
+        html: wrapEmailHtml(body, `${name} — citoyen·ne · ${city}`, null, {
+          workspaceName: "PLAID·ACT",
+        }),
       });
       await db.sentEmail.create({
         data: {
