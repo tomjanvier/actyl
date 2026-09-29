@@ -9,7 +9,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
-import { dispatchEmail } from "@/lib/email";
+import { dispatchEmail, wrapEmailHtml } from "@/lib/email";
 
 const MAX_BATCH = 500;
 const MAX_SUBJECT = 200;
@@ -73,18 +73,15 @@ export async function sendBroadcastAction(input: {
       dispatchEmail({
         to: r.email!,
         subject,
-        html:
-          `<!doctype html><html><body style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;color:#18181b;max-width:600px;margin:0 auto;padding:24px">` +
-          `<p style="margin:0 0 16px">Bonjour ${escapeHtml(r.name || "")},</p>` +
-          body
-            .split(/\n{2,}/)
-            .map(
-              (p) =>
-                `<p style="margin:0 0 16px">${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`,
-            )
-            .join("") +
-          `<p style="color:#71717a;font-size:12px;margin-top:28px">— ${escapeHtml(workspaceName)} · Vous recevez cet email en tant que soutien.</p>` +
-          `</body></html>`,
+        html: wrapEmailHtml(
+          body,
+          `Vous recevez ce message en tant que soutien de ${workspaceName}.`,
+          null,
+          {
+            greeting: `Bonjour${r.name ? ` ${r.name}` : ""},`,
+            workspaceName,
+          },
+        ),
       }),
     ),
   );
@@ -102,12 +99,4 @@ export async function sendBroadcastAction(input: {
     failed,
     simulated: !process.env.RESEND_API_KEY,
   };
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
