@@ -52,7 +52,9 @@ export async function middleware(request: NextRequest) {
       !!token &&
       !!secret &&
       secret.length >= 16 &&
-      (await jwtVerify(token, new TextEncoder().encode(secret))
+      (await jwtVerify(token, new TextEncoder().encode(secret), {
+        algorithms: ["HS256"],
+      })
         .then(() => true)
         .catch(() => false));
 
