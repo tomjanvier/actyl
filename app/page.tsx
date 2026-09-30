@@ -53,7 +53,7 @@ export default async function LandingPage() {
       <main className="mx-auto max-w-5xl px-6">
         <section className="flex flex-col items-center pb-16 pt-20 text-center sm:pt-28">
           <Badge className="mb-5 border-none bg-elev px-2.5 py-1 text-mut ring-line">
-            Open source · MIT · Auto-hébergeable · by PLAID·ACT
+            Logiciel libre · MIT · auto-hébergeable · par PLAID·ACT
           </Badge>
           <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-[52px]">
             {settings.heroTitle}{" "}
