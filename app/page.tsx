@@ -16,6 +16,8 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LandingDemoTable } from "@/components/public/landing-demo-table";
 import { getLandingSettings } from "@/lib/landing-settings";
 
+export const dynamic = "force-dynamic";
+
 export default async function LandingPage() {
   const settings = await getLandingSettings();
   const primaryButton = (
