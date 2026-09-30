@@ -57,6 +57,7 @@ export async function LandingDemoTable() {
         listName={list.name}
         description={list.description}
         rows={list.items.map(({ contact }) => contact)}
+        pageSize={10}
       />
     );
   } catch {

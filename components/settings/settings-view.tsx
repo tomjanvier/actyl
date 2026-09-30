@@ -118,6 +118,8 @@ export function SettingsView({
     orgName: string;
     website: string | null;
     phone: string | null;
+    monthlyContributionInterest: string | null;
+    monthlyContributionAmount: number | null;
     createdAt: string;
   }>;
   apiTokens: Array<{
@@ -149,6 +151,8 @@ export function SettingsView({
     slug: string;
     memberCount: number;
     createdAt: string;
+    monthlyContributionInterest: string | null;
+    monthlyContributionAmount: number | null;
   }>;
   landingSettings: {
     heroTitle: string;
@@ -490,7 +494,14 @@ export function SettingsView({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-medium text-fg">{workspace.name}</p>
                       <p className="text-[11px] text-faint">
-                        {workspace.slug} · {workspace.memberCount} membre{workspace.memberCount > 1 ? "s" : ""}
+                          {workspace.slug} · {workspace.memberCount} membre{workspace.memberCount > 1 ? "s" : ""}
+                          {workspace.monthlyContributionInterest === "YES" && workspace.monthlyContributionAmount
+                            ? ` · cotisation envisagée : ${workspace.monthlyContributionAmount} €/mois`
+                            : workspace.monthlyContributionInterest === "NO"
+                              ? " · pas de cotisation envisagée actuellement"
+                              : workspace.monthlyContributionInterest === "DISCUSS"
+                                ? " · cotisation à discuter"
+                                : ""}
                       </p>
                     </div>
                     <span className="text-[10.5px] text-faint">

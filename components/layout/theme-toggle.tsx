@@ -5,7 +5,7 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
     // Se synchronise avec le script qui évite le clignotement initial.
@@ -22,7 +22,13 @@ export function ThemeToggle() {
   }
 
   return (
-    <Button variant="ghost" size="icon-sm" onClick={toggle} title={dark ? "Thème clair" : "Thème sombre"}>
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={toggle}
+      title={dark ? "Passer au thème clair" : "Passer au thème sombre"}
+      aria-label={dark ? "Passer au thème clair" : "Passer au thème sombre"}
+    >
       {dark ? <Sun /> : <Moon />}
     </Button>
   );

@@ -90,7 +90,7 @@ export function CampaignsView({
                   {c.emoji}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-[14.5px] font-semibold text-fg group-hover:text-white">
+                  <h3 className="truncate text-[14.5px] font-semibold text-fg group-hover:text-coral-800 dark:group-hover:text-coral-300">
                     {c.name}
                   </h3>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">

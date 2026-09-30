@@ -312,22 +312,36 @@ export async function updateProfileAction(
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
   const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const jobTitle = String(formData.get("jobTitle") ?? "").trim();
   const currentPassword = String(formData.get("currentPassword") ?? "");
   const newPassword = String(formData.get("newPassword") ?? "");
   if (name.length < 2) return { error: "Nom trop court" };
+  if (!z.string().email().safeParse(email).success) return { error: "Adresse e-mail invalide." };
 
-  const data: { name: string; jobTitle: string | null; passwordHash?: string } = {
+  const emailChanged = email !== session.user.email.toLowerCase();
+  const passwordChanged = !!newPassword;
+  const data: { name: string; email: string; jobTitle: string | null; passwordHash?: string } = {
     name,
+    email,
     jobTitle: jobTitle || null,
   };
-  if (newPassword) {
-    if (newPassword.length < 8)
-      return { error: "Nouveau mot de passe : 8 caractères minimum." };
+  if (emailChanged) {
+    const existingEmail = await db.user.findUnique({ where: { email } });
+    if (existingEmail && existingEmail.id !== session.user.id) {
+      return { error: "Cette adresse e-mail est déjà utilisée." };
+    }
+  }
+  if (emailChanged || passwordChanged) {
     const user = await db.user.findUnique({ where: { id: session.user.id } });
     if (!user) return { error: "Utilisateur introuvable" };
-    if (!(await verifyPassword(currentPassword, user.passwordHash)))
+    if (!(await verifyPassword(currentPassword, user.passwordHash))) {
       return { error: "Mot de passe actuel incorrect." };
+    }
+  }
+  if (passwordChanged) {
+    if (newPassword.length < 8)
+      return { error: "Nouveau mot de passe : 8 caractères minimum." };
     data.passwordHash = await hashPassword(newPassword);
   }
   await db.user.update({ where: { id: session.user.id }, data });
@@ -382,6 +396,8 @@ export async function approveAccountRequestAction(requestId: string) {
       slug,
       website: req.website,
       phone: req.phone,
+      monthlyContributionInterest: req.monthlyContributionInterest,
+      monthlyContributionAmount: req.monthlyContributionAmount,
       memberships: {
         create: [
           { userId: user.id, role: "ADMIN" },

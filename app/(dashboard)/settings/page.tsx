@@ -90,6 +90,8 @@ export default async function SettingsPage({
             name: true,
             slug: true,
             createdAt: true,
+            monthlyContributionInterest: true,
+            monthlyContributionAmount: true,
             _count: { select: { memberships: true } },
           },
         })
@@ -183,6 +185,8 @@ export default async function SettingsPage({
           orgName: r.orgName,
           website: r.website,
           phone: r.phone,
+          monthlyContributionInterest: r.monthlyContributionInterest,
+          monthlyContributionAmount: r.monthlyContributionAmount,
           createdAt: r.createdAt.toISOString(),
         }))}
         apiTokens={apiTokens.map((t) => ({
@@ -211,6 +215,8 @@ export default async function SettingsPage({
           name: workspace.name,
           slug: workspace.slug,
           memberCount: workspace._count.memberships,
+          monthlyContributionInterest: workspace.monthlyContributionInterest,
+          monthlyContributionAmount: workspace.monthlyContributionAmount,
           createdAt: workspace.createdAt.toISOString(),
         }))}
         landingSettings={landingSettings}

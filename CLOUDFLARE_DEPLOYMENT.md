@@ -201,6 +201,12 @@ donc `prisma generate` fonctionne sans variable définie).
 
 ## 11. Checklist de mise en production
 
+Les demandes de compte et les espaces comportent aussi les champs indicatifs
+`monthlyContributionInterest` et `monthlyContributionAmount`. Après déploiement
+d’une version qui les utilise, appliquer le schéma avec `prisma db push` sur la
+base réellement ciblée, après avoir confirmé sa cible et vérifié la sauvegarde.
+Ne pas lancer cette commande depuis un `.env` local sans vérifier l’URL.
+
 - [ ] Dump `pg_dump` de Neon archivé + restauration testée sur base jetable.
 - [ ] Projet Prisma Postgres créé (région UE), URL directe récupérée.
 - [ ] `prisma db push` + migration des données + `pnpm db:seed` exécutés et

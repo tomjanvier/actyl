@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { signUpAction, type ActionState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/controls";
 import { TurnstileWidget } from "@/components/security/turnstile-widget";
 
+const CONTRIBUTION_CHOICES = [
+  ["YES", "Oui"],
+  ["NO", "Non pour le moment"],
+  ["DISCUSS", "À discuter"],
+] as const;
+
 export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
+  const [contributionInterest, setContributionInterest] = useState("");
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     signUpAction,
     undefined,
@@ -21,7 +28,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
         <h1 className="mt-2 text-[16px] font-semibold text-fg">
           Demande envoyée !
         </h1>
-        <p className="mt-2 text-[13px] leading-relaxed text-mut">
+        <p className="mt-2 text-[14px] leading-relaxed text-mut">
           Votre demande de compte est en attente de validation par l&apos;équipe
           PLAID·ACT. Vous recevrez une réponse à l&apos;adresse indiquée dès
           que votre compte sera activé.
@@ -41,9 +48,9 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
         Un espace de travail par organisation. Vous en serez administrateur·rice.
       </p>
       {mode === "APPROVAL" && (
-        <p className="mb-1 rounded-lg border border-amber-500/20 bg-amber-500/[0.07] px-3 py-2 text-[12px] leading-relaxed text-amber-300">
-          Les inscriptions sont actuellement modérées : votre demande sera
-          examinée avant l&apos;activation du compte.
+        <p className="mb-1 rounded-lg border border-amber-700/25 bg-amber-50 px-3 py-3 text-[13px] leading-relaxed text-amber-950 dark:border-amber-300/25 dark:bg-amber-300/10 dark:text-amber-100">
+          Votre demande sera examinée par PLAID·ACT avant l’ouverture de votre espace.
+          Vous recevrez une réponse par e-mail.
         </p>
       )}
       <form action={formAction} className="flex flex-col gap-4">
@@ -63,7 +70,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="website">Site web</Label>
+            <Label htmlFor="website">Site web de l&apos;association</Label>
             <Input id="website" name="website" type="url" placeholder="https://…" />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -71,6 +78,45 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
             <Input id="phone" name="phone" type="tel" placeholder="06 …" />
           </div>
         </div>
+        <fieldset className="rounded-lg border border-line bg-card p-3">
+          <legend className="px-1 text-[12.5px] font-medium text-fg">
+            Soutien au développement d’Actyl
+          </legend>
+          <p className="mb-2 text-[12px] leading-relaxed text-mut">
+            À titre indicatif et sans engagement, votre association envisagerait-elle une cotisation mensuelle à PLAID·ACT ?
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-[12.5px] text-fg">
+            {CONTRIBUTION_CHOICES.map(([value, label]) => (
+              <label key={value} className="inline-flex min-h-9 items-center gap-2">
+                <input
+                  type="radio"
+                  name="monthlyContributionInterest"
+                  value={value}
+                  required
+                  checked={contributionInterest === value}
+                  onChange={() => setContributionInterest(value)}
+                  className="accent-coral-700"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          {contributionInterest === "YES" && (
+            <div className="mt-3 max-w-48">
+              <Label htmlFor="monthlyContributionAmount">Montant mensuel envisagé (€)</Label>
+              <Input
+                id="monthlyContributionAmount"
+                name="monthlyContributionAmount"
+                type="number"
+                min={1}
+                max={100000}
+                step={1}
+                placeholder="Ex. 25"
+                required
+              />
+            </div>
+          )}
+        </fieldset>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email">Email professionnel</Label>
           <Input
