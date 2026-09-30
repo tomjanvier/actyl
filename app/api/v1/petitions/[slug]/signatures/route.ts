@@ -53,7 +53,15 @@ export async function POST(
   const city = cleanStr(parsed.data.city, 80);
 
   const petition = await db.petition.findFirst({
-    where: { isPublished: true, campaign: { slug, workspaceId: ctx.workspaceId } },
+    where: {
+      isPublished: true,
+      campaign: {
+        slug,
+        workspaceId: ctx.workspaceId,
+        isPublished: true,
+        status: { notIn: ["ARCHIVED", "LOST"] },
+      },
+    },
     select: { id: true },
   });
   if (!petition) return apiError(404, "Pétition introuvable ou non publiée.");

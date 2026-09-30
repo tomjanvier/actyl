@@ -34,6 +34,8 @@ export default async function SignaturesPage({
       id: true,
       name: true,
       slug: true,
+      workspace: { select: { slug: true } },
+      isPublished: true,
       emoji: true,
       description: true,
       status: true,
@@ -94,6 +96,8 @@ export default async function SignaturesPage({
           id: campaign.id,
           name: campaign.name,
           slug: campaign.slug,
+          workspaceSlug: campaign.workspace.slug,
+          isPublished: campaign.isPublished,
           emoji: campaign.emoji,
           description: campaign.description,
           status: campaign.status,
@@ -108,11 +112,13 @@ export default async function SignaturesPage({
           })),
         }}
         canEdit={access.canContribute && can(session.role, "campaign:edit")}
+        canPublish={access.owner && can(session.role, "campaign:edit")}
         canShare={access.owner && session.role === "ADMIN"}
       />
       <SignaturesView
         campaignId={campaign.id}
         campaignSlug={campaign.slug}
+        workspaceSlug={campaign.workspace.slug}
         canManage={access.owner && can(session.role, "email:send")}
         petition={
           campaign.petition

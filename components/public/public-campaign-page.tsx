@@ -5,17 +5,15 @@ import { CitizenForm } from "@/components/public/citizen-form";
 import { PetitionSignForm, ShareSection } from "@/components/public/petition-and-share";
 import { ActylLogo } from "@/components/layout/actyl-logo";
 
-export const metadata = { title: "Interpellation citoyenne" };
-
-export default async function PublicCampaignPage({
+export async function PublicCampaignPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ workspaceSlug: string; campaignSlug: string }>;
 }) {
-  const { slug } = await params;
+  const { workspaceSlug, campaignSlug } = await params;
 
   const publicCampaigns = await db.campaign.findMany({
-    where: { slug, isPublished: true, status: { notIn: ["ARCHIVED", "LOST"] } },
+    where: { slug: campaignSlug, workspace: { slug: workspaceSlug }, isPublished: true, status: { notIn: ["ARCHIVED", "LOST"] } },
     take: 2,
     select: {
       id: true,
@@ -86,13 +84,13 @@ export default async function PublicCampaignPage({
 
   return (
     <div className="min-h-screen bg-canvas">
-      <div className="mx-auto max-w-2xl px-6 py-12">
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
         {/* Header */}
         <header className="text-center">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-elev px-3 py-1 text-[12px] text-mut ring-1 ring-inset ring-line">
+          <Link href={`/association/${campaign.workspace.slug}`} className="mb-4 inline-flex items-center gap-2 rounded-full bg-elev px-3 py-1 text-[12px] text-mut ring-1 ring-inset ring-line transition-colors hover:text-fg">
             <span>{campaign.workspace.logoEmoji}</span>
-            Campagne portée par {campaign.workspace.name}
-          </p>
+            {campaign.workspace.name} · voir toutes les campagnes
+          </Link>
           <h1 className="text-balance text-3xl font-semibold leading-tight tracking-tight text-fg">
             <span className="mr-2">{campaign.emoji}</span>
             {campaign.name}
@@ -102,7 +100,7 @@ export default async function PublicCampaignPage({
               {campaign.description}
             </p>
           )}
-          <div className="mt-5 flex items-center justify-center gap-6 text-[13px]">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px]">
             <span>
               <strong className="text-plum-700 tabular-nums dark:text-coral-300">{totalEmails}</strong>{" "}
               <span className="text-faint">emails déjà envoyés</span>
@@ -147,8 +145,8 @@ export default async function PublicCampaignPage({
         {/* Form */}
         {campaign.templates[0] && targets.length > 0 ? <CitizenForm
           campaignName={campaign.name}
-          campaignSlug={slug}
-          workspaceSlug={campaign.workspace.slug}
+          campaignSlug={campaignSlug}
+          workspaceSlug={workspaceSlug}
           defaultSubject={campaign.templates[0].subject}
           defaultBody={campaign.templates[0].body}
           regions={[
@@ -161,7 +159,7 @@ export default async function PublicCampaignPage({
         /> : (
           <section className="mt-10 rounded-2xl border border-dashed border-line bg-card p-6 text-center">
             <h2 className="font-semibold text-fg">Interpellation bientôt disponible</h2>
-            <p className="mt-2 text-sm text-faint">{campaign.templates[0] ? "Aucun décideur ne peut être contacté pour le moment." : "Cette association prépare encore les messages de sa campagne."}</p>
+            <p className="mt-2 text-sm text-faint">Cette association prépare encore les messages de sa campagne.</p>
           </section>
         )}
 
@@ -191,9 +189,9 @@ export default async function PublicCampaignPage({
                 />
               </div>
             </div>
-            <PetitionSignForm campaignSlug={slug} workspaceSlug={campaign.workspace.slug} signatureCount={signatureCount} />
+            <PetitionSignForm campaignSlug={campaignSlug} workspaceSlug={workspaceSlug} signatureCount={signatureCount} canInterpellate={!!campaign.templates[0] && targets.length > 0} />
             {petition.signatures.length > 0 && (
-              <p className="mt-4 truncate text-[11.5px] leading-relaxed text-faint">
+              <p className="mt-4 break-words text-[11.5px] leading-relaxed text-faint">
                 Derniers signataires :{" "}
                 {petition.signatures
                   .map((s) => s.name + (s.city ? ` (${s.city})` : ""))
@@ -215,7 +213,7 @@ export default async function PublicCampaignPage({
             </Link>{" "}
             — CRM de plaidoyer open-source.
             <br />
-            Vos coordonnées sont utilisées uniquement pour signer votre message.
+            Vos coordonnées permettent de gérer votre participation à cette campagne.
           </p>
         </footer>
       </div>

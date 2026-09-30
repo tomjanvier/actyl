@@ -80,6 +80,41 @@ export async function updateCampaignStatusAction(
   revalidatePath(`/campaigns/${campaignId}`);
 }
 
+/** Publie ou dépublie la page publique d'une campagne appartenant à l'espace actif. */
+export async function toggleCampaignPublishAction(campaignId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (!can(session.role, "campaign:edit")) throw new Error("Permission refusée");
+
+  const campaign = await db.campaign.findFirst({
+    where: { id: campaignId, workspaceId: session.workspaceId },
+    select: { id: true, slug: true, isPublished: true, status: true },
+  });
+  if (!campaign) throw new Error("Campagne introuvable");
+
+  const nextPublished = !campaign.isPublished;
+  if (nextPublished) {
+    if (campaign.status === "ARCHIVED" || campaign.status === "LOST") {
+      throw new Error("Une campagne archivée ou perdue ne peut pas être publiée.");
+    }
+    const slugCollisions = await db.campaign.count({
+      where: { slug: campaign.slug, id: { not: campaign.id }, isPublished: true },
+    });
+    if (slugCollisions > 0) {
+      throw new Error("Une autre campagne publiée utilise ce slug. Dépubliez-la avant de publier celle-ci pour éviter une URL ambiguë.");
+    }
+  }
+
+  await db.campaign.update({
+    where: { id: campaign.id },
+    data: { isPublished: nextPublished },
+  });
+  revalidatePath("/campaigns");
+  revalidatePath(`/campaigns/${campaign.id}`);
+  revalidatePath(`/p/${campaign.slug}`);
+  return { ok: true, isPublished: nextPublished };
+}
+
 export async function toggleCampaignPinAction(campaignId: string, pinned: boolean) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");

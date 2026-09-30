@@ -20,7 +20,11 @@ export async function GET(request: Request) {
   }
 
   const petitions = await db.petition.findMany({
-    where: { workspaceId: ctx.workspaceId, isPublished: true },
+    where: {
+      workspaceId: ctx.workspaceId,
+      isPublished: true,
+      campaign: { isPublished: true, status: { notIn: ["ARCHIVED", "LOST"] } },
+    },
     orderBy: { title: "asc" },
     select: {
       title: true,

@@ -250,6 +250,8 @@ model Donation {
   amountCents Int
   currency    String   @default("EUR")
   provider    String? // givoly | helloasso | chèque | virement…
+  idempotencyKey String?
+  requestHash String?
   label       String?
   occurredAt  DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -259,6 +261,7 @@ model Donation {
 
   @@index([workspaceId, occurredAt])
   @@index([email])
+  @@unique([workspaceId, idempotencyKey])
   @@map("donations")
 }
 
@@ -527,6 +530,7 @@ model Campaign {
   emoji       String    @default("📣")
   // PLANNING | ACTIVE | PAUSED | WON | LOST | ARCHIVED
   status      String    @default("ACTIVE")
+  isPublished Boolean   @default(false)
   priority    String    @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
   dueDate     DateTime?
   pinned      Boolean   @default(false)

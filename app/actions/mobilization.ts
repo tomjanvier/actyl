@@ -76,6 +76,7 @@ export async function togglePetitionPublishAction(petitionId: string) {
 
 export async function citizenSignAction(input: {
   campaignSlug: string;
+  workspaceSlug: string;
   name: string;
   email: string;
   city?: string;
@@ -101,7 +102,12 @@ export async function citizenSignAction(input: {
   const petition = await db.petition.findFirst({
     where: {
       isPublished: true,
-      campaign: { slug: input.campaignSlug },
+      campaign: {
+        slug: input.campaignSlug,
+        isPublished: true,
+        status: { notIn: ["ARCHIVED", "LOST"] },
+        workspace: { slug: input.workspaceSlug },
+      },
     },
     select: { id: true, workspaceId: true },
   });
@@ -171,6 +177,7 @@ export async function toggleEventPublishAction(eventId: string) {
     data: { isPublished: !event.isPublished },
   });
   revalidatePath("/events");
+  revalidatePath(`/e/${event.id}`);
 }
 
 export async function deleteEventAction(eventId: string) {
@@ -202,9 +209,9 @@ export async function rsvpEventAction(input: {
   const response =
     input.response === "NO" || input.response === "MAYBE" ? input.response : "YES";
   const event = await db.event.findFirst({
-    where: { id: input.eventId, isPublished: true },
+    where: { id: input.eventId, isPublished: true, startsAt: { gt: new Date() } },
   });
-  if (!event) return { error: "Événement introuvable." };
+  if (!event) return { error: "Les inscriptions à cet événement sont fermées." };
   await db.eventRsvp.upsert({
     where: { eventId_email: { eventId: input.eventId, email } },
     create: { eventId: input.eventId, name, email, response },

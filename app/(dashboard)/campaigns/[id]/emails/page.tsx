@@ -23,18 +23,20 @@ export default async function EmailsPage({
     include: {
       squads: { include: { group: true } },
       shares: { include: { workspace: { select: { name: true } } } },
+      workspace: { select: { slug: true } },
     },
   });
   if (!campaign) notFound();
 
-  const [templates, cards, blasts, sentEmails] = await Promise.all([
+  const [templates, cards, blasts] = await Promise.all([
     db.emailTemplate.findMany({
       where: { campaignId: campaign.id },
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     }),
     db.kanbanCard.findMany({
       where: { campaignId: campaign.id },
-      include: {
+      select: {
+        id: true,
         contact: {
           select: {
             id: true,
@@ -59,36 +61,53 @@ export default async function EmailsPage({
         _count: { select: { emails: true } },
       },
     }),
-    db.sentEmail.findMany({
-      where: { contact: { cards: { some: { campaignId: campaign.id } } } },
-      select: { contactId: true, status: true, openedAt: true, senderName: true },
-    }),
   ]);
 
-  // Agrège les statistiques par cible.
-  const targetStats = new Map<
-    string,
-    { total: number; opened: number; citizens: Set<string> }
-  >();
-  for (const e of sentEmails) {
-    const s =
-      targetStats.get(e.contactId) ?? { total: 0, opened: 0, citizens: new Set() };
-    if (e.status !== "FAILED") s.total++;
-    if (e.openedAt) s.opened++;
-    if (e.senderName) s.citizens.add(e.senderName);
-    targetStats.set(e.contactId, s);
-  }
+  const contactIds = [...new Set(cards.map((card) => card.contact.id))];
+  const deliveredEmailWhere = {
+    contactId: { in: contactIds },
+    status: "SENT",
+    NOT: { providerId: { startsWith: "sim_" } },
+  };
+  const [sentByContact, openedByContact, citizensByContact, uniqueCitizenGroups] =
+    contactIds.length
+      ? await Promise.all([
+          db.sentEmail.groupBy({
+            by: ["contactId"],
+            where: deliveredEmailWhere,
+            _count: { _all: true },
+          }),
+          db.sentEmail.groupBy({
+            by: ["contactId"],
+            where: { ...deliveredEmailWhere, openedAt: { not: null } },
+            _count: { _all: true },
+          }),
+          db.sentEmail.groupBy({
+            by: ["contactId", "senderName"],
+            where: { ...deliveredEmailWhere, senderName: { not: "" } },
+          }),
+          db.sentEmail.groupBy({
+            by: ["senderName"],
+            where: { ...deliveredEmailWhere, senderName: { not: "" } },
+          }),
+        ])
+      : [[], [], [], []];
 
-  const totals = [...targetStats.values()].reduce(
-    (acc, s) => ({
-      sent: acc.sent + s.total,
-      opened: acc.opened + s.opened,
-      citizens: Math.max(acc.citizens, s.citizens.size),
-    }),
-    { sent: 0, opened: 0, citizens: 0 },
-  );
-  const uniqueCitizens = new Set(sentEmails.map((e) => e.senderName).filter(Boolean))
-    .size;
+  const targetStats = new Map<string, { total: number; opened: number; citizens: number }>();
+  for (const row of sentByContact) {
+    targetStats.set(row.contactId, { total: row._count._all, opened: 0, citizens: 0 });
+  }
+  for (const row of openedByContact) {
+    const stats = targetStats.get(row.contactId);
+    if (stats) stats.opened = row._count._all;
+  }
+  for (const row of citizensByContact) {
+    if (!row.senderName) continue;
+    const stats = targetStats.get(row.contactId);
+    if (stats) stats.citizens++;
+  }
+  const totalSent = sentByContact.reduce((sum, row) => sum + row._count._all, 0);
+  const totalOpened = openedByContact.reduce((sum, row) => sum + row._count._all, 0);
 
   return (
     <>
@@ -97,6 +116,8 @@ export default async function EmailsPage({
           id: campaign.id,
           name: campaign.name,
           slug: campaign.slug,
+          workspaceSlug: campaign.workspace.slug,
+          isPublished: campaign.isPublished,
           emoji: campaign.emoji,
           description: campaign.description,
           status: campaign.status,
@@ -111,11 +132,13 @@ export default async function EmailsPage({
           })),
         }}
         canEdit={access.canContribute && can(session.role, "campaign:edit")}
+        canPublish={access.owner && can(session.role, "campaign:edit")}
         canShare={access.owner && session.role === "ADMIN"}
       />
       <EmailsView
         campaignId={campaign.id}
         campaignSlug={campaign.slug}
+        workspaceSlug={campaign.workspace.slug}
         templates={templates.map((t) => ({
           id: t.id,
           name: t.name,
@@ -131,7 +154,7 @@ export default async function EmailsPage({
             stageName: c.stage.name,
             emailsReceived: targetStats.get(c.contact.id)?.total ?? 0,
             opens: targetStats.get(c.contact.id)?.opened ?? 0,
-            uniqueCitizens: targetStats.get(c.contact.id)?.citizens.size ?? 0,
+            uniqueCitizens: targetStats.get(c.contact.id)?.citizens ?? 0,
           }))}
         unjoinableCount={cards.length - cards.filter((c) => c.contact.email).length}
         blasts={blasts.map((b) => ({
@@ -144,9 +167,9 @@ export default async function EmailsPage({
           createdAt: b.createdAt.toISOString(),
         }))}
         stats={{
-          sent: totals.sent,
-          openRate: totals.sent ? Math.round((totals.opened / totals.sent) * 100) : 0,
-          uniqueCitizens,
+          sent: totalSent,
+          openRate: totalSent ? Math.round((totalOpened / totalSent) * 100) : 0,
+          uniqueCitizens: uniqueCitizenGroups.length,
         }}
         canSend={access.canContribute && can(session.role, "email:send")}
         canManageTemplates={access.canContribute && can(session.role, "template:manage")}

@@ -13,6 +13,11 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+async function sha256(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 const bodySchema = z.object({
   email: z.string(),
   fullName: z.string().optional(),
@@ -57,6 +62,12 @@ export async function POST(request: Request) {
   const email = validEmail(parsed.data.email);
   if (!email) return apiError(400, "Adresse email invalide.");
 
+  const rawIdempotencyKey = request.headers.get("Idempotency-Key");
+  const idempotencyKey = rawIdempotencyKey?.trim() ?? null;
+  if (rawIdempotencyKey !== null && !/^[\x21-\x7E]{8,128}$/.test(idempotencyKey ?? "")) {
+    return apiError(400, "Idempotency-Key doit contenir entre 8 et 128 caractères ASCII imprimables.");
+  }
+
   const { amount, amountCents } = parsed.data;
   if (amount === undefined && amountCents === undefined)
     return apiError(400, "Montant requis (amount ou amountCents).");
@@ -74,37 +85,108 @@ export async function POST(request: Request) {
     email.split("@")[0]!;
   const city = cleanStr(parsed.data.city, 80);
   const tags = cleanTags(parsed.data.tags);
+  const donationName = name.slice(0, 200);
+  const currency = parsed.data.currency?.toUpperCase() ?? "EUR";
+  const provider = cleanStr(parsed.data.provider, 40);
+  const label = cleanStr(parsed.data.label, 160);
+  const firstName = cleanStr(parsed.data.firstName, 80);
+  const lastName = cleanStr(parsed.data.lastName, 80);
+  const fullName = cleanStr(parsed.data.fullName, 160);
+  const payloadHash = idempotencyKey
+    ? await sha256(JSON.stringify({
+        email,
+        name: donationName,
+        city,
+        amountCents: cents,
+        currency,
+        provider,
+        label,
+        // A retry without an explicit date must hash identically even though
+        // the persisted donation timestamp defaults to the current time.
+        occurredAt: parsed.data.occurredAt ? occurredAt.toISOString() : null,
+        firstName,
+        lastName,
+        fullName,
+        tags: [...(tags ?? [])].sort(),
+      }))
+    : null;
+  const keyHash = idempotencyKey ? await sha256(idempotencyKey) : null;
 
-  const [donation] = await db.$transaction([
-    db.donation.create({
+  let donationId: string;
+  let replayed = false;
+  if (keyHash && payloadHash) {
+    const existing = await db.donation.findUnique({
+      where: { workspaceId_idempotencyKey: { workspaceId: ctx.workspaceId, idempotencyKey: keyHash } },
+      select: { id: true, requestHash: true },
+    });
+    if (existing) {
+      if (existing.requestHash !== payloadHash) {
+        return apiError(409, "Cette clé d’idempotence a déjà été utilisée avec des données différentes.");
+      }
+      donationId = existing.id;
+      replayed = true;
+    } else {
+      try {
+        const donation = await db.donation.create({
+          data: {
+            workspaceId: ctx.workspaceId,
+            email,
+            name: donationName,
+            city,
+            amountCents: cents,
+            currency,
+            provider,
+            idempotencyKey: keyHash,
+            requestHash: payloadHash,
+            label,
+            occurredAt,
+          },
+          select: { id: true },
+        });
+        donationId = donation.id;
+      } catch (error) {
+        // Deux retries simultanés peuvent tous deux manquer le premier lookup.
+        const raced = await db.donation.findUnique({
+          where: { workspaceId_idempotencyKey: { workspaceId: ctx.workspaceId, idempotencyKey: keyHash } },
+          select: { id: true, requestHash: true },
+        });
+        if (!raced) throw error;
+        if (raced.requestHash !== payloadHash) {
+          return apiError(409, "Cette clé d’idempotence a déjà été utilisée avec des données différentes.");
+        }
+        donationId = raced.id;
+        replayed = true;
+      }
+    }
+  } else {
+    const donation = await db.donation.create({
       data: {
         workspaceId: ctx.workspaceId,
         email,
-        name: name.slice(0, 200),
+        name: donationName,
         city,
         amountCents: cents,
-        currency: parsed.data.currency?.toUpperCase() ?? "EUR",
-        provider: cleanStr(parsed.data.provider, 40),
-        label: cleanStr(parsed.data.label, 160),
+        currency,
+        provider,
+        label,
         occurredAt,
       },
       select: { id: true },
-    }),
-  ]);
+    });
+    donationId = donation.id;
+  }
 
   const contact = await upsertContactByEmail({
     workspaceId: ctx.workspaceId,
     email,
-    firstName: cleanStr(parsed.data.firstName, 80),
-    lastName: cleanStr(parsed.data.lastName, 80),
-    fullName: cleanStr(parsed.data.fullName, 160),
+    firstName,
+    lastName,
+    fullName,
     city,
     category: "DONOR",
     themes: tags,
   });
-  await db.donation
-    .update({ where: { id: donation.id }, data: { contactId: contact.id } })
-    .catch(() => {});
+  await db.donation.update({ where: { id: donationId }, data: { contactId: contact.id } });
 
   await upsertSupporter({
     email,
@@ -113,11 +195,11 @@ export async function POST(request: Request) {
     workspaceId: ctx.workspaceId,
     source: "donation",
     tags: ["donateur", ...(tags ?? [])],
-  }).catch(() => {});
+  });
 
   return apiJson(
-    { ok: true, donationId: donation.id, contactId: contact.id },
-    201,
+    { ok: true, donationId, contactId: contact.id, ...(replayed ? { idempotentReplay: true } : {}) },
+    replayed ? 200 : 201,
   );
 }
 

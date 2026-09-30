@@ -29,6 +29,7 @@ export default async function MobilizationPage({
       },
       events: { orderBy: { startsAt: "desc" }, take: 5 },
       shares: { include: { workspace: { select: { name: true } } } },
+      workspace: { select: { slug: true } },
     },
   });
   if (!campaign) notFound();
@@ -40,6 +41,8 @@ export default async function MobilizationPage({
           id: campaign.id,
           name: campaign.name,
           slug: campaign.slug,
+          workspaceSlug: campaign.workspace.slug,
+          isPublished: campaign.isPublished,
           emoji: campaign.emoji,
           description: campaign.description,
           status: campaign.status,
@@ -54,11 +57,13 @@ export default async function MobilizationPage({
           })),
         }}
         canEdit={access.canContribute && can(session.role, "campaign:edit")}
+        canPublish={access.owner && can(session.role, "campaign:edit")}
         canShare={access.owner && session.role === "ADMIN"}
       />
       <MobilizationView
         campaignId={campaign.id}
         campaignSlug={campaign.slug}
+        workspaceSlug={campaign.workspace.slug}
         canManage={access.owner && can(session.role, "email:send")}
         petition={
           campaign.petition

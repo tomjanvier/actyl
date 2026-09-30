@@ -27,7 +27,7 @@ export async function GET(
     where: {
       workspaceId: ctx.workspaceId,
       isPublished: true,
-      campaign: { slug },
+      campaign: { slug, isPublished: true, status: { notIn: ["ARCHIVED", "LOST"] } },
     },
     select: {
       title: true,
