@@ -10,11 +10,15 @@ import { TurnstileWidget } from "@/components/security/turnstile-widget";
 
 export function CitizenForm({
   campaignSlug,
+  workspaceSlug,
+  campaignName,
   defaultSubject,
   defaultBody,
   regions = [],
 }: {
   campaignSlug: string;
+  workspaceSlug: string;
+  campaignName: string;
   defaultSubject: string;
   defaultBody: string;
   /** Territoires distincts des cibles, utilisés pour rapprocher les régions. */
@@ -28,40 +32,35 @@ export function CitizenForm({
   const [body, setBody] = useState(defaultBody);
   const [personalized, setPersonalized] = useState(false);
   const [sending, setSending] = useState(false);
-  const [done, setDone] = useState<{ count: number; simulated: boolean } | null>(null);
+  const [done, setDone] = useState<{ count: number; simulated: boolean; failedCount: number } | null>(null);
 
   const previewName = name.trim() || "votre nom";
   const previewCity = city.trim() || "votre ville";
 
-  const rendered = useMemo(
-    () => ({
-      subject: subject
-        .replace(/\{\{\s*decision_maker_name\s*\}\}/g, "Madame le Maire")
-        .replace(/\{\{\s*decision_maker_first_name\s*\}\}/g, "Marie")
-        .replace(/\{\{\s*decision_maker_last_name\s*\}\}/g, "Dupont")
-        .replace(/\{\{\s*decision_maker_title\s*\}\}/g, "Maire")
-        .replace(/\{\{\s*institution\s*\}\}/g, "Ville de Paris")
-        .replace(/\{\{\s*campaign_name\s*\}\}/g, "cette campagne"),
-      body: body
-        .replaceAll("{{decision_maker_name}}", "Madame le Maire")
-        .replaceAll("{{decision_maker_first_name}}", "Marie")
-        .replaceAll("{{decision_maker_last_name}}", "Dupont")
-        .replaceAll("{{decision_maker_title}}", "Maire")
-        .replaceAll("{{institution}}", "Ville de Paris")
-        .replaceAll("{{constituent_name}}", previewName)
-        .replaceAll("{{constituent_city}}", previewCity)
-        .replaceAll("{{campaign_name}}", "cette campagne"),
-    }),
-    [subject, body, previewName, previewCity],
-  );
+  const rendered = useMemo(() => {
+    const values: Record<string, string> = {
+      decision_maker_name: "[nom du destinataire]",
+      decision_maker_first_name: "[prénom du destinataire]",
+      decision_maker_last_name: "[nom du destinataire]",
+      decision_maker_title: "[fonction du destinataire]",
+      institution: "[institution du destinataire]",
+      campaign_name: campaignName,
+      constituent_name: previewName,
+      constituent_city: previewCity,
+    };
+    const render = (value: string) => value.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key: string) => values[key] ?? match);
+    return { subject: render(subject), body: render(body) };
+  }, [subject, body, campaignName, previewName, previewCity]);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (sending) return;
     setSending(true);
     const token = new FormData(e.currentTarget).get("cf-turnstile-response")?.toString();
+    try {
     const res = await citizenSendAction({
       campaignSlug,
+      workspaceSlug,
       name,
       city,
       region: region || undefined,
@@ -70,24 +69,27 @@ export function CitizenForm({
       bodyOverride: personalized ? body : undefined,
       turnstileToken: token,
     });
-    setSending(false);
     if ("ok" in res && res.ok) {
-      setDone({ count: res.recipientCount, simulated: res.simulated });
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      setDone({ count: res.recipientCount, simulated: res.simulated, failedCount: res.failedCount });
     } else if ("error" in res) {
       toast.error(res.error);
+    }
+    } catch {
+      toast.error("Envoi impossible pour le moment. Réessayez dans un instant.");
+    } finally {
+      setSending(false);
     }
   }
 
   if (done) {
     return (
-      <section className="mt-10 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-8 text-center animate-fade-up">
+      <section role="status" className="mt-10 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-8 text-center animate-fade-up">
         <CheckCircle2 className="mx-auto mb-3 size-10 text-emerald-700 dark:text-emerald-400" />
         <h2 className="text-[18px] font-semibold text-fg">
-          Merci {name.split(" ")[0]}, votre message est parti !
+          {done.simulated ? "Simulation terminée" : `Merci ${name.trim().split(" ")[0]}, votre message est parti !`}
         </h2>
         <p className="mx-auto mt-2 max-w-md text-[13.5px] leading-relaxed text-faint">
-          {done.count > 1 ? (
+          {done.simulated ? "Aucun e-mail réel n’a été envoyé." : done.count > 1 ? (
             <>
               Il a été transmis aux <strong className="text-mut">{done.count} décideurs</strong>{" "}
               ciblés par la campagne.
@@ -95,6 +97,7 @@ export function CitizenForm({
           ) : (
             <>Il a été transmis au décideur ciblé.</>
           )}
+          {done.failedCount > 0 && <span className="mt-2 block">{done.failedCount} destinataire(s) n’ont pas pu être joints.</span>}
           {done.simulated && (
             <span className="mt-1 block text-[12px] text-faint">
               (mode démo : aucun email réel n&apos;a été envoyé)
@@ -104,19 +107,24 @@ export function CitizenForm({
         <p className="mt-4 text-[12.5px] text-faint">
           Partagez cette page autour de vous pour amplifier l&apos;impact :
         </p>
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="mt-3 flex flex-col items-center justify-center gap-2 sm:flex-row">
           <Input
+            aria-label="Lien de la campagne"
             readOnly
             value={typeof window !== "undefined" ? window.location.href : ""}
-            className="w-72 text-center"
+            className="w-full min-w-0 text-center sm:w-72"
             onFocus={(e) => e.currentTarget.select()}
           />
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => {
-              void navigator.clipboard.writeText(window.location.href);
-              toast.success("Lien copié !");
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(window.location.href);
+                toast.success("Lien copié !");
+              } catch {
+                toast.error("Copie impossible. Copiez le lien affiché.");
+              }
             }}
           >
             Copier
@@ -127,7 +135,7 @@ export function CitizenForm({
   }
 
   return (
-    <form id="interpeller" onSubmit={submit} className="mt-10 scroll-mt-6">
+    <form id="interpeller" onSubmit={submit} aria-busy={sending} className="mt-10 scroll-mt-6">
       <h2 className="mb-4 flex items-center gap-2 text-center text-[15px] font-semibold text-fg">
         <Mail className="size-4 text-coral-700 dark:text-coral-400" />
         Ajoutez votre voix en une minute
@@ -135,6 +143,8 @@ export function CitizenForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <input
+          aria-label="Votre nom"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Votre nom *"
@@ -144,6 +154,8 @@ export function CitizenForm({
           className={fieldCls}
         />
         <input
+          aria-label="Votre ville"
+          autoComplete="address-level2"
           value={city}
           onChange={(e) => setCity(e.target.value)}
           placeholder="Votre ville *"
@@ -152,6 +164,8 @@ export function CitizenForm({
           className={fieldCls}
         />
         <input
+          aria-label="Votre région"
+          autoComplete="address-level1"
           value={region}
           onChange={(e) => setRegion(e.target.value)}
           placeholder="Votre région (ex : Bretagne)"
@@ -165,9 +179,11 @@ export function CitizenForm({
           ))}
         </datalist>
         <input
+          aria-label="Votre adresse e-mail"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Votre email (confirmation) *"
+          placeholder="Votre adresse e-mail *"
           type="email"
           required
           className={fieldCls}
@@ -187,19 +203,19 @@ export function CitizenForm({
             <span className="text-[10.5px] uppercase tracking-wider text-faint">Aperçu</span>
             <p className="truncate text-[13px] font-medium text-fg">{rendered.subject}</p>
           </div>
-          <pre className="max-h-56 overflow-y-auto whitespace-pre-wrap px-4 py-3 font-sans text-[13px] leading-relaxed text-mut">
+          <pre className="max-h-56 overflow-y-auto whitespace-pre-wrap break-words px-4 py-3 font-sans text-[13px] leading-relaxed text-mut">
             {rendered.body}
           </pre>
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-faint">Objet</label>
-            <input value={subject} onChange={(e) => setSubject(e.target.value)} className={fieldCls} />
+            <label htmlFor="citizen-subject" className="mb-1 block text-[11px] font-medium text-faint">Objet</label>
+            <input id="citizen-subject" maxLength={200} required value={subject} onChange={(e) => setSubject(e.target.value)} className={fieldCls} />
           </div>
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-faint">Message</label>
-            <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={9} />
+            <label htmlFor="citizen-body" className="mb-1 block text-[11px] font-medium text-faint">Message</label>
+            <Textarea id="citizen-body" maxLength={8000} required value={body} onChange={(e) => setBody(e.target.value)} rows={9} />
           </div>
         </div>
       )}
@@ -207,7 +223,7 @@ export function CitizenForm({
       <button
         type="button"
         onClick={() => setPersonalized((p) => !p)}
-        className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] text-coral-700 dark:text-coral-400 transition-colors hover:text-coral-700 dark:text-coral-300"
+        className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-[12.5px] text-coral-700 dark:text-coral-400 transition-colors hover:text-coral-700 dark:text-coral-300"
       >
         <PencilLine className="size-3.5" />
         {personalized ? "Revenir au message type" : "Personnaliser le message"}
@@ -219,7 +235,7 @@ export function CitizenForm({
         type="submit"
         size="lg"
         disabled={sending || !name || !city || !email}
-        className="mt-5 w-full"
+        className="mt-5 w-full whitespace-normal text-center"
       >
         {sending ? (
           <>
@@ -230,7 +246,8 @@ export function CitizenForm({
             <Send /> Envoyer mon message aux décideurs
           </>
         )}
-      </Button>      <p className="mt-3 text-center text-[11.5px] leading-relaxed text-faint">
+      </Button>
+      <p className="mt-3 text-center text-[11.5px] leading-relaxed text-faint">
         En envoyant, vous acceptez que votre nom et votre ville soient joints au
         message. Aucune donnée n&apos;est revendue ni utilisée à des fins commerciales.
       </p>
@@ -239,4 +256,4 @@ export function CitizenForm({
 }
 
 const fieldCls =
-  "h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-coral-500/60 focus:bg-elev";
+  "h-11 w-full min-w-0 rounded-lg border border-line bg-elev px-3 text-base text-fg sm:text-[13px] outline-none transition-colors placeholder:text-faint focus:border-coral-500/60 focus:bg-elev";

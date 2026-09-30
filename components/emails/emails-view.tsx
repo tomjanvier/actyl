@@ -78,6 +78,7 @@ type Blast = {
 export function EmailsView({
   campaignId,
   campaignSlug,
+  workspaceSlug,
   templates: initialTemplates,
   targets,
   unjoinableCount,
@@ -88,6 +89,7 @@ export function EmailsView({
 }: {
   campaignId: string;
   campaignSlug: string;
+  workspaceSlug: string;
   templates: Template[];
   targets: Target[];
   unjoinableCount: number;
@@ -118,6 +120,7 @@ export function EmailsView({
             <SendTab
               campaignId={campaignId}
               campaignSlug={campaignSlug}
+              workspaceSlug={workspaceSlug}
               templates={initialTemplates}
               targets={targets}
               unjoinableCount={unjoinableCount}
@@ -143,6 +146,9 @@ export function EmailsView({
               <StatCard label="Taux d'ouverture" value={pct(stats.openRate, 100)} icon={<Eye className="size-4" />} hint={`${stats.openRate} % des messages ouverts`} />
               <StatCard label="Citoyens mobilisés" value={stats.uniqueCitizens} icon={<Users className="size-4" />} hint="expéditeurs uniques" />
             </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-faint">
+              Les ouvertures sont mesurées lorsque le client mail charge les images. Les protections anti-suivi peuvent les bloquer ou les précharger; ce taux reste indicatif.
+            </p>
 
             <h3 className="mb-2 mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">
               Envois récents
@@ -241,6 +247,7 @@ function Metric({ label, value }: { label: string; value: number | string }) {
 function SendTab({
   campaignId,
   campaignSlug,
+  workspaceSlug,
   templates,
   targets,
   unjoinableCount,
@@ -249,6 +256,7 @@ function SendTab({
 }: {
   campaignId: string;
   campaignSlug: string;
+  workspaceSlug: string;
   templates: Template[];
   targets: Target[];
   unjoinableCount: number;
@@ -346,7 +354,7 @@ function SendTab({
         )}
 
         <a
-          href={`/p/${campaignSlug}`}
+          href={`/association/${workspaceSlug}/${campaignSlug}`}
           target="_blank"
           rel="noopener noreferrer"
           className="group flex items-center gap-3 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-4 transition-colors hover:border-emerald-500/30"
@@ -357,7 +365,7 @@ function SendTab({
               Page publique de mobilisation
             </p>
             <p className="truncate text-[11.5px] text-faint">
-              /p/{campaignSlug} — vos soutiens envoient en 1 clic
+              /association/{workspaceSlug}/{campaignSlug} — vos soutiens envoient en 1 clic
             </p>
           </div>
           <ExternalLink className="size-4 shrink-0 text-faint group-hover:text-emerald-700 dark:text-emerald-400" />

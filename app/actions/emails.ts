@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { dispatchEmail, renderTemplate, wrapEmailHtml } from "@/lib/email";
+import { emailOpenTrackingUrl } from "@/lib/email-tracking";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { upsertSupporter } from "@/lib/supporters";
 import { normalizeFr } from "@/lib/utils";
@@ -178,21 +179,30 @@ export async function launchBlastAction(input: {
           constituent_name: session.user.name,
           constituent_city: "",
         };
-        const result = await dispatchEmail({
-          to: t.email!,
-          subject: renderTemplate(template.subject, ctx),
-          html: wrapEmailHtml(renderTemplate(template.body, ctx), session.user.name, null, {
-            workspaceName: session.workspaceName,
-          }),
-        });
-        await db.sentEmail.create({
+        const subject = renderTemplate(template.subject, ctx);
+        const body = renderTemplate(template.body, ctx);
+        const sentEmail = await db.sentEmail.create({
           data: {
             blastId: blast.id,
             contactId: t.id,
             senderName: session.user.name,
-            subject: renderTemplate(template.subject, ctx),
+            subject,
             body: template.body,
-            status: result.ok ? "SENT" : "FAILED",
+            status: "QUEUED",
+          },
+        });
+        const trackingUrl = await emailOpenTrackingUrl(sentEmail.id);
+        const result = await dispatchEmail({
+          to: t.email!,
+          subject,
+          html: wrapEmailHtml(body, session.user.name, trackingUrl, {
+            workspaceName: session.workspaceName,
+          }),
+        });
+        await db.sentEmail.update({
+          where: { id: sentEmail.id },
+          data: {
+            status: result.ok ? (result.simulated ? "SIMULATED" : "SENT") : "FAILED",
             providerId: result.ok ? result.providerId : null,
             error: result.ok ? null : result.error,
           },
@@ -220,6 +230,7 @@ const MAX_BODY = 8000;
 
 export async function citizenSendAction(input: {
   campaignSlug: string;
+  workspaceSlug: string;
   name: string;
   city: string;
   email: string;
@@ -229,7 +240,7 @@ export async function citizenSendAction(input: {
   targetContactId?: string;
   turnstileToken?: string;
 }): Promise<
-  | { ok: true; simulated: boolean; recipientCount: number }
+  | { ok: true; simulated: boolean; recipientCount: number; failedCount: number }
   | { error: string }
 > {
   // Limite chaque adresse IP à cinq interpellations par minute.
@@ -252,10 +263,15 @@ export async function citizenSendAction(input: {
   const bodyOverride = input.bodyOverride?.trim().slice(0, MAX_BODY) || undefined;
 
   const campaign = await db.campaign.findFirst({
-    where: { slug: input.campaignSlug },
-    select: { id: true, name: true, status: true, workspaceId: true },
+    where: {
+      slug: input.campaignSlug,
+      workspace: { slug: input.workspaceSlug },
+      isPublished: true,
+      status: { notIn: ["ARCHIVED", "LOST"] },
+    },
+    select: { id: true, name: true, workspaceId: true },
   });
-  if (!campaign || campaign.status === "ARCHIVED")
+  if (!campaign)
     return { error: "Campagne introuvable." };
 
   // Limite également les envois par auteur sur vingt-quatre heures.
@@ -321,7 +337,7 @@ export async function citizenSendAction(input: {
 
   // Applique le même parallélisme que pour les envois internes.
   const sendable = targets.filter((t) => t.email);
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     sendable.map(async (t) => {
       const ctx = {
         ...contactContext(t),
@@ -337,14 +353,7 @@ export async function citizenSendAction(input: {
         bodyOverride && bodyOverride !== template.body
           ? bodyOverride
           : renderTemplate(template.body, ctx);
-      const result = await dispatchEmail({
-        to: t.email!,
-        subject,
-        html: wrapEmailHtml(body, `${name} — citoyen·ne · ${city}`, null, {
-          workspaceName: "PLAID·ACT",
-        }),
-      });
-      await db.sentEmail.create({
+      const sentEmail = await db.sentEmail.create({
         data: {
           blastId: blast.id,
           contactId: t.id,
@@ -353,7 +362,21 @@ export async function citizenSendAction(input: {
           senderCity: city,
           subject,
           body,
-          status: result.ok ? "SENT" : "FAILED",
+          status: "QUEUED",
+        },
+      });
+      const trackingUrl = await emailOpenTrackingUrl(sentEmail.id);
+      const result = await dispatchEmail({
+        to: t.email!,
+        subject,
+        html: wrapEmailHtml(body, `${name} — citoyen·ne · ${city}`, trackingUrl, {
+          workspaceName: "PLAID·ACT",
+        }),
+      });
+      await db.sentEmail.update({
+        where: { id: sentEmail.id },
+        data: {
+          status: result.ok ? (result.simulated ? "SIMULATED" : "SENT") : "FAILED",
           providerId: result.ok ? result.providerId : null,
           error: result.ok ? null : result.error,
         },
@@ -361,6 +384,11 @@ export async function citizenSendAction(input: {
       return result.ok;
     }),
   );
+
+  const recipientCount = results.filter((result) => result.status === "fulfilled" && result.value).length;
+  if (recipientCount === 0) {
+    return { error: "Aucun message n’a pu être envoyé. Réessayez dans un instant." };
+  }
 
   // Enregistre le citoyen comme soutien et ajoute son territoire aux tags.
   await upsertSupporter({
@@ -375,6 +403,7 @@ export async function citizenSendAction(input: {
   return {
     ok: true,
     simulated: !process.env.RESEND_API_KEY,
-    recipientCount: sendable.length,
+    recipientCount,
+    failedCount: sendable.length - recipientCount,
   };
 }

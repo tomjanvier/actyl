@@ -10,6 +10,12 @@
 - `RESEND_API_KEY` et `EMAIL_FROM` : facultatifs tant que les emails restent en
   mode simulé.
 
+Le suivi des ouvertures est activé uniquement pour les envois réels lorsque
+`NEXT_PUBLIC_APP_URL` est configurée. Le pixel est signé avec `AUTH_SECRET`;
+sans origine publique configurée, l'email part sans suivi. Les emails suivis
+signalent cette mesure à leurs destinataires, et les statistiques restent
+indicatives selon le client de messagerie.
+
 Les clés EmailOctopus sont enregistrées depuis les paramètres de chaque espace
 et ne doivent pas être ajoutées aux variables globales du projet.
 
@@ -27,9 +33,24 @@ pnpm build
 ```
 
 Vérifier ensuite les tables `list_change_proposals` et
-`shared_campaign_refs`, la colonne `campaigns.pinned`, puis la contrainte unique
-`supporters(workspaceId, email)`. Les éventuelles lignes historiques de soutiens
+`shared_campaign_refs`, les colonnes `campaigns.pinned` et
+`campaigns.isPublished`, puis la contrainte unique
+`supporters(workspaceId, email)` et la contrainte unique
+`donations(workspaceId, idempotencyKey)`. Les éventuelles lignes historiques de soutiens
 sans `workspaceId` doivent être attribuées à leur espace avant le `db push`.
+`campaigns.isPublished` est ajouté avec la valeur `false` : les pages publiques
+existantes restent privées jusqu'à leur publication explicite depuis l'en-tête
+de la campagne.
+
+## Espaces associatifs et pages publiques
+
+Chaque URL publique d'association est basée sur le slug unique de son espace :
+`/association/{slug-association}` affiche uniquement ses campagnes publiées et
+ses événements futurs publiés. Une campagne est accessible à
+`/association/{slug-association}/{slug-campagne}` ; son formulaire d'action et
+sa pétition résolvent les données dans ce même espace. Les anciennes pages
+`/p/{slug-campagne}` restent disponibles uniquement lorsqu'un seul espace a
+publié ce slug, sinon elles répondent 404 pour éviter toute ambiguïté.
 
 ## Tâche hebdomadaire
 

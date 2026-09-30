@@ -47,6 +47,7 @@ type SignatureRow = {
 export function SignaturesView({
   campaignId,
   campaignSlug,
+  workspaceSlug,
   canManage,
   petition,
   signatures,
@@ -55,6 +56,7 @@ export function SignaturesView({
 }: {
   campaignId: string;
   campaignSlug: string;
+  workspaceSlug: string;
   canManage: boolean;
   petition: {
     title: string;
@@ -206,7 +208,7 @@ export function SignaturesView({
           </span>
         </div>
         <a
-          href={`/p/${campaignSlug}`}
+          href={`/association/${workspaceSlug}/${campaignSlug}`}
           target="_blank"
           rel="noopener noreferrer"
           className="group rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 transition-colors hover:border-emerald-500/40"
@@ -214,7 +216,7 @@ export function SignaturesView({
           <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-faint">
             Page publique <ExternalLink className="size-3" />
           </p>
-          <p className="mt-1 truncate text-[13px] font-medium text-fg">/p/{campaignSlug}</p>
+          <p className="mt-1 truncate text-[13px] font-medium text-fg">/association/{workspaceSlug}/{campaignSlug}</p>
         </a>
       </div>
 

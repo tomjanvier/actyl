@@ -23,7 +23,7 @@
 
   --fg: var(--brand-plum);
   --mut: #67536d;
-  --faint: #88788d;
+  --faint: #756278;
 
   --line: rgba(43, 21, 51, 0.13);
   --line-soft: rgba(43, 21, 51, 0.075);
@@ -198,4 +198,14 @@ h3 {
   opacity: 0.9;
   transform: rotate(1.5deg) scale(1.02);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Les préférences de mouvement couvrent aussi les composants partagés. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

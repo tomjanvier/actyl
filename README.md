@@ -16,8 +16,13 @@ suivi des décideurs et mobilisation citoyenne.
   - Ou en CLI : `pnpm tsx scripts/import-officials.ts [an|senat|pe|all]`
 - **Campagnes & kanban** : pipeline glisser-déposer (dnd-kit) avec historique
   horodaté des mouvements.
+- **Espaces associatifs** : chaque association dispose de son espace, de ses
+  membres et de ses données isolées. Les campagnes publiées sont regroupées sur
+  `/association/{slug-association}` et accessibles sur
+  `/association/{slug-association}/{slug-campagne}`. Les anciennes URLs
+  `/p/{slug}` restent compatibles lorsqu'un seul espace utilise ce slug.
 - **Interpellation citoyenne** : modèles d'emails à variables, envois internes
-  ou page publique `/p/{slug}` (Resend ou mode simulé sans clé API).
+  ou pages publiques par association (Resend ou mode simulé sans clé API).
   Ciblage territorial à la [Action Button](https://www.actionbutton.org) :
   le citoyen renseigne sa région et son message est prioritairement transmis
   aux décideurs de son territoire (insensible aux accents/casse, avec repli

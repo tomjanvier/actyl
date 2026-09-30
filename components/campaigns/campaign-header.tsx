@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Globe, Settings2, Pin, Share2, X } from "lucide-react";
@@ -19,6 +19,7 @@ import {
   removeCampaignShareAction,
   toggleCampaignPinAction,
   updateCampaignStatusAction,
+  toggleCampaignPublishAction,
 } from "@/app/actions/campaigns";
 import {
   DropdownMenu,
@@ -33,12 +34,15 @@ import { ActylLogo } from "@/components/layout/actyl-logo";
 export function CampaignHeader({
   campaign,
   canEdit,
+  canPublish = false,
   canShare = false,
 }: {
   campaign: {
     id: string;
     name: string;
     slug: string;
+    workspaceSlug: string;
+    isPublished: boolean;
     emoji: string;
     description: string | null;
     status: string;
@@ -49,13 +53,32 @@ export function CampaignHeader({
     squads: Array<{ name: string; color: string }>;
   };
   canEdit: boolean;
+  canPublish?: boolean;
   canShare?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [publishing, setPublishing] = useState(false);
+  const [isPublished, setIsPublished] = useState(campaign.isPublished);
   const meta =
     CAMPAIGN_STATUS_META[campaign.status as CampaignStatus] ??
     CAMPAIGN_STATUS_META.ACTIVE!;
+
+  async function togglePublish() {
+    if (publishing) return;
+    if (!isPublished && !window.confirm("Publier cette page et rendre visibles ses informations de campagne au public ?")) return;
+    setPublishing(true);
+    try {
+      const result = await toggleCampaignPublishAction(campaign.id);
+      setIsPublished(result.isPublished);
+      toast.success(result.isPublished ? "Page de campagne publiée" : "Page de campagne dépubliée");
+      startTransition(() => router.refresh());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Publication impossible");
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   return (
     <div className="border-b border-line px-6 pb-4 pt-5">
@@ -138,6 +161,17 @@ export function CampaignHeader({
                   <Share2 />
                 </Button>
               )}
+              {canPublish && (
+                <Button
+                  variant={isPublished ? "secondary" : "outline"}
+                  size="sm"
+                  disabled={publishing}
+                  onClick={() => void togglePublish()}
+                  aria-pressed={isPublished}
+                >
+                  <Globe /> {publishing ? "Mise à jour…" : isPublished ? "Publiée" : "Publier"}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -158,15 +192,21 @@ export function CampaignHeader({
                   <CalendarDays className="size-3" /> Échéance : {formatDate(campaign.dueDate)}
                 </span>
               )}
-              <a
-                href={`/p/${campaign.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 transition-colors hover:text-coral-700 dark:text-coral-400"
-                title={`Page publique : /p/${campaign.slug}`}
-              >
-                <Globe className="size-3" /> /p/{campaign.slug} ↗
-              </a>
+              {isPublished ? (
+                <a
+                  href={`/association/${campaign.workspaceSlug}/${campaign.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 transition-colors hover:text-coral-700 dark:text-coral-400"
+                  title={`Page publique : /association/${campaign.workspaceSlug}/${campaign.slug}`}
+                >
+                  <Globe className="size-3" /> /association/{campaign.workspaceSlug}/{campaign.slug} · publique ↗
+                </a>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-faint" title="Publiez la campagne pour activer cette page">
+                  <Globe className="size-3" /> /association/{campaign.workspaceSlug}/{campaign.slug} · brouillon
+                </span>
+              )}
               {campaign.squads.map((g) => (
                 <span
                   key={g.name}

@@ -27,11 +27,6 @@ export default async function CampaignsPage() {
           templates: true,
         },
       },
-      cards: {
-        include: {
-          stage: { select: { kind: true, name: true } },
-        },
-      },
       workspace: { select: { id: true, name: true } },
       shares: {
         where: { workspaceId: session.workspaceId },
@@ -40,12 +35,41 @@ export default async function CampaignsPage() {
     },
   });
 
+  const campaignIds = campaigns.map((campaign) => campaign.id);
+  const cardCountsByStage = campaignIds.length
+    ? await db.kanbanCard.groupBy({
+        by: ["campaignId", "stageId"],
+        where: { campaignId: { in: campaignIds } },
+        _count: { _all: true },
+      })
+    : [];
+  const stageIds = [...new Set(cardCountsByStage.map((group) => group.stageId))];
+  const stages = stageIds.length
+    ? await db.pipelineStage.findMany({
+        where: { id: { in: stageIds } },
+        select: { id: true, kind: true },
+      })
+    : [];
+  const stageKinds = new Map(stages.map((stage) => [stage.id, stage.kind]));
+  const campaignStats = new Map<string, { total: number; won: number; allies: number; opponents: number }>();
+  for (const group of cardCountsByStage) {
+    const count = group._count._all;
+    const stats = campaignStats.get(group.campaignId) ?? {
+      total: 0,
+      won: 0,
+      allies: 0,
+      opponents: 0,
+    };
+    const kind = stageKinds.get(group.stageId);
+    stats.total += count;
+    if (kind === "WON") stats.won += count;
+    if (kind === "POSITIVE" || kind === "WON") stats.allies += count;
+    if (kind === "NEGATIVE") stats.opponents += count;
+    campaignStats.set(group.campaignId, stats);
+  }
+
   const serialized = campaigns.map((c) => {
-    const won = c.cards.filter((k) => k.stage.kind === "WON").length;
-    const allies = c.cards.filter(
-      (k) => k.stage.kind === "POSITIVE" || k.stage.kind === "WON",
-    ).length;
-    const opponents = c.cards.filter((k) => k.stage.kind === "NEGATIVE").length;
+    const stats = campaignStats.get(c.id) ?? { total: 0, won: 0, allies: 0, opponents: 0 };
     return {
       id: c.id,
       name: c.name,
@@ -53,16 +77,17 @@ export default async function CampaignsPage() {
       emoji: c.emoji,
       description: c.description,
       status: c.status,
+      isPublished: c.isPublished,
       priority: c.priority,
       dueDate: c.dueDate?.toISOString() ?? null,
       squads: c.squads.map((s) => s.group),
       cardCount: c._count.cards,
       templateCount: c._count.templates,
       blastCount: c._count.blasts,
-      won,
-      allies,
-      opponents,
-      progress: c.cards.length ? Math.round((won / c.cards.length) * 100) : 0,
+      won: stats.won,
+      allies: stats.allies,
+      opponents: stats.opponents,
+      progress: stats.total ? Math.round((stats.won / stats.total) * 100) : 0,
       sharedBy: c.workspaceId === session.workspaceId ? null : c.workspace.name,
       shareAccess: c.shares[0]?.access ?? null,
     };

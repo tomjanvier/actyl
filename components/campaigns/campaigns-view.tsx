@@ -41,6 +41,7 @@ export type CampaignCard = {
   emoji: string;
   description: string | null;
   status: string;
+  isPublished: boolean;
   priority: string;
   dueDate: string | null;
   squads: Array<{ name: string; color: string }>;
@@ -98,6 +99,14 @@ export function CampaignsView({
                         Partagée par {c.sharedBy} · {c.shareAccess === "CONTRIBUTE" ? "contribution" : "lecture"}
                       </span>
                     )}
+                    <span className={cn(
+                      "rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+                      c.isPublished
+                        ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300"
+                        : "bg-elev text-faint ring-line",
+                    )}>
+                      {c.isPublished ? "Page publique" : "Page privée"}
+                    </span>
                     <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", statusMeta.badge)}>
                       {statusMeta.label}
                     </span>

@@ -9,6 +9,8 @@ import { SettingsView } from "@/components/settings/settings-view";
 import { REFERENCE_PACKS } from "@/lib/datasets/reference-packs";
 import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
 import { getLandingSettings } from "@/lib/landing-settings";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 export const metadata = { title: "Paramètres" };
 
@@ -115,6 +117,16 @@ export default async function SettingsPage({
         crumbs={[{ label: "Actyl" }, { label: "Paramètres" }]}
         title="Paramètres de l'espace"
         description={`${session.workspaceName} — configurez le schéma de données, les équipes et les accès.`}
+        actions={
+          <Link
+            href={`/association/${session.workspaceSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-line bg-card px-3 text-xs font-medium text-fg transition-colors hover:bg-hover"
+          >
+            Page publique <ArrowUpRight className="size-3.5" />
+          </Link>
+        }
       />
       <SettingsView
         initialTab={tab ?? null}

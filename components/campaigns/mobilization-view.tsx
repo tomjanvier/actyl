@@ -24,11 +24,13 @@ type PetitionData = {
 export function MobilizationView({
   campaignId,
   campaignSlug,
+  workspaceSlug,
   canManage,
   petition,
 }: {
   campaignId: string;
   campaignSlug: string;
+  workspaceSlug: string;
   canManage: boolean;
   petition: PetitionData | null;
 }) {
@@ -108,7 +110,7 @@ export function MobilizationView({
         )}
 
         <a
-          href={`/p/${campaignSlug}`}
+          href={`/association/${workspaceSlug}/${campaignSlug}`}
           target="_blank"
           rel="noopener noreferrer"
           className="group flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 transition-colors hover:border-emerald-500/40"
@@ -116,7 +118,7 @@ export function MobilizationView({
           <ExternalLink className="size-5 shrink-0 text-emerald-700 dark:text-emerald-400" />
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-fg">Voir la page publique</p>
-            <p className="truncate text-[11.5px] text-mut">/p/{campaignSlug}</p>
+            <p className="truncate text-[11.5px] text-mut">/association/{workspaceSlug}/{campaignSlug}</p>
           </div>
         </a>
       </aside>

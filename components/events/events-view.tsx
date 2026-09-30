@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -10,7 +10,9 @@ import {
   Trash2,
   Globe,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { cn, formatDateTime } from "@/lib/utils";
 import { createEventAction, toggleEventPublishAction, deleteEventAction } from "@/app/actions/mobilization";
@@ -80,6 +82,22 @@ function Section({
   onRefresh: () => void;
   past?: boolean;
 }) {
+  const [busyEvent, setBusyEvent] = useState<string | null>(null);
+
+  async function changePublication(event: EventRow) {
+    if (busyEvent) return;
+    setBusyEvent(event.id);
+    try {
+      await toggleEventPublishAction(event.id);
+      toast.success(event.isPublished ? "Événement dépublié" : "Événement publié");
+      onRefresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Modification impossible");
+    } finally {
+      setBusyEvent(null);
+    }
+  }
+
   return (
     <section>
       <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
@@ -129,6 +147,17 @@ function Section({
                   {e.yesCount} oui · {e.maybeCount} peut-être
                 </span>
                 <div className="flex items-center gap-1">
+                  {e.isPublished && (
+                    <Link
+                      href={`/e/${e.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-[11.5px] text-coral-700 hover:bg-hover dark:text-coral-300 sm:min-h-8"
+                      aria-label={`Ouvrir la page publique de ${e.title}`}
+                    >
+                      <ExternalLink className="size-3.5" /> Page RSVP
+                    </Link>
+                  )}
                   {(canManage || canDelete) && (
                     <button
                       title="Voir les inscrits"
@@ -152,16 +181,22 @@ function Section({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => void toggleEventPublishAction(e.id).then(onRefresh)}
+                      disabled={busyEvent !== null}
+                      onClick={() => void changePublication(e)}
                     >
-                      {e.isPublished ? "Dépublier" : "Publier"}
+                      {busyEvent === e.id ? "Mise à jour…" : e.isPublished ? "Dépublier" : "Publier"}
                     </Button>
                   )}
                   {canDelete && (
                     <button
                       onClick={() => {
                         if (!confirm(`Supprimer « ${e.title} » ?`)) return;
-                        void deleteEventAction(e.id).then(onRefresh);
+                        void deleteEventAction(e.id)
+                          .then(() => {
+                            toast.success("Événement supprimé");
+                            onRefresh();
+                          })
+                          .catch((error: Error) => toast.error(error.message));
                       }}
                       className="text-faint hover:text-rose-700 dark:hover:text-rose-400"
                     >

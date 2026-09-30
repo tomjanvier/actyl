@@ -42,11 +42,16 @@ POST {ACTYL_URL}/api/v1/supporters
 ### 4. Don (Givoly)
 ```
 POST {ACTYL_URL}/api/v1/donations
+Idempotency-Key: {identifiant-stable-du-paiement}
 {"email":"a@b.fr","fullName":"Jean Martin","amount":50,"provider":"givoly",
  "label":"Don campagne zones humides","occurredAt":"2026-08-24T12:00:00Z"}
 → 201 {"ok":true,"donationId":"…","contactId":"…"}
 ```
 `amount` = montant en unités (50) ou `amountCents` (5000). Crée/enrichit le contact en catégorie DONOR automatiquement.
+`Idempotency-Key` est facultatif pour préserver la compatibilité ; lorsqu'il est
+fourni, réutilisez le même identifiant stable de transaction lors de chaque
+retry. Le même payload renvoie le don existant en `200`; réutiliser la clé pour
+des données différentes renvoie `409`.
 
 ## Ce que je veux que tu implémentes dans le plugin
 

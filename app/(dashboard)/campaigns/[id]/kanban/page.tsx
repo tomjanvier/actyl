@@ -23,6 +23,7 @@ export default async function KanbanPage({
     include: {
       squads: { include: { group: true } },
       shares: { include: { workspace: { select: { name: true } } } },
+      workspace: { select: { slug: true } },
     },
   });
   if (!campaign) notFound();
@@ -91,6 +92,7 @@ export default async function KanbanPage({
           name: campaign.name,
           emoji: campaign.emoji,
           description: campaign.description,
+          isPublished: campaign.isPublished,
           status: campaign.status,
           priority: campaign.priority,
           dueDate: campaign.dueDate?.toISOString() ?? null,
@@ -99,6 +101,7 @@ export default async function KanbanPage({
             color: s.group.color,
           })),
           slug: campaign.slug,
+          workspaceSlug: campaign.workspace.slug,
           pinned: access.owner ? campaign.pinned : (access.pinned ?? false),
           shares: campaign.shares.map((share) => ({
             id: share.id,
@@ -107,6 +110,7 @@ export default async function KanbanPage({
           })),
         }}
         canEdit={access.canContribute && can(session.role, "campaign:edit")}
+        canPublish={access.owner && can(session.role, "campaign:edit")}
         canShare={access.owner && session.role === "ADMIN"}
       />
       <KanbanBoard
