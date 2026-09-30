@@ -396,27 +396,43 @@ export function ProfileForm({
   }, [state, router]);
 
   return (
-    <form action={action} className="max-w-md rounded-xl border border-line bg-card p-5">
-      <div className="mb-4 flex items-center gap-3">
+    <form action={action} className="max-w-xl rounded-xl border border-line bg-card p-5">
+      <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
         <EntityAvatar name={user.name} color="indigo" size="lg" />
         <div>
           <p className="text-[14px] font-semibold text-fg">{user.name}</p>
-          <p className="text-[12px] text-faint">{user.email}</p>
+          <p className="text-[12px] text-mut">Coordonnées et accès au compte</p>
         </div>
       </div>
-      <Label className="mb-1 block">Nom affiché</Label>
-      <Input name="name" defaultValue={user.name} className="mb-3" required />
-      <Label className="mb-1 block">Fonction</Label>
-      <Input name="jobTitle" defaultValue={user.jobTitle ?? ""} placeholder="Chargée de plaidoyer…" className="mb-3" />
-      <details className="mb-3 rounded-lg border border-line p-3">
-        <summary className="cursor-pointer text-[12.5px] text-mut">
-          Changer de mot de passe
-        </summary>
-        <Label className="mb-1 mt-3 block">Mot de passe actuel</Label>
-        <Input name="currentPassword" type="password" className="mb-2" autoComplete="current-password" />
-        <Label className="mb-1 block">Nouveau mot de passe</Label>
-        <Input name="newPassword" type="password" minLength={8} autoComplete="new-password" />
-      </details>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="profile-name" className="mb-1 block">Nom affiché</Label>
+          <Input id="profile-name" name="name" defaultValue={user.name} autoComplete="name" required />
+        </div>
+        <div>
+          <Label htmlFor="profile-job-title" className="mb-1 block">Fonction</Label>
+          <Input id="profile-job-title" name="jobTitle" defaultValue={user.jobTitle ?? ""} placeholder="Chargée de plaidoyer…" autoComplete="organization-title" />
+        </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="profile-email" className="mb-1 block">Adresse e-mail</Label>
+          <Input id="profile-email" name="email" type="email" defaultValue={user.email} autoComplete="email" required />
+        </div>
+        <div className="sm:col-span-2 rounded-lg border border-line p-3">
+          <p className="text-[12px] leading-relaxed text-mut">
+            Pour modifier l’adresse e-mail ou le mot de passe, confirmez votre mot de passe actuel. Laissez le nouveau mot de passe vide si vous ne souhaitez pas le changer.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="profile-current-password" className="mb-1 block">Mot de passe actuel</Label>
+              <Input id="profile-current-password" name="currentPassword" type="password" autoComplete="current-password" />
+            </div>
+            <div>
+              <Label htmlFor="profile-new-password" className="mb-1 block">Nouveau mot de passe</Label>
+              <Input id="profile-new-password" name="newPassword" type="password" minLength={8} autoComplete="new-password" placeholder="8 caractères minimum" />
+            </div>
+          </div>
+        </div>
+      </div>
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Enregistrement…" : "Enregistrer"}
       </Button>
@@ -433,4 +449,3 @@ export const GROUP_DOT: Record<string, string> = {
 };
 
 // ── Référentiels partagés et imports indépendants ─────────────────────────────
-

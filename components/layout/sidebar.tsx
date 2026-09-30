@@ -234,7 +234,7 @@ export function Sidebar({
                   {pinnedCampaigns.map((campaign) => (
                     <Link
                       key={campaign.id}
-                      href={`/campaigns/${campaign.slug}`}
+                      href={`/campaigns/${campaign.id}/kanban`}
                       className="flex min-h-8 items-center gap-1.5 truncate rounded-md px-2 text-[11.5px] text-faint hover:bg-elev hover:text-mut"
                       onClick={() => setMobileOpen(false)}
                     >

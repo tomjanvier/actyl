@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
 import { cn, fullName, toCSV, downloadFile } from "@/lib/utils";
 import { LEVELS, LEVEL_META, STANCE_META } from "@/lib/constants";
 import { EntityAvatar } from "@/components/ui/badge";
@@ -24,15 +24,18 @@ export function EmbedListTable({
   listName,
   description,
   rows,
+  pageSize = 1000,
 }: {
   listName: string;
   description: string | null;
   rows: EmbedRow[];
+  pageSize?: number;
 }) {
   const [query, setQuery] = useState("");
   const [levelF, setLevelF] = useState("");
   const [partyF, setPartyF] = useState("");
   const [institutionF, setInstitutionF] = useState("");
+  const [page, setPage] = useState(1);
 
   const parties = useMemo(
     () => [...new Set(rows.map((r) => r.party).filter(Boolean))] as string[],
@@ -54,6 +57,14 @@ export function EmbedListTable({
       .toLowerCase()
       .includes(q);
   });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function resetPage(action: () => void) {
+    action();
+    setPage(1);
+  }
 
   function exportCsv() {
     const csv = toCSV(
@@ -89,19 +100,19 @@ export function EmbedListTable({
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-faint" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => resetPage(() => setQuery(e.target.value))}
               placeholder="Rechercher…"
               className="h-8 w-36 rounded-lg border border-line bg-elev pl-7 pr-2 text-[12px] text-fg outline-none focus:border-coral-500/60"
             />
           </div>
-          <select value={levelF} onChange={(e) => setLevelF(e.target.value)} className={cn(selCls, levelF && "border-coral-500/40")}>
+          <select value={levelF} onChange={(e) => resetPage(() => setLevelF(e.target.value))} className={cn(selCls, levelF && "border-coral-500/40")}>
             <option value="">Niveau</option>
             {LEVELS.map((l) => (
               <option key={l} value={l}>{LEVEL_META[l].label}</option>
             ))}
           </select>
           {parties.length > 0 && (
-            <select value={partyF} onChange={(e) => setPartyF(e.target.value)} className={cn(selCls, partyF && "border-coral-500/40")}>
+            <select value={partyF} onChange={(e) => resetPage(() => setPartyF(e.target.value))} className={cn(selCls, partyF && "border-coral-500/40")}>
               <option value="">Parti</option>
               {parties.map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -109,7 +120,7 @@ export function EmbedListTable({
             </select>
           )}
           {institutions.length > 1 && (
-            <select value={institutionF} onChange={(e) => setInstitutionF(e.target.value)} className={cn(selCls, institutionF && "border-coral-500/40")}>
+            <select value={institutionF} onChange={(e) => resetPage(() => setInstitutionF(e.target.value))} className={cn(selCls, institutionF && "border-coral-500/40")}>
               <option value="">Institution</option>
               {institutions.map((i) => (
                 <option key={i} value={i}>{i}</option>
@@ -127,7 +138,7 @@ export function EmbedListTable({
       </div>
 
       <ul>
-        {filtered.map((r) => {
+        {pageRows.map((r) => {
           const stance = STANCE_META[r.stance as keyof typeof STANCE_META];
           return (
             <li
@@ -159,6 +170,34 @@ export function EmbedListTable({
           </li>
         )}
       </ul>
+      {filtered.length > 0 && pageSize < filtered.length && (
+        <nav aria-label="Pagination de la liste" className="flex items-center justify-between border-t border-line px-3 py-2">
+          <p className="text-[12px] text-mut" aria-live="polite">
+            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} sur {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Page précédente"
+              disabled={currentPage === 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              className="inline-flex size-9 items-center justify-center rounded-md border border-line text-mut hover:bg-hover disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <span className="min-w-16 text-center text-[12px] text-mut">Page {currentPage} / {pageCount}</span>
+            <button
+              type="button"
+              aria-label="Page suivante"
+              disabled={currentPage === pageCount}
+              onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+              className="inline-flex size-9 items-center justify-center rounded-md border border-line text-mut hover:bg-hover disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

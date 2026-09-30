@@ -10,20 +10,20 @@
   --brand-coral: #F25F4C;
   --brand-plum: #2B1533;
   --brand-ink: #16091C;
-  --brand-cream: #F7F1E8;
+  --brand-cream: #FFFFFF;
   --brand-lavender: #C4B5FD;
   --brand-primary: var(--brand-coral);
   --brand-accent: var(--brand-lavender);
   --focus: var(--brand-plum);
 
   --canvas: var(--brand-cream);
-  --sidebar: #f2e9de;
-  --raised: #fffcf7;
+  --sidebar: #F7F7F8;
+  --raised: #FFFFFF;
   --overlay: var(--brand-plum);
 
-  --fg: var(--brand-plum);
-  --mut: #67536d;
-  --faint: #756278;
+  --fg: #241D26;
+  --mut: #514A54;
+  --faint: #625B65;
 
   --line: rgba(43, 21, 51, 0.13);
   --line-soft: rgba(43, 21, 51, 0.075);
@@ -32,7 +32,7 @@
   --elev: rgba(43, 21, 51, 0.07);
   --hoverstrong: rgba(43, 21, 51, 0.12);
 
-  --card: #fffcf7;
+  --card: #FFFFFF;
   --accent: var(--brand-primary);
   --accent-hover: #dc4c3a;
   --accent-soft: rgba(242, 95, 76, 0.12);

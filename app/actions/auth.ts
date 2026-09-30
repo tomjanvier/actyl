@@ -22,6 +22,19 @@ const signUpSchema = z.object({
   workspaceName: z.string().min(2, "Nom d'association requis"),
   website: z.string().max(200).optional().or(z.literal("")),
   phone: z.string().max(40).optional().or(z.literal("")),
+  monthlyContributionInterest: z.enum(["YES", "NO", "DISCUSS"]),
+  monthlyContributionAmount: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : Number(value)),
+    z.number().int().min(1).max(100000).optional(),
+  ),
+}).superRefine((data, context) => {
+  if (data.monthlyContributionInterest === "YES" && !data.monthlyContributionAmount) {
+    context.addIssue({
+      code: "custom",
+      path: ["monthlyContributionAmount"],
+      message: "Indiquez le montant mensuel envisagé, ou choisissez « À discuter ».",
+    });
+  }
 });
 
 export type ActionState =
@@ -43,7 +56,16 @@ export async function signUpAction(
   }
   const captcha = await verifyTurnstileToken(String(formData.get("cf-turnstile-response") ?? ""));
   if (!captcha.ok) return { error: captcha.error };
-  const { name, email, password, workspaceName, website, phone } = parsed.data;
+  const {
+    name,
+    email,
+    password,
+    workspaceName,
+    website,
+    phone,
+    monthlyContributionInterest,
+    monthlyContributionAmount,
+  } = parsed.data;
   const mode = await getSignupMode();
 
   const lowerEmail = email.toLowerCase();
@@ -69,6 +91,9 @@ export async function signUpAction(
         orgName: workspaceName,
         website: website || null,
         phone: phone || null,
+        monthlyContributionInterest,
+        monthlyContributionAmount:
+          monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
         status: "PENDING",
       },
       update: {
@@ -77,6 +102,9 @@ export async function signUpAction(
         orgName: workspaceName,
         website: website || null,
         phone: phone || null,
+        monthlyContributionInterest,
+        monthlyContributionAmount:
+          monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
         status: "PENDING",
       },
     });
@@ -103,6 +131,9 @@ export async function signUpAction(
               slug,
               website: website || null,
               phone: phone || null,
+              monthlyContributionInterest,
+              monthlyContributionAmount:
+                monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
             },
           },
         },

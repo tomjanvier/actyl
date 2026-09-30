@@ -12,9 +12,11 @@ export default function AuthLayout({
         <ActylLogo className="h-10 w-[158px]" priority />
       </Link>
       {children}
-      <p className="mt-8 max-w-sm text-center text-[12px] leading-relaxed text-faint">
-        CRM de plaidoyer open-source — organisez vos campagnes de lobbying,
-        suivez les décideurs et mobilisez vos soutiens.
+      <p className="mt-8 max-w-sm text-center text-[12px] leading-relaxed text-mut">
+        Actyl, tous droits réservés · CRM de plaidoyer développé par l’association{" "}
+        <a href="https://plaidact.org" target="_blank" rel="noopener noreferrer" className="font-medium text-coral-800 underline-offset-4 hover:underline dark:text-coral-300">
+          PLAID·ACT
+        </a>
       </p>
     </div>
   );

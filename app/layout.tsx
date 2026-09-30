@@ -18,7 +18,7 @@ const display = Fraunces({
 export const metadata: Metadata = {
   title: { default: "Actyl", template: "%s · Actyl" },
   description:
-    "CRM de plaidoyer open-source : campagnes de lobbying, suivi des décideurs et mobilisation citoyenne.",
+    "Actyl, CRM de plaidoyer développé par l’association PLAID·ACT. Découvrez l’outil sur plaidact.org.",
   applicationName: "Actyl",
   icons: {
     icon: [
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem("actyl_theme");if(t==="light"){document.documentElement.classList.remove("dark")}else{document.documentElement.classList.add("dark")}}catch(e){document.documentElement.classList.add("dark")}})()`;
+const themeScript = `(function(){try{var t=localStorage.getItem("actyl_theme");if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}}catch(e){document.documentElement.classList.remove("dark")}})()`;
 
 export default function RootLayout({
   children,

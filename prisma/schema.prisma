@@ -22,6 +22,8 @@ model Workspace {
   logoEmoji String   @default("🏛️")
   website   String?
   phone     String?
+  monthlyContributionInterest String?
+  monthlyContributionAmount   Int?
   createdAt DateTime @default(now())
 
   memberships  Membership[]
@@ -825,6 +827,8 @@ model AccountRequest {
   orgName     String
   website     String?
   phone       String?
+  monthlyContributionInterest String?
+  monthlyContributionAmount   Int?
   // PENDING | APPROVED | REJECTED
   status      String   @default("PENDING")
   createdAt   DateTime @default(now())

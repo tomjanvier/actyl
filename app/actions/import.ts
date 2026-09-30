@@ -384,6 +384,9 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
   } else if (key === "presidentielle-2027") {
     await ensurePresidentialModuleScope(session.workspaceId, session.user.id);
   }
+  revalidatePath("/settings");
+  revalidatePath("/lists");
+  revalidatePath("/presidentielle");
   return result;
 }
 
@@ -414,6 +417,7 @@ export async function setReferencePackEnabledAction(
   revalidatePath("/settings");
   revalidatePath("/lists");
   revalidatePath("/contacts");
+  revalidatePath("/presidentielle");
   return { ok: true };
 }
 

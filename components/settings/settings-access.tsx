@@ -31,6 +31,8 @@ export function AccountRequestsSection({
     orgName: string;
     website: string | null;
     phone: string | null;
+    monthlyContributionInterest: string | null;
+    monthlyContributionAmount: number | null;
     createdAt: string;
   }>;
   onChanged: () => void;
@@ -99,6 +101,16 @@ export function AccountRequestsSection({
                   {r.email}
                   {r.website ? ` · ${r.website}` : ""}
                   {r.phone ? ` · ${r.phone}` : ""}
+                </p>
+                <p className="mt-1 text-[11.5px] text-mut">
+                  Cotisation mensuelle envisagée (sans engagement) :{" "}
+                  {r.monthlyContributionInterest === "YES" && r.monthlyContributionAmount
+                    ? `${r.monthlyContributionAmount} €`
+                    : r.monthlyContributionInterest === "NO"
+                      ? "non actuellement"
+                      : r.monthlyContributionInterest === "DISCUSS"
+                        ? "à discuter"
+                        : "non renseignée"}
                 </p>
               </div>
               {isAdmin && (

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ActylLogo } from "@/components/layout/actyl-logo";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 import { LandingDemoTable } from "@/components/public/landing-demo-table";
 import { getLandingSettings } from "@/lib/landing-settings";
@@ -31,6 +32,7 @@ export default async function LandingPage() {
           <ActylLogo className="h-9 w-[142px]" priority />
         </Link>
         <nav className="flex items-center gap-3">
+          <ThemeToggle />
           <Link href="/sign-in">
             <Button variant="ghost" size="sm">
               Connexion
@@ -137,7 +139,7 @@ export default async function LandingPage() {
                 Un annuaire des décideurs, en accès direct
               </h2>
               <p className="mt-1 text-[13px] text-mut">
-                Aperçu réel du module Contacts — députés, sénateurs, eurodéputés.
+                Aperçu réel du module Contacts — 10 député·e·s par page.
               </p>
             </div>
           </div>
@@ -145,9 +147,14 @@ export default async function LandingPage() {
         </section>
 
         {/* Footer */}
-        <footer className="flex flex-col items-center gap-2 border-t border-line py-10 text-[12.5px] text-faint">
+        <footer className="flex flex-col items-center gap-2 border-t border-line py-10 text-center text-[12.5px] text-mut">
           <p>{settings.footerText}</p>
-          <p>Next.js · Prisma · Tailwind CSS · Licence MIT</p>
+          <p>
+            Actyl, tous droits réservés · CRM de plaidoyer développé par l’association{" "}
+            <a href="https://plaidact.org" target="_blank" rel="noopener noreferrer" className="font-medium text-coral-800 underline-offset-4 hover:underline dark:text-coral-300">
+              PLAID·ACT
+            </a>
+          </p>
         </footer>
       </main>
     </div>
