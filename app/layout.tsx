@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import { DM_Sans, Montserrat } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -9,9 +9,10 @@ const sans = DM_Sans({
   display: "swap",
 });
 
-const display = Fraunces({
+const display = Montserrat({
   subsets: ["latin"],
-  variable: "--font-fraunces",
+  weight: ["700", "800", "900"],
+  variable: "--font-display",
   display: "swap",
 });
 
