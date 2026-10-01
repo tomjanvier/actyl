@@ -9,7 +9,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ActylLogo } from "@/components/layout/actyl-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
@@ -52,9 +51,9 @@ export default async function LandingPage() {
       {/* Hero */}
       <main className="mx-auto max-w-5xl px-6">
         <section className="flex flex-col items-center pb-16 pt-20 text-center sm:pt-28">
-          <Badge className="mb-5 border-none bg-elev px-2.5 py-1 text-mut ring-line">
-            Logiciel libre · MIT · auto-hébergeable · par PLAID·ACT
-          </Badge>
+          <p className="mb-5 text-xs font-bold uppercase tracking-[0.16em] text-coral-800 dark:text-coral-300">
+            Développé par l’association PLAID·ACT
+          </p>
           <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-[52px]">
             {settings.heroTitle}{" "}
             <span className="text-coral-700 dark:text-coral-300">

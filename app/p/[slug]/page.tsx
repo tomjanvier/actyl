@@ -213,7 +213,7 @@ export default async function PublicCampaignPage({
             <Link href="/" className="text-faint hover:text-mut">
               Actyl
             </Link>{" "}
-            — CRM de plaidoyer open-source.
+            — CRM de plaidoyer développé par PLAID·ACT.
             <br />
             Vos coordonnées sont utilisées uniquement pour signer votre message.
           </p>
