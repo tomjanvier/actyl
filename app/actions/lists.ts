@@ -49,6 +49,9 @@ export async function toggleListPublishAction(listId: string) {
     where: { id: listId, workspaceId: session.workspaceId },
   });
   if (!list) throw new Error("Liste introuvable");
+  if (list.sourcePack && !session.user.isSuperAdmin) {
+    throw new Error("Seul le super-administrateur peut publier un référentiel");
+  }
   await db.sharedList.update({
     where: { id: listId },
     data: { isPublished: !list.isPublished },

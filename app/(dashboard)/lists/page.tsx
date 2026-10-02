@@ -155,7 +155,7 @@ export default async function ListsPage() {
           };
         })}
         canManage={canCreateLists}
-        canPublish={session.role === "ADMIN"}
+        canPublish={session.role === "ADMIN" && session.user.isSuperAdmin}
         isAdmin={session.user.isSuperAdmin}
         proposals={proposals.map((proposal) => ({
           id: proposal.id,
