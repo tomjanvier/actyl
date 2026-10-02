@@ -1,5 +1,7 @@
 "use server";
 
+import { invalidatePublicDirectory } from "@/lib/public-directory";
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -102,6 +104,7 @@ export async function proposeListChange(input: {
       origin: "MEMBER",
     },
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
   return { ok: true, duplicate: false };
 }
@@ -289,6 +292,7 @@ export async function approveListChangeProposalAction(proposalId: string) {
     });
   });
 
+  invalidatePublicDirectory();
   revalidatePath("/lists");
   revalidatePath("/contacts");
   return { ok: true };
@@ -302,6 +306,7 @@ export async function rejectListChangeProposalAction(proposalId: string) {
     where: { id: proposalId, status: "PENDING" },
     data: { status: "REJECTED", reviewerId: session.user.id, reviewedAt: new Date() },
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
   return { ok: true };
 }

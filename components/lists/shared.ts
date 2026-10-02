@@ -26,7 +26,6 @@ export type ListWithItems = {
   sourcePack?: string | null;
   items: Array<{ itemId: string; contact: ContactLite }>;
   totalItems: number;
-  memberContactIds: string[];
   pinned: boolean;
   canEdit: boolean;
   canContribute: boolean;

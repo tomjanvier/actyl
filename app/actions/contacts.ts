@@ -1,5 +1,7 @@
 "use server";
 
+import { invalidatePublicDirectory } from "@/lib/public-directory";
+
 /**
  * Contacts et modèle de connaissance à trois niveaux : champs partagés,
  * notes collectives et données privées propres à chaque membre.
@@ -76,6 +78,7 @@ export async function createContactAction(
       createdById: session.user.id,
     },
   });
+  invalidatePublicDirectory();
   revalidatePath("/contacts");
   return { ok: true };
 }
@@ -137,6 +140,7 @@ export async function updateContactAction(
       photoUrl: d.photoUrl || null,
     },
   });
+  invalidatePublicDirectory();
   revalidatePath("/contacts");
   revalidatePath(`/campaigns`);
   return { ok: true };
@@ -184,6 +188,7 @@ export async function deleteContactAction(contactId: string) {
   await db.contact.deleteMany({
     where: { id: contactId, workspaceId: session.workspaceId },
   });
+  invalidatePublicDirectory();
   revalidatePath("/contacts");
 }
 
@@ -209,6 +214,7 @@ export async function addPrivateNoteAction(
   await db.privateNote.create({
     data: { contactId, authorId: session.user.id, body },
   });
+  invalidatePublicDirectory();
   revalidatePath("/contacts");
   return { ok: true };
 }
@@ -235,6 +241,7 @@ export async function savePrivateDataAction(input: {
     },
     update: { rating: input.rating, tags: input.tags || null },
   });
+  invalidatePublicDirectory();
   revalidatePath("/contacts");
   return { ok: true };
 }
@@ -267,6 +274,7 @@ export async function addOrgNoteAction(
       body,
     },
   });
+  invalidatePublicDirectory();
   revalidatePath("/contacts");
   return { ok: true };
 }
@@ -281,5 +289,6 @@ export async function deleteOrgNoteAction(noteId: string) {
       ...(session.role === "ADMIN" ? {} : { authorId: session.user.id }),
     },
   });
+  invalidatePublicDirectory();
   revalidatePath("/contacts");
 }

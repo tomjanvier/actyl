@@ -6,6 +6,14 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "placement": { "mode": "smart" },
+  "migrations": [{ "tag": "actyl-cache-v1", "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"] }],
+  "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache" }],
+  "durable_objects": { "bindings": [
+    { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+    { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+  ] },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare" }],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -28,10 +36,22 @@
   // "limits": { "cpu_ms": 50 },
   "env": {
     "preview": {
-      "name": "actyl-cloudflare-preview"
+      "name": "actyl-cloudflare-preview",
+  "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache-preview" }],
+  "durable_objects": { "bindings": [
+    { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+    { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+  ] },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare-preview" }],
     },
     "production": {
       "name": "actyl-cloudflare",
+  "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache" }],
+  "durable_objects": { "bindings": [
+    { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+    { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+  ] },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare" }],
       "vars": {
         "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
         // Origine publique : base de la redirect_uri SSO

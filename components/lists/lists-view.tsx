@@ -37,14 +37,12 @@ type ActionRes = { error?: string; ok?: boolean };
 
 export function ListsView({
   lists,
-  allContacts,
   canManage,
   canPublish,
   isAdmin,
   proposals,
 }: {
   lists: ListWithItems[];
-  allContacts: ContactLite[];
   canManage: boolean;
   canPublish: boolean;
   isAdmin: boolean;
@@ -307,7 +305,6 @@ export function ListsView({
       {/* Fenêtre d’ajout de contacts. */}
       <AddContactsDialog
         list={lists.find((l) => l.id === addOpenFor) ?? null}
-        contacts={allContacts}
         onClose={() => setAddOpenFor(null)}
         onAdded={refresh}
       />
@@ -478,12 +475,10 @@ function CreateListDialog({
 
 function AddContactsDialog({
   list,
-  contacts,
   onClose,
   onAdded,
 }: {
   list: ListWithItems | null;
-  contacts: ContactLite[];
   onClose: () => void;
   onAdded: () => void;
 }) {
@@ -494,17 +489,38 @@ function AddContactsDialog({
   useEffect(() => {
     setQuery("");
     setSelected([]);
+    setPage(1);
+    setContacts([]);
   }, [list?.id]);
 
-  const inList = new Set(list?.memberContactIds ?? []);
-  const filtered = contacts.filter((c) => {
-    if (inList.has(c.id)) return false;
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return `${c.firstName} ${c.lastName} ${c.institution ?? ""} ${c.party ?? ""}`
-      .toLowerCase()
-      .includes(q);
-  });
+  const [contacts, setContacts] = useState<ContactLite[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!list?.id) return;
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/lists/${encodeURIComponent(list.id)}/available-contacts?page=${page}&q=${encodeURIComponent(query)}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Impossible de charger les contacts.");
+        const result: { rows: ContactLite[]; hasMore: boolean } = await response.json();
+        if (!controller.signal.aborted) {
+          setContacts(result.rows);
+          setHasMore(result.hasMore);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Chargement impossible.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [list?.id, query, page]);
+  const filtered = contacts;
 
   async function confirm() {
     if (!list || !selected.length) return;
@@ -527,13 +543,14 @@ function AddContactsDialog({
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
           <Input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder="Filtrer…"
             className="pl-8"
             autoFocus
           />
         </div>
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
+        <p role="status" className="text-sm text-mut">{loading ? "Chargement…" : error}</p>
+        <div aria-busy={loading} className="max-h-64 overflow-y-auto rounded-lg border border-line">
           {filtered.map((c) => (
             <label
               key={c.id}
@@ -541,6 +558,7 @@ function AddContactsDialog({
             >
               <input
                 type="checkbox"
+                disabled={loading || !!error}
                 checked={selected.includes(c.id)}
                 onChange={(e) =>
                   setSelected((s) =>
@@ -556,12 +574,17 @@ function AddContactsDialog({
               </span>
             </label>
           ))}
-          {filtered.length === 0 && (
+          {!loading && !error && filtered.length === 0 && (
             <p className="py-6 text-center text-[12.5px] text-faint">
-              Tous les décideurs sont déjà dans la liste.
+              Aucun contact disponible pour cette recherche.
             </p>
           )}
         </div>
+        <nav aria-label="Pagination des contacts disponibles" className="flex justify-between">
+          <Button variant="ghost" size="sm" disabled={loading || page === 1} onClick={() => setPage(p => p - 1)}>Précédent</Button>
+          <span className="text-sm text-mut">Page {page}</span>
+          <Button variant="ghost" size="sm" disabled={loading || !hasMore} onClick={() => setPage(p => p + 1)}>Suivant</Button>
+        </nav>
         <div className="flex items-center justify-between">
           <span className="text-[12px] text-faint">{selected.length} sélectionné(s)</span>
           <div className="flex gap-2">

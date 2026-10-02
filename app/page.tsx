@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   KanbanSquare,
@@ -144,7 +145,7 @@ export default async function LandingPage() {
               </p>
             </div>
           </div>
-          <LandingDemoTable />
+          <Suspense fallback={<div className="h-96 rounded-xl border border-line bg-raised" aria-label="Chargement de l’annuaire" />}><LandingDemoTable /></Suspense>
         </section>
 
         {/* Footer */}

@@ -9,10 +9,10 @@
  * (`new PrismaClient()` sans adaptateur lève une erreur). Branches :
  * - URL Prisma Postgres (`prisma+postgres://...`, connect string directe
  *   `PRISMA_DIRECT_TCP_URL`) → `PrismaPostgresAdapter` (HTTP/WebSockets,
- *   sans connexion TCP persistante). **Seul mode compatible Cloudflare
- *   Workers.** Utilisé en production et en preview.
+ *   sans connexion TCP persistante). Compatible Cloudflare
+ *   Workers.
  * - URL Neon (`*.neon.tech`, poolée ou directe) → `PrismaNeonHttp` (fetch).
- *   Transition locale et secours Node.
+ *   Compatible Workers via HTTP ; utilisé pour la base Neon de production.
  * - Autre URL PostgreSQL (Docker local, Supabase, RDS) → `PrismaPg`,
  *   réservé au runtime Node local. Non exécuté sur Workers.
  *

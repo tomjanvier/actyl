@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
@@ -52,6 +52,7 @@ export async function saveLandingPageSettingsAction(
       }),
     ),
   );
+  revalidateTag("landing-settings");
   revalidatePath("/");
   revalidatePath("/settings");
   return { ok: true };

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 import {
@@ -19,7 +20,7 @@ export function referencePackSettingKey(
 }
 
 /** Retourne les référentiels explicitement désactivés dans un espace. */
-export async function getDisabledReferencePacks(workspaceId: string) {
+export const getDisabledReferencePacks = cache(async (workspaceId: string) => {
   const legacyPresidentielleKey = workspaceSettingKey(
     workspaceId,
     LEGACY_PRESIDENTIELLE_SETTING,
@@ -51,4 +52,4 @@ export async function getDisabledReferencePacks(workspaceId: string) {
     }
   }
   return disabled;
-}
+});

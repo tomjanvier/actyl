@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireSession, getUserMemberships } from "@/lib/auth";
 import { getSegmentsConfig } from "@/lib/flags";
 import { TooltipProvider } from "@/components/ui/controls";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -14,12 +14,8 @@ export default async function DashboardLayout({
 }) {
   const session = await requireSession();
 
-  const [memberships, segments, pinnedCampaigns, shortcutIds, disabledPacks, presidentialList] = await Promise.all([
-    db.membership.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "asc" },
-      include: { workspace: { select: { id: true, name: true, slug: true, logoEmoji: true } } },
-    }),
+  const [memberships, segments, pinnedCampaigns, shortcutIds, disabledPacks, presidentialList, categoryCounts] = await Promise.all([
+    getUserMemberships(session.user.id),
     getSegmentsConfig(session.workspaceId),
     db.campaign.findMany({
       where: {
@@ -38,6 +34,7 @@ export default async function DashboardLayout({
       where: { workspaceId: session.workspaceId, sourcePack: "presidentielle-2027" },
       select: { id: true },
     }),
+    db.contact.groupBy({ by: ["category"], where: { workspaceId: session.workspaceId }, _count: { _all: true } }),
   ]);
   const pinnedLists = shortcutIds.length
     ? await db.sharedList.findMany({
@@ -62,13 +59,6 @@ export default async function DashboardLayout({
   }));
 
   // Une requête groupée alimente les compteurs de segments du menu.
-  const categoryCounts = segments
-    ? await db.contact.groupBy({
-        by: ["category"],
-        where: { workspaceId: session.workspaceId },
-        _count: { _all: true },
-      })
-    : [];
   const counts = Object.fromEntries(
     categoryCounts.map((c) => [c.category, c._count._all]),
   );
