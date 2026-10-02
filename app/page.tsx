@@ -18,14 +18,8 @@ import { getLandingSettings } from "@/lib/landing-settings";
 
 export const dynamic = "force-dynamic";
 
-export default async function LandingPage() {
-  const settings = await getLandingSettings();
-  const primaryButton = (
-    <Button size="lg" className="w-full sm:w-auto">
-      {settings.primaryCta}
-      <ArrowRight />
-    </Button>
-  );
+export default function LandingPage() {
+  const settingsPromise = getLandingSettings();
   return (
     <div className="min-h-screen bg-canvas">
       {/* Nav */}
@@ -51,36 +45,9 @@ export default async function LandingPage() {
 
       {/* Hero */}
       <main className="mx-auto max-w-5xl px-6">
-        <section className="flex flex-col items-center pb-16 pt-20 text-center sm:pt-28">
-          <p className="mb-5 text-xs font-bold uppercase tracking-[0.16em] text-coral-800 dark:text-coral-300">
-            Développé par l’association PLAID·ACT
-          </p>
-          <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-[52px]">
-            {settings.heroTitle}{" "}
-            <span className="text-coral-700 dark:text-coral-300">
-              {settings.heroHighlight}
-            </span>
-          </h1>
-          <p className="mt-5 max-w-xl text-balance text-[15px] leading-relaxed text-faint">
-            {settings.heroText}
-          </p>
-          <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
-            {settings.primaryHref.startsWith("https://") ? (
-              <a href={settings.primaryHref} className="w-full sm:w-auto">
-                {primaryButton}
-              </a>
-            ) : (
-              <Link href={settings.primaryHref} className="w-full sm:w-auto">
-                {primaryButton}
-              </Link>
-            )}
-            <Link href="/sign-in" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                Connexion
-              </Button>
-            </Link>
-          </div>
-        </section>
+        <Suspense fallback={<HeroLoading />}>
+          <LandingHero settingsPromise={settingsPromise} />
+        </Suspense>
 
         {/* Features */}
         <section className="grid grid-cols-1 gap-4 pb-24 sm:grid-cols-2 lg:grid-cols-3">
@@ -149,6 +116,62 @@ export default async function LandingPage() {
         </section>
 
         {/* Footer */}
+        <Suspense fallback={<div className="h-28" />}>
+          <LandingFooter settingsPromise={settingsPromise} />
+        </Suspense>
+      </main>
+    </div>
+  );
+}
+
+
+type SettingsPromise = Promise<Awaited<ReturnType<typeof getLandingSettings>>>;
+
+async function LandingHero({ settingsPromise }: { settingsPromise: SettingsPromise }) {
+  const settings = await settingsPromise;
+  const primaryButton = (
+    <Button size="lg" className="w-full sm:w-auto">
+      {settings.primaryCta}
+      <ArrowRight />
+    </Button>
+  );
+  return (
+        <section className="flex flex-col items-center pb-16 pt-20 text-center sm:pt-28">
+          <p className="mb-5 text-xs font-bold uppercase tracking-[0.16em] text-coral-800 dark:text-coral-300">
+            Développé par l’association PLAID·ACT
+          </p>
+          <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-[52px]">
+            {settings.heroTitle}{" "}
+            <span className="text-coral-700 dark:text-coral-300">
+              {settings.heroHighlight}
+            </span>
+          </h1>
+          <p className="mt-5 max-w-xl text-balance text-[15px] leading-relaxed text-faint">
+            {settings.heroText}
+          </p>
+          <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
+            {settings.primaryHref.startsWith("https://") ? (
+              <a href={settings.primaryHref} className="w-full sm:w-auto">
+                {primaryButton}
+              </a>
+            ) : (
+              <Link href={settings.primaryHref} className="w-full sm:w-auto">
+                {primaryButton}
+              </Link>
+            )}
+            <Link href="/sign-in" className="w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                Connexion
+              </Button>
+            </Link>
+          </div>
+        </section>
+  );
+}
+
+async function LandingFooter({ settingsPromise }: { settingsPromise: SettingsPromise }) {
+  const settings = await settingsPromise;
+  return (
         <footer className="flex flex-col items-center gap-2 border-t border-line py-10 text-center text-[12.5px] text-mut">
           <p>{settings.footerText}</p>
           <p>
@@ -158,7 +181,16 @@ export default async function LandingPage() {
             </a>
           </p>
         </footer>
-      </main>
-    </div>
+  );
+}
+
+function HeroLoading() {
+  return (
+    <section role="status" aria-label="Chargement de la présentation" className="flex min-h-[420px] flex-col items-center gap-5 pb-16 pt-20 text-center sm:min-h-[450px] sm:pt-28">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-800 dark:text-coral-300">Développé par l’association PLAID·ACT</p>
+      <div aria-hidden="true" className="h-24 w-full max-w-3xl rounded-lg bg-elev motion-safe:animate-pulse" />
+      <div aria-hidden="true" className="h-16 w-full max-w-xl rounded-lg bg-elev motion-safe:animate-pulse" />
+      <span className="sr-only">Chargement de la présentation…</span>
+    </section>
   );
 }

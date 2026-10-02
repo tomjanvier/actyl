@@ -44,3 +44,15 @@ Après fusion et déploiement, refaire les mesures sur `https://actyl.org`, vér
 La page d’inscription reste dynamique : son mode (ouvert, modéré, fermé) est lu à la visite et ne peut plus être figé pendant un build sans accès à la base.
 
 Worker Cloudflare local final (R2 et Durable Objects simulés, données publiques réelles) : 54 654 octets de HTML ; les contrôles publics et les gardes passent. Les assets versionnés répondent avec `public, max-age=31536000, immutable`. Une vraie liste privée renvoie 404. Dans le navigateur, la page 2 affiche les contacts 11 à 20 et la recherche « Gabriel Attal » affiche le résultat attendu. La simulation de révocation après un accès au cache vérifie le refus des données et du CSV.
+
+## Correction de l’attente initiale après le premier déploiement
+
+La PR #37 est fusionnée (880fe62) et la version Cloudflare du 2 octobre à 12:47 UTC dispose bien des bindings de cache et de Smart Placement. Les mesures distantes montrent malgré cela 559–1 488 ms avant les en-têtes, puis 1 101–2 185 ms pour recevoir toute la landing. La réduction du HTML ne constituait donc pas une mesure du gain de vitesse réel.
+
+Le rendu de la page attendait `getLandingSettings()` avant de produire sa navigation ou ses sections. Le nouveau rendu démarre cette lecture une seule fois, partage sa promesse entre le hero et le footer, et les place dans des frontières Suspense distinctes. La navigation et les autres sections peuvent être envoyées pendant les lectures, et l’annuaire commence indépendamment des réglages.
+
+Le cache régional OpenNext conserve les données R2 localement pendant une minute, avec `bypassTagCacheOnCacheHit: false` : les vérifications des tags restent actives. Les requêtes de total, de facettes et de lignes d’une page sont désormais parallèles ; une page demandée au-delà du dernier résultat est corrigée avec une lecture supplémentaire.
+
+Validation locale : build Cloudflare, déploiement à blanc, lint et types passent, ainsi que les gardes et le script public. Avec une réponse sans compression, la navigation arrive dans le premier morceau HTML, tandis que les données continuent de charger. La compression du runtime local peut regrouper les morceaux : ces temps locaux ne prouvent pas un gain identique sur le réseau Cloudflare. Les mesures distantes confirment que la production actuelle diffuse déjà son corps HTML progressivement ; aucune règle de compression Cloudflare n’a été changée.
+
+À remesurer après déploiement du correctif : début de réponse, arrivée du texte principal, annuaire, navigation dans une vraie session utilisateur. Aucun score Lighthouse ou gain sur les pages authentifiées n’est annoncé à partir de ces mesures publiques.

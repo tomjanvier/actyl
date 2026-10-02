@@ -28,12 +28,18 @@ const getDirectoryFacets = unstable_cache(
 
 const loadDirectoryPage = async (id: string, page: number, query: string, level: string, party: string, institution: string, pageSize: number) => {
   const where = directoryWhere(id, query, level, party, institution);
-  const [total, facets] = await Promise.all([
+  const orderBy = [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }] as const;
+  const loadRows = (page: number) => db.contact.findMany({
+    where, select: publicContactSelection,
+    orderBy: [...orderBy], skip: (page - 1) * pageSize, take: pageSize,
+  });
+  const [total, facets, requestedRows] = await Promise.all([
     db.contact.count({ where }),
     getDirectoryFacets(id),
+    loadRows(page),
   ]);
   const currentPage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
-  const rows = await db.contact.findMany({ where, select: publicContactSelection, orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }], skip: (currentPage - 1) * pageSize, take: pageSize });
+  const rows = currentPage === page ? requestedRows : await loadRows(currentPage);
   return { rows, total, page: currentPage, parties: [...new Set(facets.flatMap(r => r.party ? [r.party] : []))].sort(), institutions: [...new Set(facets.flatMap(r => r.institution ? [r.institution] : []))].sort() };
 };
 
