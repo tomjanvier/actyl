@@ -27,6 +27,8 @@ export default async function ContactsPage({
     category?: string;
     page?: string;
     list?: string;
+    unlisted?: string;
+    mandate?: string;
     contact?: string;
   }>;
 }) {
@@ -36,6 +38,8 @@ export default async function ContactsPage({
     page: pageParam,
     list: requestedListId,
     contact: initialContactId,
+    unlisted,
+    mandate,
   } = await searchParams;
   const [segments, newsletter, directoryLists, disabledReferencePacks, groups] = await Promise.all([
     getSegmentsConfig(session.workspaceId),
@@ -63,6 +67,8 @@ export default async function ContactsPage({
       !disabledReferencePacks.has(list.sourcePack as ReferencePackKey),
   );
   const activeList = visibleLists.find((list) => list.id === requestedListId);
+  const onlyUnlisted = unlisted === "1";
+  const formerMandate = mandate === "former";
   const enabledCategories = new Set([
     "DECISION_MAKER",
     ...(segments.members ? ["MEMBER"] : []),
@@ -80,7 +86,22 @@ export default async function ContactsPage({
   const where = {
     workspaceId: session.workspaceId,
     ...(activeCategory ? { category: activeCategory } : {}),
-    ...(activeList ? { listItems: { some: { listId: activeList.id } } } : {}),
+    ...(activeList
+      ? { listItems: { some: { listId: activeList.id } } }
+      : onlyUnlisted
+        ? { listItems: { none: {} } }
+        : {}),
+    ...(formerMandate
+      ? {
+          OR: [
+            { sourceSystem: { in: ["assemblee-nationale-anciens", "senat-anciens", "parlement-europeen-anciens"] } },
+            { title: { contains: "ancien", mode: "insensitive" as const } },
+            { title: { contains: "ancienne", mode: "insensitive" as const } },
+            { title: { contains: "ex-déput", mode: "insensitive" as const } },
+            { title: { contains: "ex-sénat", mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
   };
 
   const [contacts, total, fields] = await Promise.all([
@@ -255,6 +276,8 @@ export default async function ContactsPage({
         newsletterEnabled={newsletterEnabled}
         lists={visibleLists.map((list) => ({ id: list.id, name: list.name }))}
         activeListId={activeList?.id ?? ""}
+        onlyUnlisted={onlyUnlisted}
+        formerMandate={formerMandate}
         initialContactId={initialContactId ?? null}
         candidateProfiles={Object.fromEntries(
           candidateTeams.flatMap((team) =>

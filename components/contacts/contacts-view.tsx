@@ -40,6 +40,7 @@ import {
   unsubscribeContactsAction,
   syncContactsNewsletterStatusAction,
 } from "@/app/actions/newsletter";
+import { deleteContactsAction } from "@/app/actions/contacts";
 
 export const NEWSLETTER_META: Record<string, { label: string; badge: string; dot: string }> = {
   SUBSCRIBED: {
@@ -78,6 +79,8 @@ export function ContactsView({
   newsletterEnabled = false,
   lists = [],
   activeListId = "",
+  onlyUnlisted = false,
+  formerMandate = false,
   initialContactId = null,
   candidateProfiles = {},
   politicalGroups = [],
@@ -112,6 +115,8 @@ export function ContactsView({
   newsletterEnabled?: boolean;
   lists?: Array<{ id: string; name: string }>;
   activeListId?: string;
+  onlyUnlisted?: boolean;
+  formerMandate?: boolean;
   initialContactId?: string | null;
   candidateProfiles?: Record<string, CandidateProfile>;
   politicalGroups?: Array<{ id: string; name: string; color: string }>;
@@ -128,6 +133,7 @@ export function ContactsView({
   const [themeQuery, setThemeQuery] = useState<string>("");
   const [newsletterFilter, setNewsletterFilter] = useState<string>("");
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [nlBusy, setNlBusy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -159,6 +165,28 @@ export function ContactsView({
     startTransition(() =>
       router.push(params.size ? `/contacts?${params.toString()}` : "/contacts"),
     );
+  }
+
+  function changeDirectoryFilter(key: "unlisted" | "mandate", value: string) {
+    const params = new URLSearchParams(window.location.search);
+    if (value) params.set(key, value); else params.delete(key);
+    params.delete("page"); params.delete("contact");
+    startTransition(() => router.push(params.size ? `/contacts?${params}` : "/contacts"));
+  }
+
+  async function deleteSelected() {
+    const ids = [...checked];
+    if (!ids.length || deleteBusy) return;
+    if (!window.confirm(`Supprimer définitivement ${ids.length} contact(s) sélectionné(s) ?`)) return;
+    setDeleteBusy(true);
+    try {
+      const result = await deleteContactsAction(ids);
+      toast.success(result.proposed ? `${result.deleted} supprimé(s), ${result.proposed} modification(s) proposée(s)` : `${result.deleted} contact(s) supprimé(s)`);
+      setChecked(new Set());
+      startTransition(() => router.refresh());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Suppression impossible");
+    } finally { setDeleteBusy(false); }
   }
 
   useEffect(() => {
@@ -249,7 +277,7 @@ export function ContactsView({
   ]);
 
   // ── Actions groupées de newsletter lorsque le module est actif ──
-  const selectableIds = filtered.filter((c) => !!c.email).map((c) => c.id);
+  const selectableIds = filtered.filter((c) => !newsletterEnabled || !!c.email).map((c) => c.id);
   const allChecked = selectableIds.length > 0 && selectableIds.every((id) => checked.has(id));
 
   function toggleAllNewsletter() {
@@ -374,6 +402,16 @@ export function ContactsView({
           </select>
         )}
 
+        <select value={onlyUnlisted ? "1" : ""} onChange={(e) => changeDirectoryFilter("unlisted", e.target.value)} className={cn(filterCls, onlyUnlisted && activeCls)} aria-label="Filtrer les contacts sans liste">
+          <option value="">Toutes appartenances</option>
+          <option value="1">Contacts sans liste</option>
+        </select>
+
+        <select value={formerMandate ? "former" : ""} onChange={(e) => changeDirectoryFilter("mandate", e.target.value)} className={cn(filterCls, formerMandate && activeCls)} aria-label="Filtrer les anciens mandats">
+          <option value="">Mandats : tous</option>
+          <option value="former">Anciens élus / mandats</option>
+        </select>
+
         <select
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value)}
@@ -457,7 +495,7 @@ export function ContactsView({
           </select>
         )}
 
-        {newsletterEnabled && checked.size > 0 && (
+        {(newsletterEnabled && checked.size > 0 || canDelete && checked.size > 0) && (
           <span className="flex flex-wrap items-center gap-2 rounded-lg bg-coral-500/[0.06] px-2 py-1 ring-1 ring-inset ring-coral-500/20">
             <span className="text-[12px] tabular-nums text-mut">
               {checked.size} sélection
@@ -473,6 +511,12 @@ export function ContactsView({
                   Désinscrire
                 </Button>
               </>
+            )}
+            {canDelete && (
+              <Button variant="outline" size="sm" disabled={deleteBusy || !!nlBusy} onClick={() => void deleteSelected()}>
+                {deleteBusy ? <Loader2 className="animate-spin" /> : <X />}
+                Supprimer
+              </Button>
             )}
             <Button variant="ghost" size="sm" disabled={!!nlBusy} onClick={() => void runNewsletter("sync")}>
               {nlBusy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}
@@ -522,14 +566,14 @@ export function ContactsView({
           <Table>
             <THead>
               <tr>
-                {newsletterEnabled && (
+                {(newsletterEnabled || canDelete) && (
                   <th className="w-[36px]">
                     <input
                       type="checkbox"
                       checked={allChecked}
                       onChange={toggleAllNewsletter}
                       className="size-3.5 accent-coral-600"
-                      aria-label="Tout sélectionner (avec email)"
+                      aria-label={newsletterEnabled ? "Tout sélectionner (avec email)" : "Tout sélectionner"}
                     />
                   </th>
                 )}
@@ -562,7 +606,7 @@ export function ContactsView({
                         <input
                           type="checkbox"
                           checked={checked.has(c.id)}
-                          disabled={!c.email}
+                          disabled={newsletterEnabled && !c.email}
                           onChange={() =>
                             setChecked((prev) => {
                               const next = new Set(prev);
