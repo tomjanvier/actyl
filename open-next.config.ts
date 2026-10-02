@@ -1,8 +1,10 @@
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
+import r2IncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cache/r2-incremental-cache";
+import doQueue from "@opennextjs/cloudflare/overrides/queue/do-queue";
+import shardedTagCache from "@opennextjs/cloudflare/overrides/tag-cache/do-sharded-tag-cache";
 
 export default defineCloudflareConfig({
-  // Configuration minimale : l'adaptateur génère `.open-next/worker.js`
-  // (référencé par `wrangler.jsonc`) et sert les assets statiques.
-  // Cache ISR : comportement Next.js par défaut (purge via revalidatePath
-  // des Server Actions, déjà utilisée par l'application).
+  incrementalCache: r2IncrementalCache,
+  queue: doQueue,
+  tagCache: shardedTagCache({ baseShardSize: 1 }),
 });

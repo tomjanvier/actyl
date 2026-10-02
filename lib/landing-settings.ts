@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 
 export const LANDING_DEFAULTS = {
@@ -21,10 +22,7 @@ const landingKeys = Object.keys(LANDING_DEFAULTS) as Array<keyof LandingSettings
 /** Charge la configuration globale de la page publique avec des valeurs sûres. */
 export async function getLandingSettings(): Promise<LandingSettings> {
   try {
-    const rows = await db.appSetting.findMany({
-      where: { key: { in: landingKeys.map((key) => `landing_${key}`) } },
-      select: { key: true, value: true },
-    });
+    const rows = await loadLandingSettings();
     const values = new Map(rows.map((row) => [row.key, row.value]));
     return Object.fromEntries(
       landingKeys.map((key) => [
@@ -37,3 +35,12 @@ export async function getLandingSettings(): Promise<LandingSettings> {
     return { ...LANDING_DEFAULTS };
   }
 }
+
+const loadLandingSettings = unstable_cache(
+  () => db.appSetting.findMany({
+    where: { key: { in: landingKeys.map((key) => `landing_${key}`) } },
+    select: { key: true, value: true },
+  }),
+  ["landing-settings-v1"],
+  { revalidate: 60, tags: ["landing-settings"] },
+);

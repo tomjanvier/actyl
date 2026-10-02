@@ -25,7 +25,7 @@ export default async function ListsPage() {
   const canCreateLists = can(session.role, "list:create");
 
   // Ces requêtes indépendantes sont exécutées en parallèle.
-  const [lists, allContacts, listFields, listMemberships, proposals, shortcutIds] = await Promise.all([
+  const [lists, listFields, proposals, shortcutIds] = await Promise.all([
     db.sharedList.findMany({
       where: {
         workspaceId: session.workspaceId,
@@ -60,45 +60,12 @@ export default async function ListsPage() {
         _count: { select: { items: true } },
       },
     }),
-    canCreateLists
-      ? db.contact.findMany({
-          where: { workspaceId: session.workspaceId },
-          orderBy: [{ lastName: "asc" }],
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            title: true,
-            institution: true,
-            party: true,
-            level: true,
-            stance: true,
-            email: true,
-            photoUrl: true,
-            avatarColor: true,
-          },
-        })
-      : Promise.resolve([]),
     // Attributs rattachés à une liste précise.
     db.customField.findMany({
       where: { workspaceId: session.workspaceId, NOT: { listId: null } },
       orderBy: { position: "asc" },
       select: { id: true, listId: true, label: true },
     }),
-    canCreateLists
-      ? db.listItem.findMany({
-          where: {
-            list: {
-              workspaceId: session.workspaceId,
-              OR: [
-                { sourcePack: null },
-                { sourcePack: { notIn: [...disabledReferencePacks] } },
-              ],
-            },
-          },
-          select: { listId: true, contactId: true },
-        })
-      : Promise.resolve([]),
     db.listChangeProposal.findMany({
       where: {
         status: "PENDING",
@@ -150,12 +117,6 @@ export default async function ListsPage() {
     values[`${value.contactId}:${value.fieldId}`] = value.value;
     valuesByList.set(listId, values);
   }
-  const membersByList = new Map<string, string[]>();
-  for (const membership of listMemberships) {
-    const members = membersByList.get(membership.listId) ?? [];
-    members.push(membership.contactId);
-    membersByList.set(membership.listId, members);
-  }
 
   return (
     <>
@@ -178,7 +139,6 @@ export default async function ListsPage() {
             sourcePack: l.sourcePack,
             items: l.items.map((i) => ({ itemId: i.id, contact: i.contact })),
             totalItems: l._count.items,
-            memberContactIds: membersByList.get(l.id) ?? [],
             pinned: shortcutSet.has(l.id),
             canEdit,
             canContribute:
@@ -194,7 +154,6 @@ export default async function ListsPage() {
             values: valuesByList.get(l.id) ?? {},
           };
         })}
-        allContacts={allContacts}
         canManage={canCreateLists}
         canPublish={session.role === "ADMIN"}
         isAdmin={session.user.isSuperAdmin}

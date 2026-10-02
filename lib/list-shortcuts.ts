@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 import { workspaceSettingKey } from "@/lib/workspace-settings";
@@ -8,7 +9,7 @@ function shortcutKey(workspaceId: string, userId: string) {
 }
 
 /** Retourne les identifiants de listes épinglées par un utilisateur. */
-export async function getListShortcutIds(workspaceId: string, userId: string) {
+export const getListShortcutIds = cache(async (workspaceId: string, userId: string) => {
   const setting = await db.appSetting.findUnique({
     where: { key: shortcutKey(workspaceId, userId) },
     select: { value: true },
@@ -22,7 +23,7 @@ export async function getListShortcutIds(workspaceId: string, userId: string) {
   } catch {
     return [];
   }
-}
+});
 
 /** Enregistre au plus douze raccourcis personnels dans l'espace actif. */
 export async function saveListShortcutIds(

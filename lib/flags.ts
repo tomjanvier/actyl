@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { db } from "@/lib/db";
 import { workspaceSettingKey } from "@/lib/workspace-settings";
 
@@ -14,7 +15,7 @@ export const SEGMENT_SETTING_KEYS = {
 export type SegmentsConfig = Record<keyof typeof SEGMENT_SETTING_KEYS, boolean>;
 
 /** Lit les segments tout en conservant la compatibilité avec l'ancien réglage global. */
-export async function getSegmentsConfig(workspaceId: string): Promise<SegmentsConfig> {
+export const getSegmentsConfig = cache(async (workspaceId: string): Promise<SegmentsConfig> => {
   const settingNames = ["extended_directory", ...Object.values(SEGMENT_SETTING_KEYS)];
   const scopedKeys = settingNames.map((key) => workspaceSettingKey(workspaceId, key));
   const rows = await db.appSetting.findMany({
@@ -23,24 +24,13 @@ export async function getSegmentsConfig(workspaceId: string): Promise<SegmentsCo
   const prefix = `${workspaceId}:`;
   const values = Object.fromEntries(rows.map((row) => [row.key.replace(prefix, ""), row.value]));
 
-  // Migre l'ancien interrupteur global uniquement vers le premier espace créé.
+  // Compatibilité en lecture : aucune migration ni écriture pendant le rendu.
   if (rows.length === 0) {
     const [legacy, firstWorkspace] = await Promise.all([
       db.appSetting.findUnique({ where: { key: "extended_directory" } }),
       db.workspace.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } }),
     ]);
     if (legacy?.value === "on" && firstWorkspace?.id === workspaceId) {
-      await db.$transaction(
-        Object.values(SEGMENT_SETTING_KEYS)
-          .filter((key) => key !== SEGMENT_SETTING_KEYS.decisionMaker)
-          .map((key) =>
-            db.appSetting.upsert({
-              where: { key: workspaceSettingKey(workspaceId, key) },
-              create: { key: workspaceSettingKey(workspaceId, key), value: "on" },
-              update: { value: "on" },
-            }),
-          ),
-      );
       return {
         decisionMaker: true,
         members: true,
@@ -59,7 +49,7 @@ export async function getSegmentsConfig(workspaceId: string): Promise<SegmentsCo
     donors: values.extended_donors === "on" || legacy,
     supporters: values.extended_supporters === "on" || legacy,
   };
-}
+});
 
 export const CONTACT_CATEGORIES = [
   { key: "DECISION_MAKER", label: "Décideur·e·ses", icon: "landmark" },

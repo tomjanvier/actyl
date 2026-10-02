@@ -82,6 +82,15 @@ export type SessionContext = {
   logoEmoji: string;
 };
 
+// Request-scoped only: never share membership or user data between visitors.
+export const getUserMemberships = cache(async (userId: string) => {
+  return db.membership.findMany({
+    where: { userId },
+    include: { user: { select: { id: true, email: true, name: true, jobTitle: true, isSuperAdmin: true } }, workspace: { select: { id: true, name: true, slug: true, logoEmoji: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+});
+
 async function readSession(): Promise<SessionContext | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
@@ -95,22 +104,14 @@ async function readSession(): Promise<SessionContext | null> {
     return null;
   }
 
-  const memberships = await db.membership.findMany({
-    where: { userId },
-    include: { workspace: { select: { id: true, name: true, slug: true, logoEmoji: true } } },
-    orderBy: { createdAt: "asc" },
-  });
+  const memberships = await getUserMemberships(userId);
   if (!memberships.length) return null;
 
   const wanted = jar.get(WORKSPACE_COOKIE)?.value;
   const membership =
     memberships.find((m) => m.workspaceId === wanted) ?? memberships[0]!;
 
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, name: true, jobTitle: true, isSuperAdmin: true },
-  });
-  if (!user) return null;
+  const user = membership.user;
   const bootstrapSuperAdminEmail =
     process.env.ACTYL_SUPER_ADMIN_EMAIL?.trim().toLowerCase();
 

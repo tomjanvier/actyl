@@ -1,5 +1,7 @@
 "use server";
 
+import { invalidatePublicDirectory } from "@/lib/public-directory";
+
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -34,6 +36,7 @@ export async function createListAction(
       createdById: session.user.id,
     },
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
   return { ok: true };
 }
@@ -50,6 +53,7 @@ export async function toggleListPublishAction(listId: string) {
     where: { id: listId },
     data: { isPublished: !list.isPublished },
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
 }
 
@@ -68,6 +72,7 @@ export async function deleteListAction(listId: string) {
   await db.sharedList.deleteMany({
     where: { id: listId, workspaceId: session.workspaceId },
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
 }
 
@@ -90,6 +95,7 @@ export async function addContactsToListAction(input: {
     for (const contact of contacts) {
       await proposeListChange({ listId: input.listId, action: "ADD", contactId: contact.id, payload: contact });
     }
+    invalidatePublicDirectory();
     revalidatePath("/lists");
     return { proposed: contacts.length };
   }
@@ -100,6 +106,7 @@ export async function addContactsToListAction(input: {
     data: input.contactIds.map((contactId) => ({ listId: input.listId, contactId })),
     skipDuplicates: true,
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
   return { proposed: 0 };
 }
@@ -119,6 +126,7 @@ export async function removeListItemAction(itemId: string) {
       select: { id: true, firstName: true, lastName: true, email: true, title: true, institution: true, party: true, region: true, level: true },
     });
     if (contact) await proposeListChange({ listId: item.listId, action: "REMOVE", contactId: contact.id, payload: contact });
+    invalidatePublicDirectory();
     revalidatePath("/lists");
     return { proposed: 1 };
   }
@@ -126,6 +134,7 @@ export async function removeListItemAction(itemId: string) {
     throw new Error("Vous pouvez modifier uniquement vos propres listes");
   }
   await db.listItem.delete({ where: { id: itemId } });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
 }
 
@@ -186,6 +195,7 @@ export async function createListFieldAction(input: {
       position,
     },
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
   return { ok: true };
 }
@@ -210,6 +220,7 @@ export async function deleteListFieldAction(fieldId: string) {
     throw new Error("Vous pouvez modifier uniquement vos propres listes");
   }
   await db.customField.delete({ where: { id: field.id } });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
 }
 
@@ -250,6 +261,7 @@ export async function setListItemAttrAction(input: {
       payload: { fieldId: input.fieldId, value: input.value },
       reason: "Modification d’un attribut de liste proposée par un membre",
     });
+    invalidatePublicDirectory();
     revalidatePath("/lists");
     return { proposed: 1 };
   }
@@ -264,6 +276,7 @@ export async function setListItemAttrAction(input: {
     create: { fieldId: field.id, contactId: input.contactId, value: value || null },
     update: { value: value || null },
   });
+  invalidatePublicDirectory();
   revalidatePath("/lists");
 }
 
@@ -281,6 +294,7 @@ export async function toggleListShortcutAction(listId: string) {
     ? current.filter((id) => id !== list.id)
     : [...current, list.id].slice(-12);
   await saveListShortcutIds(session.workspaceId, session.user.id, next);
+  invalidatePublicDirectory();
   revalidatePath("/lists");
   revalidatePath("/", "layout");
   return { pinned: next.includes(list.id) };
