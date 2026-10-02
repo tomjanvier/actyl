@@ -43,6 +43,22 @@ export async function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
+  // Les pages publiques ne contiennent aucune donnée de session. Autoriser
+  // Cloudflare à conserver leur HTML réduit le TTFB sans exposer le tableau
+  // de bord ni les données privées. Les réglages de landing sont invalidés
+  // côté application et restent au maximum une minute dans le cache edge.
+  const isPublicHtml =
+    pathname === "/" ||
+    pathname.startsWith("/association/") ||
+    pathname.startsWith("/p/") ||
+    pathname.startsWith("/e/");
+  if (isPublicHtml && request.method === "GET") {
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=300",
+    );
+  }
+
   if (needsAuth) {
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     const secret = process.env.AUTH_SECRET;
