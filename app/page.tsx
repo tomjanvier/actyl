@@ -29,17 +29,17 @@ export default function LandingPage() {
         </Link>
         <nav className="flex items-center gap-3">
           <ThemeToggle />
-          <Link href="/sign-in">
-            <Button variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/sign-in">
               Connexion
-            </Button>
-          </Link>
-          <Link href="/sign-up">
-            <Button size="sm">
+            </Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/sign-up" aria-label="Créer mon espace Actyl">
               Créer mon espace
               <ArrowRight />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </nav>
       </header>
 
@@ -129,12 +129,7 @@ type SettingsPromise = Promise<Awaited<ReturnType<typeof getLandingSettings>>>;
 
 async function LandingHero({ settingsPromise }: { settingsPromise: SettingsPromise }) {
   const settings = await settingsPromise;
-  const primaryButton = (
-    <Button size="lg" className="w-full sm:w-auto">
-      {settings.primaryCta}
-      <ArrowRight />
-    </Button>
-  );
+  const primaryContent = <>{settings.primaryCta}<ArrowRight /></>;
   return (
         <section className="flex flex-col items-center pb-16 pt-20 text-center sm:pt-28">
           <p className="mb-5 text-xs font-bold uppercase tracking-[0.16em] text-coral-800 dark:text-coral-300">
@@ -151,19 +146,19 @@ async function LandingHero({ settingsPromise }: { settingsPromise: SettingsPromi
           </p>
           <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
             {settings.primaryHref.startsWith("https://") ? (
-              <a href={settings.primaryHref} className="w-full sm:w-auto">
-                {primaryButton}
-              </a>
-            ) : (
-              <Link href={settings.primaryHref} className="w-full sm:w-auto">
-                {primaryButton}
-              </Link>
-            )}
-            <Link href="/sign-in" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                Connexion
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <a href={settings.primaryHref} aria-label={settings.primaryCta}>{primaryContent}</a>
               </Button>
-            </Link>
+            ) : (
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link href={settings.primaryHref} aria-label={settings.primaryCta}>{primaryContent}</Link>
+              </Button>
+            )}
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+              <Link href="/sign-in">
+                Connexion
+              </Link>
+            </Button>
           </div>
         </section>
   );
