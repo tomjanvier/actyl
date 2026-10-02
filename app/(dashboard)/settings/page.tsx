@@ -70,11 +70,23 @@ export default async function SettingsPage({
       }),
       getSegmentsConfig(session.workspaceId),
       getNewsletterConfig(session.workspaceId),
-    session.user.isSuperAdmin
-      ? db.accountRequest.findMany({
-          where: { status: "PENDING" },
-          orderBy: { createdAt: "desc" },
-        })
+      session.user.isSuperAdmin
+        ? db.accountRequest.findMany({
+            where: { status: "PENDING" },
+            orderBy: { createdAt: "desc" },
+            // Les anciennes bases peuvent ne pas encore exposer les champs
+            // indicatifs de cotisation ; ne pas bloquer /settings pour autant.
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              orgName: true,
+              website: true,
+              phone: true,
+              status: true,
+              createdAt: true,
+            },
+          })
       : Promise.resolve([]),
     getSignupMode(),
     db.sharedList.findMany({
@@ -185,8 +197,8 @@ export default async function SettingsPage({
           orgName: r.orgName,
           website: r.website,
           phone: r.phone,
-          monthlyContributionInterest: r.monthlyContributionInterest,
-          monthlyContributionAmount: r.monthlyContributionAmount,
+monthlyContributionInterest: null,
+          monthlyContributionAmount: null,
           createdAt: r.createdAt.toISOString(),
         }))}
         apiTokens={apiTokens.map((t) => ({

@@ -27,3 +27,53 @@ ALTER TABLE "account_requests"
 
 CREATE UNIQUE INDEX IF NOT EXISTS "account_requests_email_key"
   ON "account_requests"("email");
+
+CREATE TABLE IF NOT EXISTS "oidc_clients" (
+  "id" TEXT NOT NULL,
+  "clientId" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "redirectUris" TEXT NOT NULL,
+  "clientSecretHash" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "revokedAt" TIMESTAMP(3),
+  CONSTRAINT "oidc_clients_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "oidc_clients_clientId_key"
+  ON "oidc_clients"("clientId");
+
+CREATE TABLE IF NOT EXISTS "oidc_authorization_codes" (
+  "id" TEXT NOT NULL,
+  "codeHash" TEXT NOT NULL,
+  "clientId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "redirectUri" TEXT NOT NULL,
+  "codeChallenge" TEXT NOT NULL,
+  "scope" TEXT NOT NULL,
+  "expiresAt" TIMESTAMP(3) NOT NULL,
+  "usedAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "oidc_authorization_codes_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "oidc_authorization_codes_codeHash_key"
+  ON "oidc_authorization_codes"("codeHash");
+CREATE INDEX IF NOT EXISTS "oidc_authorization_codes_expiresAt_idx"
+  ON "oidc_authorization_codes"("expiresAt");
+
+CREATE TABLE IF NOT EXISTS "oidc_access_tokens" (
+  "id" TEXT NOT NULL,
+  "tokenHash" TEXT NOT NULL,
+  "clientId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "scope" TEXT NOT NULL,
+  "expiresAt" TIMESTAMP(3) NOT NULL,
+  "revokedAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "oidc_access_tokens_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "oidc_access_tokens_tokenHash_key"
+  ON "oidc_access_tokens"("tokenHash");
+CREATE INDEX IF NOT EXISTS "oidc_access_tokens_expiresAt_idx"
+  ON "oidc_access_tokens"("expiresAt");
