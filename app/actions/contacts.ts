@@ -187,6 +187,48 @@ export async function deleteContactAction(contactId: string) {
   revalidatePath("/contacts");
 }
 
+/** Suppression groupée des contacts sélectionnés dans le répertoire courant. */
+export async function deleteContactsAction(contactIds: string[]) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (!can(session.role, "campaign:delete")) throw new Error("Permission refusée");
+  const ids = [...new Set(contactIds)].filter(Boolean).slice(0, 100);
+  if (!ids.length) return { deleted: 0, proposed: 0 };
+  const contacts = await db.contact.findMany({
+    where: { workspaceId: session.workspaceId, id: { in: ids } },
+    select: { id: true, firstName: true, lastName: true, email: true, title: true, institution: true, party: true, region: true, level: true },
+  });
+  const protectedItems = await db.listItem.findMany({
+    where: { contactId: { in: contacts.map((c) => c.id) }, list: { workspaceId: session.workspaceId, sourcePack: { not: null } } },
+    select: { contactId: true, list: { select: { id: true, name: true } } },
+  });
+  if (protectedItems.length && !session.user.isSuperAdmin) {
+    const byContact = new Map<string, typeof protectedItems>();
+    for (const item of protectedItems) byContact.set(item.contactId, [...(byContact.get(item.contactId) ?? []), item]);
+    let proposed = 0;
+    for (const contact of contacts) {
+      const lists = byContact.get(contact.id) ?? [];
+      await Promise.all(lists.map((item) => proposeListChange({
+        listId: item.list.id,
+        action: "REMOVE",
+        contactId: contact.id,
+        payload: contact,
+        reason: `Suppression groupée proposée depuis « ${item.list.name} »`,
+      })));
+      proposed += lists.length;
+    }
+    const deletable = contacts.filter((c) => !(byContact.get(c.id)?.length));
+    if (deletable.length) await db.contact.deleteMany({ where: { workspaceId: session.workspaceId, id: { in: deletable.map((c) => c.id) } } });
+    revalidatePath("/contacts");
+    revalidatePath("/lists");
+    return { deleted: deletable.length, proposed };
+  }
+  const result = await db.contact.deleteMany({ where: { workspaceId: session.workspaceId, id: { in: contacts.map((c) => c.id) } } });
+  revalidatePath("/contacts");
+  revalidatePath("/lists");
+  return { deleted: result.count, proposed: 0 };
+}
+
 // ── Couche privée visible uniquement par l'auteur ───────────────────────────
 
 export async function addPrivateNoteAction(
