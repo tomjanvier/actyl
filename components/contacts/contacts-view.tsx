@@ -366,7 +366,7 @@ export function ContactsView({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-89px)] flex-col">
+    <div className="flex min-h-[calc(100vh-89px)] min-w-0 flex-col overflow-hidden">
       {/* Barre d'outils */}
       <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:px-6">
         <div className="relative w-full sm:w-auto">
@@ -800,5 +800,5 @@ function CustomCell({
 }
 
 const filterCls =
-  "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-coral-500/60 [&>option]:bg-raised";
+  "h-9 w-full min-w-0 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-coral-500/60 sm:w-auto sm:min-w-[150px] [&>option]:bg-raised";
 const activeCls = "border-coral-500/40 text-coral-700 dark:text-coral-300";
