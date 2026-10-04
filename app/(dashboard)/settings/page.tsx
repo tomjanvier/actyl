@@ -86,7 +86,7 @@ export default async function SettingsPage({
               status: true,
               createdAt: true,
             },
-          })
+          }).catch((error) => { console.error("[settings] account requests unavailable", error); return []; })
       : Promise.resolve([]),
     getSignupMode(),
     db.sharedList.findMany({
@@ -106,7 +106,7 @@ export default async function SettingsPage({
             monthlyContributionAmount: true,
             _count: { select: { memberships: true } },
           },
-        })
+          }).catch((error) => { console.error("[settings] workspace administration unavailable", error); return []; })
       : Promise.resolve([]),
     getLandingSettings(),
     session.user.isSuperAdmin
@@ -121,7 +121,7 @@ export default async function SettingsPage({
             createdAt: true,
             _count: { select: { tokens: true } },
           },
-        })
+          }).catch((error) => { console.error("[settings] OIDC administration unavailable", error); return []; })
       : Promise.resolve([]),
   ]);
 
