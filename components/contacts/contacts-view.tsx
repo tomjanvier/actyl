@@ -12,6 +12,7 @@ import {
   RefreshCw,
   X,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -40,7 +41,7 @@ import {
   unsubscribeContactsAction,
   syncContactsNewsletterStatusAction,
 } from "@/app/actions/newsletter";
-import { deleteContactsAction } from "@/app/actions/contacts";
+import { deleteContactsAction, moveContactsToListAction } from "@/app/actions/contacts";
 
 export const NEWSLETTER_META: Record<string, { label: string; badge: string; dot: string }> = {
   SUBSCRIBED: {
@@ -134,6 +135,8 @@ export function ContactsView({
   const [newsletterFilter, setNewsletterFilter] = useState<string>("");
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [moveBusy, setMoveBusy] = useState(false);
+  const [moveListId, setMoveListId] = useState("");
   const [nlBusy, setNlBusy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -187,6 +190,19 @@ export function ContactsView({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Suppression impossible");
     } finally { setDeleteBusy(false); }
+  }
+
+  async function moveSelected() {
+    const ids = [...checked];
+    if (!ids.length || !moveListId || moveBusy) return;
+    setMoveBusy(true);
+    try {
+      const result = await moveContactsToListAction({ contactIds: ids, targetListId: moveListId, sourceListId: activeListId || undefined });
+      toast.success(result.proposed ? `${result.proposed} modification(s) proposée(s) pour validation` : `${result.moved} contact(s) ajouté(s) à la liste`);
+      setChecked(new Set()); setMoveListId("");
+      startTransition(() => router.refresh());
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Déplacement impossible"); }
+    finally { setMoveBusy(false); }
   }
 
   useEffect(() => {
@@ -328,7 +344,7 @@ export function ContactsView({
   const selected = contacts.find((c) => c.id === selectedId) ?? null;
 
   function exportData(format: "csv" | "json") {
-    const rows = filtered.map((c) => ({
+    const rows = (checked.size ? filtered.filter((c) => checked.has(c.id)) : filtered).map((c) => ({
       prenom: c.firstName,
       nom: c.lastName,
       fonction: c.title ?? "",
@@ -495,7 +511,7 @@ export function ContactsView({
           </select>
         )}
 
-        {(newsletterEnabled && checked.size > 0 || canDelete && checked.size > 0) && (
+        {checked.size > 0 && (
           <span className="flex flex-wrap items-center gap-2 rounded-lg bg-coral-500/[0.06] px-2 py-1 ring-1 ring-inset ring-coral-500/20">
             <span className="text-[12px] tabular-nums text-mut">
               {checked.size} sélection
@@ -518,6 +534,17 @@ export function ContactsView({
                 Supprimer
               </Button>
             )}
+            {lists.length > 0 && (
+              <>
+                <select value={moveListId} onChange={(e) => setMoveListId(e.target.value)} className={cn(filterCls, "actyl-filter-select")} aria-label="Liste cible">
+                  <option value="">Choisir une liste…</option>
+                  {lists.filter((list) => list.id !== activeListId).map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
+                </select>
+                <Button variant="outline" size="sm" disabled={!moveListId || moveBusy || !!nlBusy} onClick={() => void moveSelected()}>
+                  {moveBusy ? <Loader2 className="animate-spin" /> : null} Déplacer
+                </Button>
+              </>
+            )}
             <Button variant="ghost" size="sm" disabled={!!nlBusy} onClick={() => void runNewsletter("sync")}>
               {nlBusy === "sync" ? <Loader2 className="animate-spin" /> : <RefreshCw />}
               Rafraîchir
@@ -534,10 +561,10 @@ export function ContactsView({
 
         <span className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
           <Button variant="outline" size="sm" onClick={() => exportData("csv")}>
-            <Download /> CSV
+            <Download /> CSV{checked.size ? ` (${checked.size})` : ""}
           </Button>
           <Button variant="outline" size="sm" onClick={() => exportData("json")}>
-            <Download /> JSON
+            <Download /> JSON{checked.size ? ` (${checked.size})` : ""}
           </Button>
           {canEdit && (
             <Button size="sm" onClick={() => setCreateOpen(true)}>
@@ -800,5 +827,5 @@ function CustomCell({
 }
 
 const filterCls =
-  "h-9 w-full min-w-0 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-coral-500/60 sm:w-auto sm:min-w-[150px] [&>option]:bg-raised";
+  "actyl-filter-select h-9 w-full min-w-0 rounded-lg border border-line bg-elev px-2.5 pr-8 text-[12.5px] text-mut outline-none focus:border-coral-500/60 sm:w-auto sm:min-w-[150px] [&>option]:bg-raised";
 const activeCls = "border-coral-500/40 text-coral-700 dark:text-coral-300";

@@ -234,6 +234,62 @@ export async function deleteContactsAction(contactIds: string[]) {
   return { deleted: result.count, proposed: 0 };
 }
 
+/** Déplace une sélection vers une liste de l’espace actif. */
+export async function moveContactsToListAction(input: {
+  contactIds: string[];
+  targetListId: string;
+  sourceListId?: string;
+}) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (!can(session.role, "list:edit")) throw new Error("Permission refusée");
+  const ids = [...new Set(input.contactIds)].filter(Boolean).slice(0, 100);
+  if (!ids.length) return { moved: 0, proposed: 0 };
+
+  const [target, contacts] = await Promise.all([
+    db.sharedList.findFirst({
+      where: { id: input.targetListId, workspaceId: session.workspaceId },
+      select: { id: true, sourcePack: true, createdById: true },
+    }),
+    db.contact.findMany({
+      where: { id: { in: ids }, workspaceId: session.workspaceId },
+      select: { id: true, firstName: true, lastName: true, email: true, title: true, institution: true, party: true, region: true, level: true },
+    }),
+  ]);
+  if (!target) throw new Error("Liste cible introuvable");
+  if (session.role !== "ADMIN" && target.createdById !== session.user.id && !target.sourcePack) {
+    throw new Error("Vous pouvez utiliser uniquement vos propres listes");
+  }
+
+  if (target.sourcePack && !session.user.isSuperAdmin) {
+    await Promise.all(contacts.map((contact) => proposeListChange({
+      listId: target.id,
+      action: "ADD",
+      contactId: contact.id,
+      payload: contact,
+      reason: "Ajout groupé proposé depuis le répertoire",
+    })));
+    return { moved: 0, proposed: contacts.length };
+  }
+
+  await db.listItem.createMany({
+    data: contacts.map((contact) => ({ listId: target.id, contactId: contact.id })),
+    skipDuplicates: true,
+  });
+  if (input.sourceListId && input.sourceListId !== target.id) {
+    await db.listItem.deleteMany({
+      where: {
+        listId: input.sourceListId,
+        contactId: { in: contacts.map((contact) => contact.id) },
+        list: { workspaceId: session.workspaceId, sourcePack: null },
+      },
+    });
+  }
+  revalidatePath("/contacts");
+  revalidatePath("/lists");
+  return { moved: contacts.length, proposed: 0 };
+}
+
 // ── Couche privée visible uniquement par l'auteur ───────────────────────────
 
 export async function addPrivateNoteAction(
