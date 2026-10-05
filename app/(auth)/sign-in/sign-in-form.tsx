@@ -89,7 +89,7 @@ export function SignInForm({
       <p className="mt-5 text-center text-[13px] text-faint">
         Pas encore de compte ?{" "}
         <Link href="/sign-up" className="text-coral-700 dark:text-coral-400 hover:text-coral-700 dark:text-coral-300">
-          Créer une organisation
+          S’inscrire
         </Link>
       </p>
     </div>

@@ -1,7 +1,5 @@
 "use server";
 
-import { invalidatePublicDirectory } from "@/lib/public-directory";
-
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -45,7 +43,6 @@ export async function syncAllReferencePacksAction(key: ReferencePackKey): Promis
   try {
     const result = await syncReferencePackAcrossSpaces(key);
     revalidatePath("/settings");
-    invalidatePublicDirectory();
     revalidatePath("/lists");
     revalidatePath("/presidentielle");
     return { ok: true, lists: result.lists, proposed: result.proposals };
@@ -263,7 +260,6 @@ export async function importOfficialSourceAction(
 
     const stats = await upsertImported(session.workspaceId, contacts, listId);
     revalidatePath("/contacts");
-    invalidatePublicDirectory();
     revalidatePath("/lists");
     revalidatePath("/presidentielle");
     revalidatePath("/settings");
@@ -349,7 +345,6 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
       await ensurePresidentialModuleScope(session.workspaceId, session.user.id);
     }
     revalidatePath("/settings");
-    invalidatePublicDirectory();
     revalidatePath("/lists");
     return { ok: true, proposed: result.proposals };
   }
@@ -390,7 +385,6 @@ export async function installReferencePackAction(key: ReferencePackKey): Promise
     await ensurePresidentialModuleScope(session.workspaceId, session.user.id);
   }
   revalidatePath("/settings");
-  invalidatePublicDirectory();
   revalidatePath("/lists");
   revalidatePath("/presidentielle");
   return result;
@@ -421,7 +415,6 @@ export async function setReferencePackEnabledAction(
     data: { isPublished: false },
   });
   revalidatePath("/settings");
-  invalidatePublicDirectory();
   revalidatePath("/lists");
   revalidatePath("/contacts");
   revalidatePath("/presidentielle");
@@ -470,7 +463,6 @@ export async function importCsvIntoListAction(input: {
     };
   }
   const stats = await mergePeopleIntoList(session.workspaceId, input.listId, people);
-  invalidatePublicDirectory();
   revalidatePath("/lists");
   revalidatePath("/presidentielle");
   return { ok: true, ...stats };

@@ -38,6 +38,7 @@ const personSchema = z.object({
   instagramUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
   youtubeUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
   mastodonUrl: z.string().trim().url().nullable().optional().or(z.literal("")),
+  commissions: z.array(z.string().trim().min(1).max(180)).max(12).optional(),
   note: z.string().trim().max(300).nullable().optional(),
 });
 
@@ -172,6 +173,14 @@ export async function approveListChangeProposalAction(proposalId: string) {
       where: { sourcePack: proposal.list.sourcePack },
       select: { id: true, workspaceId: true },
     });
+    const commissionFieldByWorkspace = new Map<string, string>();
+    for (const referenceList of referenceLists) {
+      const field = await tx.customField.findFirst({
+        where: { workspaceId: referenceList.workspaceId, name: "commission" },
+        select: { id: true },
+      });
+      if (field) commissionFieldByWorkspace.set(referenceList.workspaceId, field.id);
+    }
 
     for (const referenceList of referenceLists) {
       const identity = sourceContact ?? person;
@@ -238,6 +247,14 @@ export async function approveListChangeProposalAction(proposalId: string) {
           },
           update: {},
         });
+        const fieldId = commissionFieldByWorkspace.get(referenceList.workspaceId);
+        if (fieldId && person.commissions?.length) {
+          await tx.customFieldValue.upsert({
+            where: { fieldId_contactId: { fieldId, contactId: contact.id } },
+            create: { fieldId, contactId: contact.id, value: JSON.stringify(person.commissions) },
+            update: { value: JSON.stringify(person.commissions) },
+          });
+        }
       } else if (action === "UPDATE" && contact) {
         await tx.contact.update({
           where: { id: contact.id },
@@ -269,6 +286,14 @@ export async function approveListChangeProposalAction(proposalId: string) {
               person.mastodonUrl === undefined ? undefined : (person.mastodonUrl || null),
           },
         });
+        const fieldId = commissionFieldByWorkspace.get(referenceList.workspaceId);
+        if (fieldId && person.commissions?.length) {
+          await tx.customFieldValue.upsert({
+            where: { fieldId_contactId: { fieldId, contactId: contact.id } },
+            create: { fieldId, contactId: contact.id, value: JSON.stringify(person.commissions) },
+            update: { value: JSON.stringify(person.commissions) },
+          });
+        }
       } else if (action === "REMOVE" && contact) {
         await tx.listItem.deleteMany({
           where: { listId: referenceList.id, contactId: contact.id },

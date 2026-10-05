@@ -23,7 +23,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
 
   if (state?.pending) {
     return (
-      <div className="w-full max-w-md rounded-xl border border-coral-500/20 bg-coral-500/[0.06] p-5 text-center">
+      <div className="w-full max-w-sm rounded-xl border border-coral-500/20 bg-coral-500/[0.06] p-5 text-center">
         <p className="text-[28px]">🙏</p>
         <h1 className="mt-2 text-[16px] font-semibold text-fg">
           Demande envoyée !
@@ -40,29 +40,11 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
     );
   }
   return (
-    <div className="w-full max-w-md">
-      <h1 className="text-xl font-bold tracking-tight text-fg">
-        Créer votre espace
+    <div className="w-full max-w-sm">
+      <h1 className="text-xl font-semibold tracking-tight text-fg">
+        Inscription
       </h1>
-      <section className="my-5 rounded-xl border border-line bg-card p-4">
-        <p className="text-sm font-bold text-fg">
-          Un outil de PLAID·ACT, gratuit pour les associations
-        </p>
-        <p className="mt-2 text-[13px] leading-relaxed text-mut">
-          Actyl aide les associations à organiser leurs campagnes de plaidoyer,
-          suivre les décideurs et mobiliser leurs soutiens. L’accès à l’outil
-          est gratuit.
-        </p>
-        <a
-          href="https://plaidact.org"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex min-h-9 items-center text-[13px] font-semibold text-coral-800 underline-offset-4 hover:underline dark:text-coral-300"
-        >
-          Découvrir l’association PLAID·ACT
-        </a>
-      </section>
-      <p className="mb-5 text-[13px] text-faint">
+      <p className="mt-1.5 mb-6 text-[13px] text-faint">
         Un espace de travail par organisation. Vous en serez administrateur·rice.
       </p>
       {mode === "APPROVAL" && (
@@ -166,8 +148,8 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
           {pending
             ? "Envoi…"
             : mode === "APPROVAL"
-              ? "Demander un compte"
-              : "Créer mon espace de travail"}
+              ? "Demander une inscription"
+              : "Créer mon espace"}
         </Button>
       </form>
       <p className="mt-5 text-center text-[13px] text-faint">
