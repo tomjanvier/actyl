@@ -22,8 +22,8 @@
   --overlay: var(--brand-plum);
 
   --fg: #241D26;
-  --mut: #453E48;
-  --faint: #57505A;
+  --mut: #514A54;
+  --faint: #625B65;
 
   --line: rgba(43, 21, 51, 0.13);
   --line-soft: rgba(43, 21, 51, 0.075);
@@ -49,8 +49,8 @@
   --overlay: var(--brand-plum);
 
   --fg: var(--brand-cream);
-  --mut: #e4dbe4;
-  --faint: #c7bac9;
+  --mut: #c9bbc7;
+  --faint: #a28fa7;
 
   --line: rgba(247, 241, 232, 0.12);
   --line-soft: rgba(247, 241, 232, 0.07);
@@ -133,7 +133,7 @@ body {
   background-color: var(--canvas);
   background-image: radial-gradient(80rem 30rem at 100% -8%, color-mix(in oklab, var(--accent) 8%, transparent), transparent 68%);
   color: var(--fg);
-  font-family: "Avenir Next", "Segoe UI", Arial, sans-serif;
+  font-family: var(--font-dm-sans), "Avenir Next", "Segoe UI", sans-serif;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -142,9 +142,8 @@ body {
 h1,
 h2,
 h3 {
-  font-family: "Arial Black", "Avenir Next", "Segoe UI", sans-serif;
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-family: var(--font-fraunces), Georgia, serif;
+  letter-spacing: -0.025em;
 }
 
 ::selection {
@@ -210,6 +209,3 @@ h3 {
     scroll-behavior: auto !important;
   }
 }
-
-/* Keep native filter controls aligned while retaining a predictable chevron position. */
-.actyl-filter-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b6472' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.65rem center; background-size: 0.9rem; }

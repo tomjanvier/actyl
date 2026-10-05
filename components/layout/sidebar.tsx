@@ -135,7 +135,7 @@ export function Sidebar({
       {mobileOpen && <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setMobileOpen(false)} />}
     <aside
       className={cn(
-        "sticky top-0 flex h-dvh shrink-0 flex-col overflow-hidden border-r border-line bg-sidebar transition-[width,transform] duration-200 max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:w-[min(86vw,300px)] max-md:shadow-2xl",
+        "sticky top-0 flex h-dvh min-w-0 shrink-0 flex-col overflow-x-hidden border-r border-line bg-sidebar transition-[width] duration-200 max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:w-[min(86vw,300px)] max-md:shadow-2xl",
         !mobileOpen && "max-md:-translate-x-full",
         collapsed ? "w-[56px] max-md:!w-[min(86vw,300px)]" : "w-[228px]",
       )}
@@ -206,14 +206,14 @@ export function Sidebar({
       </div>
 
       {/* Navigation principale. */}
-      <nav className={cn("mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3 [scrollbar-width:thin]", collapsed && "items-center px-0")}>
+      <nav className={cn("mt-2 flex min-w-0 flex-col gap-0.5 px-3", collapsed && "items-center px-0")}>
         {nav.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const showSegments =
             item.href === "/contacts" && !!directorySegments?.length;
           return (
-            <div key={item.href} className="w-full">
+            <div key={item.href} className={cn("w-full min-w-0", collapsed && "flex justify-center")}>
               <Link
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
@@ -286,6 +286,8 @@ export function Sidebar({
           );
         })}
       </nav>
+
+      <div className="flex-1" />
 
       {!collapsed && (
         <div className="px-4 pb-1 pt-2">

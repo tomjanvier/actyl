@@ -627,12 +627,12 @@ export function ContactsView({
                     onClick={() => setSelectedId(c.id)}
                     className={cn("cursor-pointer", checked.has(c.id) && "bg-coral-500/[0.04]")}
                   >
-                    {newsletterEnabled && (
+                    {(newsletterEnabled || canDelete) && (
                       <td onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={checked.has(c.id)}
-                          disabled={newsletterEnabled && !c.email}
+                          disabled={newsletterEnabled && !canDelete && !c.email}
                           onChange={() =>
                             setChecked((prev) => {
                               const next = new Set(prev);
@@ -641,7 +641,7 @@ export function ContactsView({
                               return next;
                             })
                           }
-                          title={c.email ? "" : "Pas d'email sur cette fiche"}
+                          title={c.email || canDelete ? "" : "Pas d'email sur cette fiche"}
                           className="size-3.5 accent-coral-600 disabled:opacity-30"
                         />
                       </td>

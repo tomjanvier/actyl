@@ -29,6 +29,7 @@ export type MergePerson = {
   instagramUrl?: string | null;
   youtubeUrl?: string | null;
   mastodonUrl?: string | null;
+  commissions?: string[];
 };
 
 export type MergeStats = {
@@ -83,6 +84,7 @@ function cleanPerson(p: MergePerson): MergePerson | null {
     instagramUrl: p.instagramUrl?.trim() || null,
     youtubeUrl: p.youtubeUrl?.trim() || null,
     mastodonUrl: p.mastodonUrl?.trim() || null,
+    commissions: p.commissions?.map((value) => value.trim()).filter(Boolean).slice(0, 12),
   };
 }
 
@@ -301,6 +303,7 @@ const HEADER_ALIASES: Record<keyof MergePerson | "level", string[]> = {
   instagramUrl: ["instagram", "instagramurl", "instagram_url"],
   youtubeUrl: ["youtube", "youtubeurl", "youtube_url"],
   mastodonUrl: ["mastodon", "mastodonurl", "mastodon_url"],
+  commissions: ["commission", "commissions", "commissionparlementaire"],
 };
 
 /**
@@ -355,6 +358,10 @@ export function parseContactsCsv(text: string): MergePerson[] {
       region: get("region") || null,
       level: get("level") || undefined,
       note: get("note") || null,
+      commissions: get("commissions")
+        .split(/[|;]/)
+        .map((value) => value.trim())
+        .filter(Boolean),
     });
   }
   return out;

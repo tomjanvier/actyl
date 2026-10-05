@@ -17,6 +17,7 @@ export type ImportedContact = {
   instagramUrl?: string | null;
   youtubeUrl?: string | null;
   mastodonUrl?: string | null;
+  commissions?: string[];
 };
 
 const UA = { "User-Agent": "Actyl/1.0 (open-source advocacy CRM)" };
@@ -86,6 +87,7 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
       (Array.isArray(a?.mandats) ? a.mandats : []);
     let circo: string | null = null;
     let groupe: string | null = null;
+    const commissions = new Set<string>();
     for (const m of mandats) {
       const refs: string[] = [];
       const raw = m?.organes?.organeRef;
@@ -94,6 +96,11 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
       for (const ref of refs) {
         const org = organes.get(ref);
         if (org?.codeType === "GP" && !groupe) groupe = org.libelle;
+        // L'open data AMO rattache les député·es aux organes parlementaires.
+        // Les commissions permanentes sont publiées sous des codes COM*.
+        if (org && /^COM/i.test(org.codeType) && /commission/i.test(org.libelle)) {
+          commissions.add(org.libelle);
+        }
       }
       const lieu = m?.election?.lieu;
       if (lieu?.departement && lieu?.numCirco) {
@@ -121,6 +128,7 @@ export async function importAssembleeNationale(): Promise<ImportedContact[]> {
       level: "NATIONAL",
       sourceSystem: "assemblee-nationale",
       sourceId: actorUid,
+      commissions: [...commissions],
     });
   }
   return ensureMinimum("Assemblée nationale", out, 400);
