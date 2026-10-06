@@ -33,6 +33,7 @@ import {
 } from "@/components/contacts/table-parts";
 import { ContactDrawer } from "@/components/contacts/contact-drawer";
 import { EntityAvatar } from "@/components/ui/badge";
+import { FilterBar, FilterSelect, SearchField } from "@/components/ui/filter-bar";
 import { CreateContactDialog } from "@/components/contacts/create-contact-dialog";
 import { PaginationBar } from "@/components/ui/pagination";
 import {
@@ -45,23 +46,22 @@ import { deleteContactsAction, moveContactsToListAction } from "@/app/actions/co
 export const NEWSLETTER_META: Record<string, { label: string; badge: string; dot: string }> = {
   SUBSCRIBED: {
     label: "Inscrit",
-    badge:
-      "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400",
+    badge: "bg-tone-success text-tone-success-fg ring-tone-success-line",
     dot: "bg-emerald-500",
   },
   PENDING: {
     label: "En attente",
-    badge: "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-400",
+    badge: "bg-tone-warning text-tone-warning-fg ring-tone-warning-line",
     dot: "bg-amber-500",
   },
   UNSUBSCRIBED: {
     label: "Désinscrit",
-    badge: "bg-zinc-500/10 text-zinc-600 ring-zinc-500/20 dark:text-zinc-400",
-    dot: "bg-zinc-400",
+    badge: "bg-tone-neutral text-tone-neutral-fg ring-tone-neutral-line",
+    dot: "bg-faint",
   },
   UNKNOWN: {
     label: "Hors liste",
-    badge: "bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:text-violet-400",
+    badge: "bg-tone-info text-tone-info-fg ring-tone-info-line",
     dot: "bg-violet-500",
   },
 };
@@ -383,123 +383,130 @@ export function ContactsView({
   return (
     <div className="flex min-h-[calc(100vh-89px)] min-w-0 flex-col overflow-hidden">
       {/* Barre d'outils */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-card/55 px-3 py-3 sm:px-7">
-        <div className="relative w-full sm:w-auto">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
-          <input
-            id="contacts-search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un décideur…"
-            className="h-10 w-full rounded-lg border border-line bg-card pl-8.5 pr-8 text-[13px] text-fg shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-coral-500/60 focus:shadow-[0_0_0_3px_var(--accent-ring)] sm:w-72"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-faint hover:text-mut"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
+      <FilterBar>
+        <SearchField
+          id="contacts-search"
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Rechercher un décideur…"
+          hint="/"
+          width="w-full sm:w-80"
+        />
 
         {lists.length > 0 && (
-          <select
+          <FilterSelect
             value={activeListId}
             onChange={(event) => changeList(event.target.value)}
-            className={cn(filterCls, activeListId && activeCls)}
+            active={!!activeListId}
             aria-label="Filtrer par liste partagée"
           >
             <option value="">Toutes les listes</option>
             {lists.map((list) => (
               <option key={list.id} value={list.id}>{list.name}</option>
             ))}
-          </select>
+          </FilterSelect>
         )}
 
-        <select value={onlyUnlisted ? "1" : ""} onChange={(e) => changeDirectoryFilter("unlisted", e.target.value)} className={cn(filterCls, onlyUnlisted && activeCls)} aria-label="Filtrer les contacts sans liste">
+        <FilterSelect
+          value={onlyUnlisted ? "1" : ""}
+          onChange={(e) => changeDirectoryFilter("unlisted", e.target.value)}
+          active={onlyUnlisted}
+          aria-label="Filtrer les contacts sans liste"
+        >
           <option value="">Toutes appartenances</option>
           <option value="1">Contacts sans liste</option>
-        </select>
+        </FilterSelect>
 
-        <select value={formerMandate ? "former" : ""} onChange={(e) => changeDirectoryFilter("mandate", e.target.value)} className={cn(filterCls, formerMandate && activeCls)} aria-label="Filtrer les anciens mandats">
+        <FilterSelect
+          value={formerMandate ? "former" : ""}
+          onChange={(e) => changeDirectoryFilter("mandate", e.target.value)}
+          active={formerMandate}
+          aria-label="Filtrer les anciens mandats"
+        >
           <option value="">Mandats : tous</option>
           <option value="former">Anciens élus / mandats</option>
-        </select>
+        </FilterSelect>
 
-        <select
+        <FilterSelect
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value)}
-          className={cn(filterCls, levelFilter && activeCls)}
+          active={!!levelFilter}
+          aria-label="Filtrer par niveau d'influence"
         >
           <option value="">Tous niveaux</option>
           {LEVELS.map((l) => (
             <option key={l} value={l}>{LEVEL_META[l].label}</option>
           ))}
-        </select>
+        </FilterSelect>
 
-        <select
+        <FilterSelect
           value={stanceFilter}
           onChange={(e) => setStanceFilter(e.target.value)}
-          className={cn(filterCls, stanceFilter && activeCls)}
+          active={!!stanceFilter}
+          aria-label="Filtrer par position"
         >
           <option value="">Toutes positions</option>
           {STANCES.map((s) => (
             <option key={s} value={s}>{STANCE_META[s].label}</option>
           ))}
-        </select>
+        </FilterSelect>
 
         {parties.length > 1 && (
-          <select
+          <FilterSelect
             value={partyFilter}
             onChange={(e) => setPartyFilter(e.target.value)}
-            className={cn(filterCls, partyFilter && activeCls)}
+            active={!!partyFilter}
+            aria-label="Filtrer par parti"
           >
             <option value="">Tous partis</option>
             {parties.map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
-          </select>
+          </FilterSelect>
         )}
 
         {institutions.length > 1 && (
-          <select
+          <FilterSelect
             value={institutionFilter}
             onChange={(e) => setInstitutionFilter(e.target.value)}
-            className={cn(filterCls, institutionFilter && activeCls)}
+            active={!!institutionFilter}
+            aria-label="Filtrer par institution"
           >
             <option value="">Toutes institutions</option>
             {institutions.map((i) => (
               <option key={i} value={i}>{i}</option>
             ))}
-          </select>
+          </FilterSelect>
         )}
 
         {commissions.length > 0 && commissionField && (
-          <select
+          <FilterSelect
             value={commissionFilter}
             onChange={(e) => setCommissionFilter(e.target.value)}
-            className={cn(filterCls, commissionFilter && activeCls)}
+            active={!!commissionFilter}
+            aria-label="Filtrer par commission"
           >
             <option value="">Toutes commissions</option>
             {commissions.map((c2) => (
               <option key={c2} value={c2}>{c2}</option>
             ))}
-          </select>
+          </FilterSelect>
         )}
 
-        <input
+        <SearchField
           value={themeQuery}
-          onChange={(e) => setThemeQuery(e.target.value)}
+          onValueChange={setThemeQuery}
           placeholder="Thématique…"
-          className="h-9 w-32 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none focus:border-coral-500/60"
+          label="Filtrer par thématique"
+          width="w-36"
         />
 
         {newsletterEnabled && (
-          <select
+          <FilterSelect
             value={newsletterFilter}
             onChange={(e) => setNewsletterFilter(e.target.value)}
-            className={cn(filterCls, newsletterFilter && activeCls)}
+            active={!!newsletterFilter}
+            aria-label="Filtrer par statut newsletter"
           >
             <option value="">Newsletter : tous</option>
             <option value="SUBSCRIBED">Inscrits</option>
@@ -507,11 +514,11 @@ export function ContactsView({
             <option value="UNSUBSCRIBED">Désinscrits</option>
             <option value="UNKNOWN">Hors liste</option>
             <option value="SYNCED">Non synchronisés</option>
-          </select>
+          </FilterSelect>
         )}
 
         {checked.size > 0 && (
-          <span className="flex flex-wrap items-center gap-2 rounded-lg bg-coral-500/[0.06] px-2 py-1 ring-1 ring-inset ring-coral-500/20">
+          <span className="flex flex-wrap items-center gap-2 rounded-lg bg-accent-soft px-2 py-1 ring-1 ring-inset ring-accent-ring">
             <span className="text-[12px] tabular-nums text-mut">
               {checked.size} sélection
             </span>
@@ -535,10 +542,18 @@ export function ContactsView({
             )}
             {lists.length > 0 && (
               <>
-                <select value={moveListId} onChange={(e) => setMoveListId(e.target.value)} className={cn(filterCls, "actyl-filter-select")} aria-label="Liste cible">
+                <FilterSelect
+                  value={moveListId}
+                  onChange={(e) => setMoveListId(e.target.value)}
+                  active={!!moveListId}
+                  aria-label="Liste cible"
+                  className="min-w-[150px]"
+                >
                   <option value="">Choisir une liste…</option>
-                  {lists.filter((list) => list.id !== activeListId).map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
-                </select>
+                  {lists.filter((list) => list.id !== activeListId).map((list) => (
+                    <option key={list.id} value={list.id}>{list.name}</option>
+                  ))}
+                </FilterSelect>
                 <Button variant="outline" size="sm" disabled={!moveListId || moveBusy || !!nlBusy} onClick={() => void moveSelected()}>
                   {moveBusy ? <Loader2 className="animate-spin" /> : null} Déplacer
                 </Button>
@@ -571,7 +586,7 @@ export function ContactsView({
             </Button>
           )}
         </span>
-      </div>
+      </FilterBar>
 
       {/* Tableau */}
       <div className="flex-1 px-3 pb-10 pt-4 sm:px-7">
@@ -608,7 +623,7 @@ export function ContactsView({
                       type="checkbox"
                       checked={allChecked}
                       onChange={toggleAllNewsletter}
-                      className="size-3.5 accent-coral-600"
+                      className="size-3.5 accent-coral-500"
                       aria-label={newsletterEnabled ? "Tout sélectionner (avec email)" : "Tout sélectionner"}
                     />
                   </th>
@@ -643,7 +658,7 @@ export function ContactsView({
                     }}
                     tabIndex={0}
                     aria-label={`Ouvrir la fiche de ${fullName(c)}`}
-                    className={cn("cursor-pointer focus-visible:bg-hover", checked.has(c.id) && "bg-coral-500/[0.04]")}
+                    className={cn("cursor-pointer focus-visible:bg-hover", checked.has(c.id) && "bg-accent-soft")}
                   >
                     {(newsletterEnabled || canDelete) && (
                       <td onClick={(e) => e.stopPropagation()}>
@@ -661,7 +676,7 @@ export function ContactsView({
                           }
                           title={c.email || canDelete ? "" : "Pas d'email sur cette fiche"}
                           aria-label={`Sélectionner ${fullName(c)}`}
-                          className="size-3.5 accent-coral-600 disabled:opacity-30"
+                          className="size-3.5 accent-coral-500 disabled:opacity-30"
                         />
                       </td>
                     )}
@@ -673,7 +688,7 @@ export function ContactsView({
                             {fullName(c)}
                           </p>
                           {priv?.tags && (
-                            <p className="truncate text-[11px] text-coral-700 dark:text-coral-400/80">
+                            <p className="truncate text-[11px] text-accent-text">
                               🔖 {priv.tags.split(",")[0]}
                             </p>
                           )}
@@ -844,7 +859,3 @@ function CustomCell({
   }
   return <span className="truncate">{value}</span>;
 }
-
-const filterCls =
-  "actyl-filter-select h-9 w-full min-w-0 rounded-lg border border-line bg-elev px-2.5 pr-8 text-[12.5px] text-mut outline-none focus:border-coral-500/60 sm:w-auto sm:min-w-[150px] [&>option]:bg-raised";
-const activeCls = "border-coral-500/40 text-coral-700 dark:text-coral-300";

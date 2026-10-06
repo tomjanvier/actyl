@@ -83,7 +83,7 @@ export function CampaignsView({
             <Link
               key={c.id}
               href={`/campaigns/${c.id}/kanban`}
-              className="group flex flex-col rounded-xl border border-line bg-card p-4 transition-all hover:border-coral-500/30 hover:bg-hover"
+              className="group flex flex-col rounded-xl crm-surface p-4 transition-all hover:border-accent-ring hover:bg-hover"
             >
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-elev text-lg ring-1 ring-inset ring-line">
@@ -177,7 +177,7 @@ export function CampaignsView({
                     <span className="text-[10.5px] text-faint">+{c.squads.length - 3}</span>
                   )}
                 </div>
-                <ArrowRight className="size-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-coral-700 dark:text-coral-400" />
+                <ArrowRight className="size-4 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-accent-text" />
               </footer>
             </Link>
           );
@@ -186,7 +186,7 @@ export function CampaignsView({
         {canCreate && (
           <button
             onClick={() => setOpen(true)}
-            className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line text-faint transition-colors hover:border-coral-500/50 hover:text-mut"
+            className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line text-faint transition-colors hover:border-accent-ring hover:text-mut"
           >
             <Plus className="size-6" />
             <span className="text-[13px]">Nouvelle campagne</span>
@@ -200,7 +200,7 @@ export function CampaignsView({
 }
 
 const SQUAD_TINT: Record<string, string> = {
-  indigo: "bg-coral-500/10 text-coral-700 dark:text-coral-300 ring-coral-500/20",
+  indigo: "bg-tone-accent text-tone-accent-fg ring-tone-accent-line",
   sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/20",
   emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20",
   amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/20",

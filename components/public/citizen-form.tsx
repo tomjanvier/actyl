@@ -137,7 +137,7 @@ export function CitizenForm({
   return (
     <form id="interpeller" onSubmit={submit} aria-busy={sending} className="mt-10 scroll-mt-6">
       <h2 className="mb-4 flex items-center gap-2 text-center text-[15px] font-semibold text-fg">
-        <Mail className="size-4 text-coral-700 dark:text-coral-400" />
+        <Mail className="size-4 text-accent-text" />
         Ajoutez votre voix en une minute
       </h2>
 
@@ -223,7 +223,7 @@ export function CitizenForm({
       <button
         type="button"
         onClick={() => setPersonalized((p) => !p)}
-        className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-[12.5px] text-coral-700 dark:text-coral-400 transition-colors hover:text-coral-700 dark:text-coral-300"
+        className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-[12.5px] text-accent-text transition-colors hover:text-accent-text"
       >
         <PencilLine className="size-3.5" />
         {personalized ? "Revenir au message type" : "Personnaliser le message"}
@@ -256,4 +256,4 @@ export function CitizenForm({
 }
 
 const fieldCls =
-  "h-11 w-full min-w-0 rounded-lg border border-line bg-elev px-3 text-base text-fg sm:text-[13px] outline-none transition-colors placeholder:text-faint focus:border-coral-500/60 focus:bg-elev";
+  "h-11 w-full min-w-0 rounded-lg border border-line bg-elev px-3 text-base text-fg sm:text-[13px] outline-none transition-colors placeholder:text-faint focus:border-accent focus:bg-elev";

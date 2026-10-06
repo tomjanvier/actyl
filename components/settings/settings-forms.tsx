@@ -44,7 +44,7 @@ export function LandingSettingsForm({
   }, [state]);
 
   return (
-    <form action={action} className="mt-6 rounded-xl border border-line bg-card p-4">
+    <form action={action} className="mt-6 rounded-xl crm-surface p-4">
       <h2 className="text-[14px] font-semibold text-fg">Page publique</h2>
       <p className="mt-1 text-[11.5px] text-faint">
         Ce contenu est commun à tous les espaces et modifiable uniquement par le super-administrateur.
@@ -98,7 +98,7 @@ export function CreateWorkspaceForm({ onCreated }: { onCreated: () => void }) {
   }, [state, onCreated]);
 
   return (
-    <form action={action} className="h-fit rounded-xl border border-line bg-card p-4">
+    <form action={action} className="h-fit rounded-xl crm-surface p-4">
       <h2 className="text-[14px] font-semibold text-fg">Créer un espace</h2>
       <p className="mt-1 text-[11.5px] text-faint">
         Vous serez automatiquement administrateur du nouvel espace.
@@ -164,7 +164,7 @@ export function ModulesCard({
   }
 
   return (
-    <div className="max-w-3xl overflow-hidden rounded-xl border border-line bg-card">
+    <div className="max-w-3xl overflow-hidden rounded-xl crm-surface">
       <div className="border-b border-line p-5">
         <h2 className="text-[15px] font-semibold text-fg">Modules de l’espace</h2>
         <p className="mt-1.5 text-[13px] leading-relaxed text-mut">
@@ -193,7 +193,7 @@ export function ModulesCard({
                 className="flex min-h-11 items-center justify-between rounded-lg border border-line px-3 text-left text-[12.5px] text-mut hover:bg-hover disabled:opacity-50"
               >
                 {label}
-                <span className={cn("h-5 w-9 rounded-full p-0.5 transition-colors", segments[key] ? "bg-coral-600" : "bg-elev ring-1 ring-inset ring-line")}>
+                <span className={cn("h-5 w-9 rounded-full p-0.5 transition-colors", segments[key] ? "bg-accent" : "bg-elev ring-1 ring-inset ring-line")}>
                   <span className={cn("block size-4 rounded-full bg-white transition-transform", segments[key] ? "translate-x-4" : "translate-x-0")} />
                 </span>
               </button>
@@ -234,10 +234,10 @@ export function CreateFieldForm({ onCreated }: { onCreated: () => void }) {
   return (
     <form
       action={action}
-      className="h-fit rounded-xl border border-dashed border-line bg-card p-4"
+      className="h-fit rounded-xl border border-dashed border-line p-4"
     >
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <Plus className="size-4 text-coral-700 dark:text-coral-400" /> Nouveau champ personnalisé
+        <Plus className="size-4 text-accent-text" /> Nouveau champ personnalisé
       </h3>
       <Label className="mb-1 block">Libellé *</Label>
       <Input name="label" placeholder="Commission parlementaire" required className="mb-3" />
@@ -283,10 +283,10 @@ export function CreateGroupForm({
   return (
     <form
       action={action}
-      className="h-fit rounded-xl border border-dashed border-line bg-card p-4"
+      className="h-fit rounded-xl border border-dashed border-line p-4"
     >
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <Plus className="size-4 text-coral-700 dark:text-coral-400" /> Nouvelle équipe
+        <Plus className="size-4 text-accent-text" /> Nouvelle équipe
       </h3>
       <Label className="mb-1 block">Nom *</Label>
       <Input name="name" placeholder="Cellule Européenne" required className="mb-3" />
@@ -331,10 +331,10 @@ export function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
   return (
     <form
       action={action}
-      className="rounded-xl border border-dashed border-line bg-card p-4"
+      className="rounded-xl border border-dashed border-line p-4"
     >
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <UserPlus className="size-4 text-coral-700 dark:text-coral-400" /> Inviter un membre
+        <UserPlus className="size-4 text-accent-text" /> Inviter un membre
       </h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
@@ -396,7 +396,7 @@ export function ProfileForm({
   }, [state, router]);
 
   return (
-    <form action={action} className="max-w-xl rounded-xl border border-line bg-card p-5">
+    <form action={action} className="max-w-xl rounded-xl crm-surface p-5">
       <div className="mb-5 flex items-center gap-3 border-b border-line pb-4">
         <EntityAvatar name={user.name} color="indigo" size="lg" />
         <div>

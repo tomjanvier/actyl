@@ -213,7 +213,7 @@ export function SettingsView({
           <div>
             <h2 className="mb-3 text-[15px] font-semibold text-fg">Champs personnalisés</h2>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-            <div className="overflow-hidden rounded-xl border border-line">
+            <div className="crm-surface overflow-hidden rounded-xl">
               <div className="flex h-10 items-center justify-between border-b border-line px-4">
                 <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
                   Schéma de l&#39;espace ({fields.length})
@@ -276,7 +276,7 @@ export function SettingsView({
               {groups.map((g) => (
                 <article
                   key={g.id}
-                  className="rounded-xl border border-line bg-card p-4"
+                  className="rounded-xl crm-surface p-4"
                 >
                   <div className="flex items-start justify-between">
                     <h3 className="flex items-center gap-2 text-[13.5px] font-semibold text-fg">
@@ -347,7 +347,7 @@ export function SettingsView({
             onChanged={refresh}
           />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-            <div className="overflow-hidden rounded-xl border border-line">
+            <div className="crm-surface overflow-hidden rounded-xl">
               {members.map((m) => (
                 <div
                   key={m.membershipId}
@@ -358,7 +358,7 @@ export function SettingsView({
                     <p className="truncate text-[13px] font-medium text-fg">
                       {m.name}
                       {m.userId === currentUserId && (
-                        <span className="ml-1.5 text-[10.5px] text-coral-700 dark:text-coral-400">vous</span>
+                        <span className="ml-1.5 text-[10.5px] text-accent-text">vous</span>
                       )}
                     </p>
                     <p className="truncate text-[11px] text-faint">
@@ -419,7 +419,7 @@ export function SettingsView({
             <div className="flex flex-col gap-4">
               {isAdmin && <InviteMemberForm onInvited={refresh} />}
               {/* Légende des rôles. */}
-              <section className="rounded-xl border border-line bg-card p-4">
+              <section className="rounded-xl crm-surface p-4">
                 <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-wider text-faint">
                   Matrice des rôles
                 </h3>
@@ -479,7 +479,7 @@ export function SettingsView({
         {isSuperAdmin && (
           <TabsContent value="espaces" className="mt-5 outline-none">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-              <section className="overflow-hidden rounded-xl border border-line bg-card">
+              <section className="overflow-hidden rounded-xl crm-surface">
                 <header className="border-b border-line px-4 py-3">
                   <h2 className="text-[14px] font-semibold text-fg">Espaces Actyl</h2>
                   <p className="mt-0.5 text-[11.5px] text-faint">

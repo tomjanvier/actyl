@@ -38,6 +38,29 @@
   --accent-soft: rgba(242, 95, 76, 0.12);
   --accent-ring: rgba(242, 95, 76, 0.34);
   --accent-ink: #241b18;
+  /* Accent tuned for text: contrast-correct on canvas in both schemes. */
+  --accent-text: #b93a2c;
+
+  /* Status tones — one recipe, four meanings, never a one-off palette. */
+  --tone-accent-bg: var(--accent-soft);
+  --tone-accent-fg: var(--accent-text);
+  --tone-accent-line: var(--accent-ring);
+
+  --tone-success-bg: rgba(16, 185, 129, 0.1);
+  --tone-success-fg: #047857;
+  --tone-success-line: rgba(16, 185, 129, 0.24);
+
+  --tone-warning-bg: rgba(245, 158, 11, 0.12);
+  --tone-warning-fg: #b45309;
+  --tone-warning-line: rgba(245, 158, 11, 0.26);
+
+  --tone-info-bg: rgba(139, 92, 246, 0.1);
+  --tone-info-fg: #6d28d9;
+  --tone-info-line: rgba(139, 92, 246, 0.24);
+
+  --tone-neutral-bg: var(--elev);
+  --tone-neutral-fg: var(--mut);
+  --tone-neutral-line: var(--line);
 }
 
 .dark {
@@ -65,7 +88,20 @@
   --accent-soft: rgba(242, 95, 76, 0.14);
   --accent-ring: rgba(242, 95, 76, 0.38);
   --accent-ink: #1f1917;
+  --accent-text: #f98068;
   --focus: var(--brand-cream);
+
+  --tone-success-bg: rgba(16, 185, 129, 0.14);
+  --tone-success-fg: #34d399;
+  --tone-success-line: rgba(16, 185, 129, 0.28);
+
+  --tone-warning-bg: rgba(245, 158, 11, 0.14);
+  --tone-warning-fg: #fbbf24;
+  --tone-warning-line: rgba(245, 158, 11, 0.28);
+
+  --tone-info-bg: rgba(139, 92, 246, 0.16);
+  --tone-info-fg: #a78bfa;
+  --tone-info-line: rgba(139, 92, 246, 0.3);
 }
 
 /* ── Register tokens as Tailwind utilities ──────────────────────────────── */
@@ -99,6 +135,23 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-ring: var(--accent-ring);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
+
+  --color-tone-accent: var(--tone-accent-bg);
+  --color-tone-accent-fg: var(--tone-accent-fg);
+  --color-tone-accent-line: var(--tone-accent-line);
+  --color-tone-success: var(--tone-success-bg);
+  --color-tone-success-fg: var(--tone-success-fg);
+  --color-tone-success-line: var(--tone-success-line);
+  --color-tone-warning: var(--tone-warning-bg);
+  --color-tone-warning-fg: var(--tone-warning-fg);
+  --color-tone-warning-line: var(--tone-warning-line);
+  --color-tone-info: var(--tone-info-bg);
+  --color-tone-info-fg: var(--tone-info-fg);
+  --color-tone-info-line: var(--tone-info-line);
+  --color-tone-neutral: var(--tone-neutral-bg);
+  --color-tone-neutral-fg: var(--tone-neutral-fg);
+  --color-tone-neutral-line: var(--tone-neutral-line);
 
   --color-plum-50: #f8f3f8;
   --color-plum-100: #eadbea;
@@ -146,11 +199,23 @@ h3 {
   letter-spacing: -0.025em;
 }
 
-/* CRM surfaces: one light source, quiet borders, and useful density. */
+/* CRM surfaces: one light source, quiet borders, and useful density.
+   Light mode lifts with three layers; dark mode collapses to a single ring. */
 .crm-surface {
   border: 1px solid var(--line);
   background: var(--card);
-  box-shadow: 0 1px 2px color-mix(in oklab, var(--fg) 5%, transparent), 0 14px 34px color-mix(in oklab, var(--fg) 4%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--fg) 4%, transparent),
+    0 1px 2px -1px color-mix(in oklab, var(--fg) 6%, transparent),
+    0 2px 4px -2px color-mix(in oklab, var(--fg) 5%, transparent);
+}
+.dark .crm-surface {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Row of a data table: hairline separators, no extra chrome. */
+.crm-row {
+  border-top: 1px solid var(--line-soft);
 }
 
 .crm-kicker {
@@ -159,6 +224,64 @@ h3 {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Sidebar grip — a cord you pull to size the rail. */
+.actyl-resizer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 30;
+  width: 11px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: col-resize;
+  touch-action: none;
+}
+.actyl-resizer::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: 1px;
+  background: var(--line);
+  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    width 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.actyl-resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  width: 4px;
+  height: 36px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  opacity: 0;
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in oklab, var(--fg) 32%, transparent) 1px,
+    transparent 1.3px
+  );
+  background-size: 4px 6px;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.actyl-resizer:hover::before,
+.actyl-resizer:focus-visible::before,
+.actyl-resizer[data-active="true"]::before {
+  width: 2px;
+  background: var(--accent);
+}
+.actyl-resizer:hover::after,
+.actyl-resizer:focus-visible::after,
+.actyl-resizer[data-active="true"]::after {
+  opacity: 1;
+}
+.actyl-resizing,
+.actyl-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 ::selection {

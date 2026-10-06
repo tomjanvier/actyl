@@ -58,18 +58,18 @@ export function MobilizationView({
       <aside className="flex flex-col gap-4">
         {petition && (
           <>
-            <section className="rounded-xl border border-line bg-card p-4">
+            <section className="rounded-xl crm-surface p-4">
               <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
                 Impact
               </h3>
               <p className="flex items-center gap-2 text-[26px] font-semibold tabular-nums text-fg">
-                <Users className="size-5 text-coral-700 dark:text-coral-400" />
+                <Users className="size-5 text-accent-text" />
                 {petition.signatureCount}
                 <span className="text-[13px] font-normal text-mut">/ {petition.goal} signatures</span>
               </p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-hover">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-coral-600 to-coral-400"
+                  className="h-full rounded-full bg-gradient-to-r from-accent to-accent-hover"
                   style={{
                     width: `${Math.min(100, Math.round((petition.signatureCount / Math.max(petition.goal, 1)) * 100))}%`,
                   }}
@@ -77,7 +77,7 @@ export function MobilizationView({
               </div>
             </section>
 
-            <section className="rounded-xl border border-line bg-card p-4">
+            <section className="rounded-xl crm-surface p-4">
               <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
                 Derniers signataires
               </h3>
@@ -99,7 +99,7 @@ export function MobilizationView({
               {canManage && (
                 <Link
                   href={`/campaigns/${campaignId}/signatures`}
-                  className="mt-3 flex items-center justify-between rounded-lg bg-elev px-2.5 py-2 text-[12.5px] font-medium text-mut transition-colors hover:text-coral-700 dark:hover:text-coral-400"
+                  className="mt-3 flex items-center justify-between rounded-lg bg-elev px-2.5 py-2 text-[12.5px] font-medium text-mut transition-colors hover:text-accent-text"
                 >
                   Gérer les signataires
                   <Users className="size-3.5" />
@@ -152,10 +152,10 @@ function PetitionEditor({
   }, [state]);
 
   return (
-    <form action={action} className="max-w-2xl rounded-xl border border-line bg-card p-5">
+    <form action={action} className="max-w-2xl rounded-xl crm-surface p-5">
       <input type="hidden" name="campaignId" value={campaignId} />
       <h2 className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-fg">
-        <Megaphone className="size-4 text-coral-700 dark:text-coral-400" />
+        <Megaphone className="size-4 text-accent-text" />
         Pétition publique de la campagne
       </h2>
 
@@ -192,7 +192,7 @@ function PetitionEditor({
         hidden={!petition}
         className={cn("ml-2 inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium ring-1 ring-inset",
           petition?.isPublished
-            ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400"
+            ? "bg-tone-success text-tone-success-fg ring-tone-success-line"
             : "bg-elev text-mut ring-line")}
       >
         <Globe className="size-3.5" />

@@ -106,26 +106,46 @@ function EmptyState({
 function StatCard({
   label,
   value,
+  suffix,
   hint,
   icon,
+  progress,
 }: {
   label: string;
   value: React.ReactNode;
+  /** Secondary figure rendered after the value, e.g. « / 1 200 ». */
+  suffix?: React.ReactNode;
   hint?: React.ReactNode;
   icon?: React.ReactNode;
+  /** 0–1. Replaces the block with a bar plus its percentage. */
+  progress?: number;
 }) {
   return (
-    <Card className="p-4 transition-colors hover:border-line">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[12px] font-medium uppercase tracking-wider text-faint">
-          {label}
-        </p>
-        {icon && <span className="text-faint">{icon}</span>}
-      </div>
-      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-fg tabular-nums">
-        {value}
+    <Card className="p-4">
+      <p className="crm-kicker flex items-center gap-1.5">
+        {icon}
+        {label}
       </p>
-      {hint && <p className="mt-0.5 text-[12px] text-faint">{hint}</p>}
+      <p className="mt-1.5 flex items-baseline gap-1.5 text-[24px] font-semibold tracking-[-0.02em] tabular-nums text-fg">
+        {value}
+        {suffix && (
+          <span className="text-[13px] font-normal text-mut">{suffix}</span>
+        )}
+      </p>
+      {progress !== undefined && (
+        <div className="mt-2 flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-hover">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-accent to-accent-hover"
+              style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+            />
+          </div>
+          <span className="text-[11.5px] tabular-nums text-faint">
+            {Math.round(progress * 100)}%
+          </span>
+        </div>
+      )}
+      {hint && <p className="mt-1 text-[12px] text-faint">{hint}</p>}
     </Card>
   );
 }

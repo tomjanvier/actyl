@@ -8,14 +8,13 @@ import {
   ExternalLink,
   FileText,
   LayoutGrid,
-  Search,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { updateCampaignProgramAction } from "@/app/actions/campaign-teams";
 import { EntityAvatar } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchField } from "@/components/ui/filter-bar";
 import { cn } from "@/lib/utils";
 
 type Team = {
@@ -44,7 +43,7 @@ type Team = {
 
 const STATUS_COLUMNS = [
   { key: "OFFICIAL", label: "Candidatures officielles", accent: "border-emerald-500/40" },
-  { key: "LIKELY", label: "Candidatures probables", accent: "border-coral-500/40" },
+  { key: "LIKELY", label: "Candidatures probables", accent: "border-accent-ring" },
   { key: "WATCH", label: "À surveiller", accent: "border-amber-500/40" },
   { key: "UNKNOWN", label: "À qualifier", accent: "border-zinc-500/40" },
 ] as const;
@@ -98,16 +97,13 @@ export function CampaignTeamsView({
   return (
     <div className="space-y-5 px-4 py-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative min-w-0 max-w-xl flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Rechercher une candidature ou un membre d’équipe…"
-            className="pl-9"
-          />
-        </div>
-        <div className="flex rounded-lg border border-line bg-card p-1">
+        <SearchField
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Rechercher une candidature ou un membre d’équipe…"
+          width="w-full max-w-xl flex-1"
+        />
+        <div className="flex rounded-lg border border-line bg-elev p-1">
           <Button
             type="button"
             size="sm"
@@ -229,7 +225,7 @@ function CampaignTeamCard({
     : null;
 
   return (
-    <article className="rounded-xl border border-line bg-card p-4 shadow-sm">
+    <article className="rounded-xl crm-surface p-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {candidateHref ? (
@@ -302,7 +298,7 @@ function CampaignTeamCard({
       {!compact && team.members.length > 5 && (
         <button
           type="button"
-          className="mt-2 text-[11.5px] font-medium text-coral-700 dark:text-coral-400"
+          className="mt-2 text-[11.5px] font-medium text-accent-text"
           onClick={onToggle}
         >
           {expanded ? "Réduire à 5 membres" : `Afficher les ${team.members.length - 5} autres membres`}

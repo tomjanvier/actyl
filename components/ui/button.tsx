@@ -17,7 +17,7 @@ const buttonVariants = cva(
         ghost: "text-mut hover:bg-elev hover:text-fg",
         destructive:
           "bg-rose-600/90 text-white hover:bg-rose-500",
-        link: "text-coral-700 underline-offset-4 hover:text-coral-600 hover:underline dark:text-coral-300",
+        link: "text-accent-text underline-offset-4 hover:text-accent hover:underline",
       },
       size: {
         default: "min-h-11 px-3.5 py-2 sm:min-h-9",

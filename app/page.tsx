@@ -55,7 +55,7 @@ export default async function LandingPage() {
           </Badge>
           <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-[52px]">
             {settings.heroTitle}{" "}
-            <span className="text-coral-700 dark:text-coral-300">
+            <span className="text-accent-text">
               {settings.heroHighlight}
             </span>
           </h1>
@@ -118,7 +118,7 @@ export default async function LandingPage() {
               key={f.title}
               className="group rounded-xl border border-line bg-card p-5 transition-colors hover:border-line"
             >
-              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-elev text-mut ring-1 ring-inset ring-line transition-colors group-hover:text-coral-700 dark:text-coral-300">
+              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-elev text-mut ring-1 ring-inset ring-line transition-colors group-hover:text-accent-text">
                 <f.icon className="size-4.5" />
               </div>
               <h3 className="text-[14px] font-semibold text-fg">

@@ -127,7 +127,7 @@ export function CampaignHeader({
                       >
                         <span className={cn("size-2 rounded-full", CAMPAIGN_STATUS_META[s].dot)} />
                         {CAMPAIGN_STATUS_META[s].label}
-                        {s === campaign.status && <span className="ml-auto text-coral-700 dark:text-coral-400">✓</span>}
+                        {s === campaign.status && <span className="ml-auto text-accent-text">✓</span>}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -197,7 +197,7 @@ export function CampaignHeader({
                   href={`/association/${campaign.workspaceSlug}/${campaign.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 transition-colors hover:text-coral-700 dark:text-coral-400"
+                  className="inline-flex items-center gap-1 transition-colors hover:text-accent-text"
                   title={`Page publique : /association/${campaign.workspaceSlug}/${campaign.slug}`}
                 >
                   <Globe className="size-3" /> /association/{campaign.workspaceSlug}/{campaign.slug} · publique ↗
@@ -276,7 +276,7 @@ function TabLink({ href, label }: { href: string; label: string }) {
 }
 
 const SQUAD_TINTS: Record<string, string> = {
-  coral: "bg-coral-500/10 text-coral-700 dark:text-coral-300 ring-coral-500/20",
+  coral: "bg-tone-accent text-tone-accent-fg ring-tone-accent-line",
   sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/20",
   emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20",
   amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/20",

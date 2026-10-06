@@ -43,11 +43,11 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
 
         <article className="overflow-hidden rounded-2xl border border-line bg-card shadow-xl shadow-black/[0.04]">
           <div className="border-b border-line bg-elev/50 px-5 py-6 sm:px-8 sm:py-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-coral-700 dark:text-coral-300">Invitation · événement public</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-text">Invitation · événement public</p>
             <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-fg sm:text-4xl">{event.title}</h1>
             <div className="mt-5 flex flex-col gap-3 text-sm text-mut sm:flex-row sm:flex-wrap sm:gap-x-6">
-              <p className="inline-flex items-center gap-2"><CalendarDays className="size-4 text-coral-700 dark:text-coral-300" />{dateLabel}{event.endsAt ? ` · fin à ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(event.endsAt)}` : ""}</p>
-              {event.location && <p className="inline-flex items-center gap-2"><MapPin className="size-4 text-coral-700 dark:text-coral-300" />{event.location}</p>}
+              <p className="inline-flex items-center gap-2"><CalendarDays className="size-4 text-accent-text" />{dateLabel}{event.endsAt ? ` · fin à ${new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(event.endsAt)}` : ""}</p>
+              {event.location && <p className="inline-flex items-center gap-2"><MapPin className="size-4 text-accent-text" />{event.location}</p>}
             </div>
             {event.description && <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-mut">{event.description}</p>}
           </div>

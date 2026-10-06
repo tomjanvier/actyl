@@ -17,7 +17,7 @@ function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        "flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-line bg-elev px-3 py-2 text-[13px] text-fg shadow-sm transition-colors placeholder:text-faint focus:border-coral-500 focus:outline-none focus:ring-2 focus:ring-accent-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate",
+        "flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-line bg-elev px-3 py-2 text-[13px] text-fg transition-[border-color,box-shadow,background-color] placeholder:text-faint hover:border-hoverstrong focus:border-accent focus:bg-card focus:outline-none focus:shadow-[0_0_0_3px_var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate",
         className,
       )}
       {...props}
@@ -83,7 +83,7 @@ function SelectItem({
     >
       <span className="absolute left-2 flex size-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="size-3.5 text-coral-700 dark:text-coral-300" />
+          <Check className="size-3.5 text-accent-text" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

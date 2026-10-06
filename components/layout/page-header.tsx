@@ -20,7 +20,8 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-end justify-between gap-3 border-b border-line bg-canvas/80 px-4 pb-5 pt-6 backdrop-blur-sm sm:px-7",
+        // pt-16 clears the fixed menu button on small screens.
+        "flex flex-wrap items-end justify-between gap-3 border-b border-line bg-canvas/80 px-4 pb-5 pt-16 backdrop-blur-sm sm:px-7 sm:pt-6",
         className,
       )}
     >

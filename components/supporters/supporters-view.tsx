@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Download,
-  Search,
   Users,
   Mail,
   PenLine,
@@ -25,6 +24,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/ui/primitives";
+import { FilterBar, FilterSelect, SearchField } from "@/components/ui/filter-bar";
 import { Input, Textarea } from "@/components/ui/input";
 import { PaginationBar } from "@/components/ui/pagination";
 import { setSupporterTagsAction } from "@/app/actions/mobilization";
@@ -36,17 +37,17 @@ import {
 const SOURCE_META: Record<string, { label: string; badge: string; icon: typeof Mail }> = {
   interpellation: {
     label: "Interpellation",
-    badge: "bg-coral-500/10 text-coral-700 dark:text-coral-400 ring-coral-500/20",
+    badge: "bg-tone-accent text-tone-accent-fg ring-tone-accent-line",
     icon: Mail,
   },
   petition: {
     label: "Pétition",
-    badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-emerald-500/20",
+    badge: "bg-tone-success text-tone-success-fg ring-tone-success-line",
     icon: PenLine,
   },
   event: {
     label: "Événement",
-    badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400 ring-amber-500/20",
+    badge: "bg-tone-warning text-tone-warning-fg ring-tone-warning-line",
     icon: CalendarDays,
   },
 };
@@ -124,77 +125,64 @@ export function SupportersView({
   return (
     <div className="flex min-h-[calc(100vh-89px)] flex-col">
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 px-4 pt-5 sm:grid-cols-3 sm:px-6 lg:max-w-2xl">
-        <div className="rounded-xl border border-line bg-card p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Soutiens</p>
-          <p className="mt-1 flex items-center gap-2 text-2xl font-semibold tabular-nums text-fg">
-            <Users className="size-4.5 text-coral-700 dark:text-coral-400" />
-            {total.toLocaleString("fr-FR")}
-          </p>
-        </div>
-        <div className="rounded-xl border border-line bg-card p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Multi-engagés (3+)</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">{engaged.toLocaleString("fr-FR")}</p>
-        </div>
-        <div className="rounded-xl border border-line bg-card p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Taux multi-engagés</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-fg">
-            {total ? Math.round((engaged / total) * 100) : 0}%
-          </p>
-        </div>
+      <div className="grid grid-cols-1 gap-3 px-4 pt-5 sm:grid-cols-3 sm:px-7 lg:max-w-2xl">
+        <StatCard
+          label="Soutiens"
+          value={total.toLocaleString("fr-FR")}
+          icon={<Users className="size-3 text-accent-text" />}
+        />
+        <StatCard
+          label="Multi-engagés (3+)"
+          value={engaged.toLocaleString("fr-FR")}
+        />
+        <StatCard
+          label="Taux multi-engagés"
+          value={total ? Math.round((engaged / total) * 100) : 0}
+          suffix="%"
+        />
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-4 sm:px-6">
-        <div className="relative w-full sm:w-auto">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un soutien…"
-            className="h-11 w-full rounded-lg border border-line bg-elev pl-8.5 pr-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60 sm:h-9 sm:w-64"
-          />
-        </div>
-        <select
+      <FilterBar>
+        <SearchField
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Rechercher un soutien…"
+          width="w-full sm:w-64"
+        />
+        <FilterSelect
           value={sourceF}
           onChange={(e) => setSourceF(e.target.value)}
-          className={cn(
-            "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised",
-            sourceF && "border-coral-500/40",
-          )}
+          active={!!sourceF}
+          aria-label="Filtrer par origine"
         >
           <option value="">Toutes origines</option>
           {sources.map((k) => (
             <option key={k} value={k}>{SOURCE_META[k]?.label ?? k}</option>
           ))}
-        </select>
+        </FilterSelect>
         {allTags.length > 0 && (
-          <select
+          <FilterSelect
             value={tagF}
             onChange={(e) => setTagF(e.target.value)}
-            className={cn(
-              "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised",
-              tagF && "border-coral-500/40",
-            )}
+            active={!!tagF}
+            aria-label="Filtrer par tag"
           >
             <option value="">Tous les tags</option>
             {allTags.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
-          </select>
+          </FilterSelect>
         )}
         <Buttonish onClick={exportCsv} disabled={!filtered.length} />
-        <button
-          onClick={() => setBroadcastOpen(true)}
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-coral-600 px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-coral-500"
-        >
-          <Send className="size-3.5" /> Emailing
-        </button>
-      </div>
+        <Button size="sm" className="ml-auto sm:ml-0" onClick={() => setBroadcastOpen(true)}>
+          <Send /> Emailing
+        </Button>
+      </FilterBar>
 
       {/* Table */}
       <div className="px-4 pb-10 sm:px-6">
-        <ul className="overflow-hidden rounded-xl border border-line">
+        <ul className="crm-surface overflow-hidden rounded-xl">
           {filtered.map((s) => {
             const meta = SOURCE_META[s.source ?? ""];
             const Icon = meta?.icon ?? Users;
@@ -237,7 +225,7 @@ export function SupportersView({
                     <span
                       key={t}
                       title={t}
-                      className="max-w-20 truncate rounded-md bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-400"
+                      className="max-w-20 truncate rounded-md bg-tone-accent px-1.5 py-0.5 text-[10.5px] font-medium text-tone-accent-fg ring-1 ring-inset ring-tone-accent-line"
                     >
                       {t}
                     </span>
@@ -358,9 +346,6 @@ function BroadcastDialog({
     }
   }
 
-  const selCls =
-    "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised";
-
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
@@ -372,15 +357,25 @@ function BroadcastDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={sourceF} onChange={(e) => setSourceF(e.target.value)} className={cn(selCls, sourceF && "border-coral-500/40")}>
+          <FilterSelect
+            value={sourceF}
+            onChange={(e) => setSourceF(e.target.value)}
+            active={!!sourceF}
+            aria-label="Filtrer par origine"
+          >
             <option value="">Toutes origines</option>
             {sources.map((s) => <option key={s} value={s}>{SOURCE_META[s]?.label ?? s}</option>)}
-          </select>
+          </FilterSelect>
           {tags.length > 0 && (
-            <select value={tagF} onChange={(e) => setTagF(e.target.value)} className={cn(selCls, tagF && "border-coral-500/40")}>
+            <FilterSelect
+              value={tagF}
+              onChange={(e) => setTagF(e.target.value)}
+              active={!!tagF}
+              aria-label="Filtrer par tag"
+            >
               <option value="">Tous les tags</option>
               {tags.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            </FilterSelect>
           )}
           <span className="ml-auto text-[12px] tabular-nums text-faint">
             {count === null ? "…" : `${count} destinataire(s)`}
@@ -471,7 +466,7 @@ function TagEditor({
           {parseTags(supporter?.tags).map((t) => (
             <span
               key={t}
-              className="inline-flex items-center gap-1 rounded-md bg-coral-500/10 px-2 py-0.5 text-[11.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-400"
+              className="inline-flex items-center gap-1 rounded-md bg-tone-accent px-2 py-0.5 text-[11.5px] font-medium text-tone-accent-fg ring-1 ring-inset ring-tone-accent-line"
             >
               {t}
               <button
@@ -484,7 +479,7 @@ function TagEditor({
                       .join(", "),
                   )
                 }
-                className="text-coral-700/60 hover:text-rose-600 dark:text-coral-400/60"
+                className="text-accent-text/60 hover:text-rose-600"
               >
                 <X className="size-3" />
               </button>
@@ -499,7 +494,7 @@ function TagEditor({
           onChange={(e) => setValue(e.target.value)}
           placeholder="bénévole, donateur, region:Île-de-France…"
           maxLength={300}
-          className="h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
+          className="h-10 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-accent"
         />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -519,7 +514,7 @@ function Buttonish({ onClick, disabled }: { onClick: () => void; disabled?: bool
     <button
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-9 items-center gap-2 rounded-lg border border-line px-3 text-[12.5px] font-medium text-mut transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:hover:text-coral-400 disabled:opacity-40"
+      className="inline-flex h-9 items-center gap-2 rounded-lg border border-line px-3 text-[12.5px] font-medium text-mut transition-colors hover:border-accent-ring hover:text-accent-text disabled:opacity-40"
     >
       <Download className="size-4" /> Exporter CSV
     </button>

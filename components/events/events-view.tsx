@@ -112,7 +112,7 @@ function Section({
           {events.map((e) => (
             <li
               key={e.id}
-              className={cn("rounded-xl border border-line bg-card p-4", past && "opacity-60")}
+              className={cn("rounded-xl crm-surface p-4", past && "opacity-60")}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -152,7 +152,7 @@ function Section({
                       href={`/e/${e.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-[11.5px] text-coral-700 hover:bg-hover dark:text-coral-300 sm:min-h-8"
+                      className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-[11.5px] text-accent-text hover:bg-hover sm:min-h-8"
                       aria-label={`Ouvrir la page publique de ${e.title}`}
                     >
                       <ExternalLink className="size-3.5" /> Page RSVP
@@ -227,9 +227,9 @@ function CreateEventForm({ onCreated }: { onCreated: () => void }) {
   }, [state, onCreated]);
 
   return (
-    <form action={action} className="h-fit rounded-xl border border-dashed border-line bg-card p-4">
+    <form action={action} className="h-fit rounded-xl border border-dashed border-line p-4">
       <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-fg">
-        <Plus className="size-4 text-coral-700 dark:text-coral-400" /> Nouvel événement
+        <Plus className="size-4 text-accent-text" /> Nouvel événement
       </h3>
       <Label className="mb-1 block">Titre *</Label>
       <Input name="title" placeholder="Réunion publique — quartier Nord" required className="mb-3" />

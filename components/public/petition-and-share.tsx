@@ -102,8 +102,8 @@ export function ShareSection({ title }: { title: string }) {
   }
 
   return (
-    <section className="mt-10 rounded-2xl border border-line bg-card p-6 text-center">
-      <Share className="mx-auto mb-2 size-5 text-coral-700 dark:text-coral-300" />
+    <section className="mt-10 rounded-2xl crm-surface p-6 text-center">
+      <Share className="mx-auto mb-2 size-5 text-accent-text" />
       <h2 className="text-[15px] font-semibold text-fg">
         Faites circuler — c&apos;est là que tout se joue
       </h2>
@@ -135,7 +135,7 @@ export function ShareSection({ title }: { title: string }) {
 }
 
 const fCls =
-  "h-11 w-full min-w-0 rounded-lg border border-line bg-elev px-3 text-base text-fg sm:text-[13px] outline-none transition-colors placeholder:text-faint focus:border-coral-500 focus:ring-2 focus:ring-accent-ring sm:flex-1";
+  "h-11 w-full min-w-0 rounded-lg border border-line bg-elev px-3 text-base text-fg sm:text-[13px] outline-none transition-colors placeholder:text-faint focus:border-accent focus:ring-2 focus:ring-accent-ring sm:flex-1";
 
 const shareBtn =
-  "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line bg-elev px-3.5 text-[12.5px] font-medium text-mut transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:hover:text-coral-300";
+  "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line bg-elev px-3.5 text-[12.5px] font-medium text-mut transition-colors hover:border-accent-ring hover:text-accent-text";

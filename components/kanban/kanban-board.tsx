@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SearchField } from "@/components/ui/filter-bar";
 import { cn, fullName, timeAgo, initials } from "@/lib/utils";
 import { PRIORITY_META, STAGE_KIND_META, type Priority, type StageKind } from "@/lib/constants";
 import {
@@ -315,7 +316,7 @@ function Column({
           ref={setNodeRef}
           className={cn(
             "flex min-h-[120px] flex-col gap-2 p-2 transition-colors",
-            isOver && "rounded-b-xl bg-coral-500/[0.05]",
+            isOver && "rounded-b-xl bg-accent-soft",
           )}
         >
           {cards.map((card) => (
@@ -430,7 +431,7 @@ function KanbanCardView({
       </div>
 
       {card.role && (
-        <p className="mt-2 inline-block rounded bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 dark:text-coral-300 ring-1 ring-inset ring-coral-500/20">
+        <p className="mt-2 inline-block rounded bg-tone-accent px-1.5 py-0.5 text-[10.5px] font-medium text-tone-accent-fg ring-1 ring-inset ring-tone-accent-line">
           {card.role}
         </p>
       )}
@@ -508,7 +509,7 @@ function CardMenu({
                   >
                     <span className={cn("size-2 rounded-full", PRIORITY_DOT[p])} />
                     {PRIORITY_META[p].label}
-                    {card.priority === p && <span className="ml-auto text-coral-700 dark:text-coral-400">✓</span>}
+                    {card.priority === p && <span className="ml-auto text-accent-text">✓</span>}
                   </button>
                 ))}
                 <div className="my-1 h-px bg-elev" />
@@ -533,7 +534,7 @@ function CardMenu({
 
 const AVATAR_BG: Record<string, string> = {
   slate: "bg-slate-600",
-  indigo: "bg-coral-600",
+  indigo: "bg-accent",
   emerald: "bg-emerald-600",
   amber: "bg-amber-600",
   rose: "bg-rose-600",
@@ -564,7 +565,7 @@ function ActivityPanel({
     <div className="fixed bottom-0 right-0 top-0 z-30 flex w-80 flex-col border-l border-line bg-sidebar pt-4 shadow-2xl shadow-black/60">
       <header className="flex items-center justify-between border-b border-line px-4 pb-3">
         <h3 className="flex items-center gap-2 text-[13px] font-semibold text-fg">
-          <History className="size-4 text-coral-700 dark:text-coral-400" /> Activité récente
+          <History className="size-4 text-accent-text" /> Activité récente
         </h3>
         <button onClick={onClose} className="text-faint hover:text-mut">
           ✕
@@ -615,12 +616,12 @@ function AddTargetDialog({
 
   return (
     <Dialogish title="Ajouter des cibles au pipeline" onClose={onClose}>
-      <input
+      <SearchField
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onValueChange={setQuery}
         placeholder="Rechercher un décideur…"
+        width="w-full"
         autoFocus
-        className="h-9 w-full rounded-lg border border-line bg-elev px-3 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
       />
       <div className="max-h-72 overflow-y-auto rounded-lg border border-line">
         {filtered.slice(0, 60).map((c) => (

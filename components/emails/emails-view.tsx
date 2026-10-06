@@ -153,7 +153,7 @@ export function EmailsView({
             <h3 className="mb-2 mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">
               Envois récents
             </h3>
-            <div className="overflow-hidden rounded-xl border border-line">
+            <div className="crm-surface overflow-hidden rounded-xl">
               {blasts.length === 0 ? (
                 <p className="px-4 py-8 text-center text-[13px] text-faint">
                   Aucun envoi pour l&apos;instant.
@@ -169,7 +169,7 @@ export function EmailsView({
                         "inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium ring-1 ring-inset",
                         b.source === "PUBLIC_PAGE"
                           ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20"
-                          : "bg-coral-500/10 text-coral-700 dark:text-coral-300 ring-coral-500/20",
+                          : "bg-tone-accent text-tone-accent-fg ring-tone-accent-line",
                       )}
                     >
                       {b.source === "PUBLIC_PAGE" ? <Users className="size-3" /> : <Send className="size-3" />}
@@ -194,7 +194,7 @@ export function EmailsView({
             <h3 className="mb-2 mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">
               Réceptivité des cibles
             </h3>
-            <div className="overflow-hidden rounded-xl border border-line">
+            <div className="crm-surface overflow-hidden rounded-xl">
               {targets
                 .slice()
                 .sort((a, b) => b.emailsReceived - a.emailsReceived)
@@ -305,7 +305,7 @@ function SendTab({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
       {/* Config */}
       <div className="flex flex-col gap-4">
-        <section className="rounded-xl border border-line bg-card p-4">
+        <section className="rounded-xl crm-surface p-4">
           <Label className="mb-1.5 block">Modèle d&apos;email</Label>
           <select
             value={selectedTpl}
@@ -322,7 +322,7 @@ function SendTab({
           <div className="mt-4 flex items-baseline justify-between">
             <Label>Cibles avec email ({selectedTargets.length}/{targets.length})</Label>
             <button
-              className="text-[11px] text-coral-700 dark:text-coral-400 hover:text-coral-700 dark:text-coral-300"
+              className="text-[11px] text-accent-text hover:text-accent-text"
               onClick={() =>
                 setSelectedTargets((s) =>
                   s.length === targets.length ? [] : targets.map((t) => t.contact.id),
@@ -374,7 +374,7 @@ function SendTab({
 
       {/* Preview + target list */}
       <div className="flex min-w-0 flex-col gap-4">
-        <section className="rounded-xl border border-line bg-card p-4">
+        <section className="rounded-xl crm-surface p-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-[12px] font-semibold uppercase tracking-wider text-faint">
               Aperçu du modèle
@@ -401,14 +401,14 @@ function SendTab({
             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
               {EMAIL_VARIABLES.map((v) => (
                 <p key={v.key} className="text-[11px] text-faint">
-                  <code className="text-coral-700 dark:text-coral-400/80">{v.key}</code> — {v.desc}
+                  <code className="text-accent-text/80">{v.key}</code> — {v.desc}
                 </p>
               ))}
             </div>
           </details>
         </section>
 
-        <section className="rounded-xl border border-line">
+        <section className="crm-surface rounded-xl">
           <header className="flex h-10 items-center justify-between border-b border-line px-4">
             <h3 className="text-[12px] font-semibold uppercase tracking-wider text-faint">
               Cibles joignables
@@ -479,7 +479,7 @@ function TemplatesTab({
         {templates.map((t) => (
           <article
             key={t.id}
-            className="group flex flex-col rounded-xl border border-line bg-card p-4 transition-colors hover:border-line"
+            className="group flex flex-col rounded-xl crm-surface p-4 transition-colors hover:border-hoverstrong"
           >
             <div className="flex items-start justify-between gap-2">
               <h3 className="truncate text-[13.5px] font-semibold text-fg">
@@ -667,14 +667,14 @@ function TemplateEditorDialog({
 
 function VariableHelp() {
   return (
-    <div className="rounded-lg border border-coral-500/15 bg-coral-500/[0.04] p-3">
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-coral-700 dark:text-coral-300">
+    <div className="rounded-lg border border-accent-ring bg-accent-soft p-3">
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-accent-text">
         Variables disponibles
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1">
         {EMAIL_VARIABLES.map((v) => (
           <p key={v.key} className="text-[11px] text-faint">
-            <code className="text-coral-700 dark:text-coral-400/80">{v.key}</code>
+            <code className="text-accent-text/80">{v.key}</code>
           </p>
         ))}
       </div>

@@ -66,14 +66,14 @@ export function EventRsvpForm({ eventId, closed = false }: { eventId: string; cl
         <legend className="mb-2 text-sm font-medium text-fg">Votre réponse</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {responses.map((item) => (
-            <label key={item.value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-line px-3 text-sm text-mut has-[:checked]:border-coral-500/60 has-[:checked]:bg-coral-500/[0.06] has-[:checked]:text-fg">
+            <label key={item.value} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-line px-3 text-sm text-mut has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-fg">
               <input
                 type="radio"
                 name="response"
                 value={item.value}
                 checked={response === item.value}
                 onChange={() => setResponse(item.value)}
-                className="accent-coral-600"
+                className="accent-coral-500"
               />
               {item.label}
             </label>
