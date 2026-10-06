@@ -21,7 +21,7 @@ export function PageHeader({
     <div
       className={cn(
         // pt-16 clears the fixed menu button on small screens.
-        "flex flex-wrap items-end justify-between gap-3 border-b border-line bg-canvas/80 px-4 pb-5 pt-16 backdrop-blur-sm sm:px-7 sm:pt-6",
+        "flex flex-wrap items-end justify-between gap-3 border-b border-line bg-raised px-4 pb-5 pt-16 sm:px-7 md:pt-6",
         className,
       )}
     >
@@ -45,7 +45,7 @@ export function PageHeader({
             ))}
           </nav>
         )}
-        <h1 className="truncate text-[21px] font-semibold tracking-[-0.03em] text-fg sm:text-[23px]">
+        <h1 className="break-words text-[24px] font-semibold tracking-[-0.03em] text-fg sm:text-[28px]">
           {title}
         </h1>
         {description && (

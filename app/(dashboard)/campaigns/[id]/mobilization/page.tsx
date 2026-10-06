@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { CampaignHeader } from "@/components/campaigns/campaign-header";
 import { MobilizationView } from "@/components/campaigns/mobilization-view";
-import { getCampaignAccess } from "@/lib/campaign-access";
+import { campaignAccessWhere, resolveCampaignAccess } from "@/lib/campaign-access";
 
 export const metadata = { title: "Mobilisation" };
 
@@ -16,23 +16,22 @@ export default async function MobilizationPage({
   const session = await requireSession();
   const { id } = await params;
 
-  const access = await getCampaignAccess(id, session.workspaceId);
-  if (!access) notFound();
-  const campaign = await db.campaign.findUnique({
-    where: { id },
+  const campaign = await db.campaign.findFirst({
+    where: campaignAccessWhere(id, session.workspaceId),
     include: {
       squads: { include: { group: true } },
       petition: {
         include: {
-          signatures: { orderBy: { createdAt: "desc" }, take: 50 },
+          signatures: { orderBy: { createdAt: "desc" }, take: 8, select: { id: true, name: true, city: true, createdAt: true } },
+          _count: { select: { signatures: true } },
         },
       },
-      events: { orderBy: { startsAt: "desc" }, take: 5 },
       shares: { include: { workspace: { select: { name: true } } } },
       workspace: { select: { slug: true } },
     },
   });
   if (!campaign) notFound();
+  const access = resolveCampaignAccess(campaign, session.workspaceId);
 
   return (
     <>
@@ -64,6 +63,7 @@ export default async function MobilizationPage({
         campaignId={campaign.id}
         campaignSlug={campaign.slug}
         workspaceSlug={campaign.workspace.slug}
+        campaignPublished={campaign.isPublished}
         canManage={access.owner && can(session.role, "email:send")}
         petition={
           campaign.petition
@@ -73,7 +73,7 @@ export default async function MobilizationPage({
                 description: campaign.petition.description,
                 goal: campaign.petition.goal,
                 isPublished: campaign.petition.isPublished,
-                signatureCount: campaign.petition.signatures.length,
+                signatureCount: campaign.petition._count.signatures,
                 recentSigners: campaign.petition.signatures.slice(0, 8).map((s) => ({
                   id: s.id,
                   name: s.name,

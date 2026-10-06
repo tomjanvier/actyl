@@ -26,19 +26,21 @@ export function MobilizationView({
   campaignSlug,
   workspaceSlug,
   canManage,
+  campaignPublished,
   petition,
 }: {
   campaignId: string;
   campaignSlug: string;
   workspaceSlug: string;
   canManage: boolean;
+  campaignPublished: boolean;
   petition: PetitionData | null;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
   return (
-    <div className="grid grid-cols-1 gap-6 px-6 py-5 lg:grid-cols-[1fr_340px]">
+    <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-6 px-4 py-6 sm:px-7 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div>
         {canManage ? (
           <PetitionEditor
@@ -48,9 +50,11 @@ export function MobilizationView({
             onSaved={() => startTransition(() => router.refresh())}
           />
         ) : (
-          <p className="text-[13px] text-mut">
-            Consultation seule — demandez à un responsable campagne pour modifier la pétition.
-          </p>
+          <section className="rounded-2xl crm-surface p-5">
+            <h2 className="text-lg font-semibold">{petition?.title ?? "Aucune pétition pour le moment"}</h2>
+            {petition && <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-mut">{petition.description}</p>}
+            <p className="mt-4 text-[12px] text-faint">Consultation seule — contactez un responsable de la campagne pour modifier la pétition.</p>
+          </section>
         )}
       </div>
 
@@ -58,8 +62,8 @@ export function MobilizationView({
       <aside className="flex flex-col gap-4">
         {petition && (
           <>
-            <section className="rounded-xl crm-surface p-4">
-              <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
+            <section className="rounded-2xl crm-surface p-5">
+              <h3 className="mb-2 text-[14px] font-semibold text-fg">
                 Impact
               </h3>
               <p className="flex items-center gap-2 text-[26px] font-semibold tabular-nums text-fg">
@@ -69,7 +73,7 @@ export function MobilizationView({
               </p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-hover">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-accent to-accent-hover"
+                  className="h-full rounded-full bg-accent"
                   style={{
                     width: `${Math.min(100, Math.round((petition.signatureCount / Math.max(petition.goal, 1)) * 100))}%`,
                   }}
@@ -77,8 +81,8 @@ export function MobilizationView({
               </div>
             </section>
 
-            <section className="rounded-xl crm-surface p-4">
-              <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
+            <section className="rounded-2xl crm-surface p-5">
+              <h3 className="mb-2 text-[14px] font-semibold text-fg">
                 Derniers signataires
               </h3>
               {petition.recentSigners.length === 0 ? (
@@ -109,7 +113,7 @@ export function MobilizationView({
           </>
         )}
 
-        <a
+        {campaignPublished ? <a
           href={`/association/${workspaceSlug}/${campaignSlug}`}
           target="_blank"
           rel="noopener noreferrer"
@@ -120,7 +124,10 @@ export function MobilizationView({
             <p className="text-[13px] font-medium text-fg">Voir la page publique</p>
             <p className="truncate text-[11.5px] text-mut">/association/{workspaceSlug}/{campaignSlug}</p>
           </div>
-        </a>
+        </a> : <section className="rounded-2xl border border-line bg-hover p-5">
+          <p className="flex items-center gap-2 text-[13px] font-medium"><Globe className="size-4 text-faint" /> Page publique en préparation</p>
+          <p className="mt-2 text-[12px] leading-relaxed text-faint">La campagne doit être publiée avant de partager sa page avec vos soutiens.</p>
+        </section>}
       </aside>
     </div>
   );
@@ -152,18 +159,19 @@ function PetitionEditor({
   }, [state]);
 
   return (
-    <form action={action} className="max-w-2xl rounded-xl crm-surface p-5">
+    <form action={action} className="rounded-2xl crm-surface p-5 sm:p-6">
       <input type="hidden" name="campaignId" value={campaignId} />
       <h2 className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-fg">
         <Megaphone className="size-4 text-accent-text" />
         Pétition publique de la campagne
       </h2>
 
-      <Label className="mb-1 block">Titre *</Label>
-      <Input name="title" defaultValue={petition?.title} placeholder="Non au déclassement des zones humides" required className="mb-3" />
+      <Label htmlFor="petition-title" className="mb-1 block">Titre *</Label>
+      <Input id="petition-title" name="title" defaultValue={petition?.title} placeholder="Le titre de votre pétition" required className="mb-3" />
 
-      <Label className="mb-1 block">Texte de la pétition *</Label>
+      <Label htmlFor="petition-description" className="mb-1 block">Texte de la pétition *</Label>
       <Textarea
+        id="petition-description"
         name="description"
         rows={7}
         defaultValue={petition?.description}
@@ -174,8 +182,8 @@ function PetitionEditor({
 
       <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
         <div>
-          <Label className="mb-1 block">Objectif de signatures</Label>
-          <Input name="goal" type="number" min={10} defaultValue={petition?.goal ?? 1000} />
+          <Label htmlFor="petition-goal" className="mb-1 block">Objectif de signatures</Label>
+          <Input id="petition-goal" name="goal" type="number" min={10} defaultValue={petition?.goal ?? 1000} />
         </div>
       </div>
 

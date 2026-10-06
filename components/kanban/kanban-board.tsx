@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, SlideOver } from "@/components/ui/dialog";
 import { SearchField } from "@/components/ui/filter-bar";
 import { cn, fullName, timeAgo, initials } from "@/lib/utils";
 import { PRIORITY_META, STAGE_KIND_META, type Priority, type StageKind } from "@/lib/constants";
@@ -40,6 +41,7 @@ import {
   createCardAction,
   removeCardAction,
   setCardPriorityAction,
+  getCampaignAvailableContactsAction,
 } from "@/app/actions/campaigns";
 
 export type Stage = { id: string; name: string; kind: string };
@@ -82,7 +84,6 @@ export function KanbanBoard({
   stages,
   cards: initialCards,
   activity,
-  availableContacts,
   canMove,
   canCreate,
   canDelete,
@@ -91,7 +92,6 @@ export function KanbanBoard({
   stages: Stage[];
   cards: CardData[];
   activity: ActivityItem[];
-  availableContacts: ContactLite[];
   canMove: boolean;
   canCreate: boolean;
   canDelete: boolean;
@@ -186,9 +186,9 @@ export function KanbanBoard({
   }, [cards, stages]);
 
   return (
-    <div className="relative flex min-h-[calc(100vh-137px)] flex-col">
+    <div className="relative flex min-h-[calc(100dvh-240px)] flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-6 py-3">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-7">
         <span className="text-[12.5px] text-faint">
           {cards.length} cible{cards.length > 1 ? "s" : ""} dans le pipeline
         </span>
@@ -197,7 +197,7 @@ export function KanbanBoard({
             <History /> Activité
           </Button>
           {canCreate && (
-            <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Button size="sm" data-add-target-trigger onClick={() => setAddOpen(true)}>
               <Plus /> Ajouter une cible
             </Button>
           )}
@@ -213,7 +213,7 @@ export function KanbanBoard({
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
       >
-        <div className="flex flex-1 gap-3 overflow-x-auto px-6 pb-8">
+        <div className="flex flex-1 items-start gap-4 overflow-x-auto px-4 pb-8 sm:px-7">
           {stages.map((stage) => {
             const meta =
               STAGE_KIND_META[stage.kind as StageKind] ?? STAGE_KIND_META.NEUTRAL!;
@@ -248,28 +248,19 @@ export function KanbanBoard({
 
       {/* Activity panel */}
       {historyOpen && (
-        <aside className="sticky bottom-0 ml-auto w-80 shrink-0 border-l border-line bg-sidebar">
-          <ActivityPanel items={activity} onClose={() => setHistoryOpen(false)} />
-        </aside>
+        <ActivityPanel items={activity} onClose={() => setHistoryOpen(false)} />
       )}
 
       {/* Add target dialog */}
       {addOpen && (
         <AddTargetDialog
-          contacts={availableContacts}
+          campaignId={campaignId}
           onClose={() => setAddOpen(false)}
-          onAdd={(contactIds) => {
-            Promise.all(
-              contactIds.map((contactId) => createCardAction({ campaignId, contactId })),
-            ).then(() => {
-              toast.success(
-                contactIds.length > 1
-                  ? `${contactIds.length} cibles ajoutées`
-                  : "Cible ajoutée au pipeline",
-              );
-              setAddOpen(false);
-              refresh();
-            });
+          onAdd={async (contactIds) => {
+            await Promise.all(contactIds.map((contactId) => createCardAction({ campaignId, contactId })));
+            refresh();
+            toast.success(contactIds.length > 1 ? `${contactIds.length} cibles ajoutées` : "Cible ajoutée au pipeline");
+            setAddOpen(false);
           }}
         />
       )}
@@ -298,10 +289,10 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage:${stage.id}` });
   return (
-    <section className="flex w-[272px] shrink-0 flex-col rounded-xl border border-line bg-hover">
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line px-3">
+    <section className="flex w-[min(82vw,292px)] shrink-0 flex-col rounded-2xl bg-hover">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3">
         <span className={cn("size-2 rounded-full", meta.headerDot)} />
-        <h2 className={cn("truncate text-[12px] font-semibold uppercase tracking-wider", meta.headerText)}>
+        <h2 className={cn("truncate text-[13px] font-semibold", meta.headerText)}>
           {stage.name}
         </h2>
         <span className="ml-auto rounded-full bg-elev px-1.5 text-[11px] tabular-nums text-faint">
@@ -315,7 +306,7 @@ function Column({
         <div
           ref={setNodeRef}
           className={cn(
-            "flex min-h-[120px] flex-col gap-2 p-2 transition-colors",
+            "flex min-h-[180px] flex-col gap-2.5 p-2.5 transition-colors",
             isOver && "rounded-b-xl bg-accent-soft",
           )}
         >
@@ -562,14 +553,13 @@ function ActivityPanel({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed bottom-0 right-0 top-0 z-30 flex w-80 flex-col border-l border-line bg-sidebar pt-4 shadow-2xl shadow-black/60">
+    <SlideOver open onOpenChange={(open) => { if (!open) onClose(); }} className="max-w-sm">
+    <div className="flex min-h-0 flex-1 flex-col pt-6">
       <header className="flex items-center justify-between border-b border-line px-4 pb-3">
         <h3 className="flex items-center gap-2 text-[13px] font-semibold text-fg">
           <History className="size-4 text-accent-text" /> Activité récente
         </h3>
-        <button onClick={onClose} className="text-faint hover:text-mut">
-          ✕
-        </button>
+
       </header>
       <div className="flex-1 overflow-y-auto p-3">
         {items.length === 0 ? (
@@ -590,47 +580,70 @@ function ActivityPanel({
         )}
       </div>
     </div>
+    </SlideOver>
   );
 }
 
 // ── Add targets dialog ───────────────────────────────────────────────────────
 
 function AddTargetDialog({
-  contacts,
+  campaignId,
   onClose,
   onAdd,
 }: {
-  contacts: ContactLite[];
+  campaignId: string;
   onClose: () => void;
-  onAdd: (ids: string[]) => void;
+  onAdd: (ids: string[]) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
-  const filtered = contacts.filter((c) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return `${c.firstName} ${c.lastName} ${c.institution ?? ""} ${c.party ?? ""}`
-      .toLowerCase()
-      .includes(q);
-  });
+  const [page, setPage] = useState(1);
+  const [contacts, setContacts] = useState<ContactLite[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    const timer = setTimeout(() => {
+      getCampaignAvailableContactsAction(campaignId, query, page)
+        .then((result) => { if (active) { setContacts(result.contacts); setHasMore(result.hasMore); } })
+        .catch((error: unknown) => { if (active) { setContacts([]); setError(error instanceof Error ? error.message : "Chargement impossible"); } })
+        .finally(() => { if (active) setLoading(false); });
+    }, query ? 250 : 0);
+    return () => { active = false; clearTimeout(timer); };
+  }, [campaignId, query, page, retry]);
+
+  async function addSelected() {
+    setPending(true);
+    setError(null);
+    try { await onAdd(selected); }
+    catch (error) { setError(error instanceof Error ? error.message : "Ajout impossible"); }
+    finally { setPending(false); }
+  }
 
   return (
     <Dialogish title="Ajouter des cibles au pipeline" onClose={onClose}>
       <SearchField
         value={query}
-        onValueChange={setQuery}
+        onValueChange={(value) => { setQuery(value); setPage(1); }}
         placeholder="Rechercher un décideur…"
         width="w-full"
         autoFocus
       />
-      <div className="max-h-72 overflow-y-auto rounded-lg border border-line">
-        {filtered.slice(0, 60).map((c) => (
+      {error && <div role="alert" className="text-[13px] text-tone-warning-fg">{error} <Button variant="ghost" size="sm" onClick={() => setRetry((value) => value + 1)}>Réessayer</Button></div>}
+      <div aria-busy={loading} className="min-h-40 max-h-72 overflow-y-auto rounded-lg border border-line">
+        {loading ? <p role="status" className="px-3 py-6 text-[13px] text-faint">Chargement des contacts…</p> : contacts.map((c) => (
           <label
             key={c.id}
-            className="flex h-10 cursor-pointer items-center gap-2.5 border-b border-line px-3 last:border-0 hover:bg-hover"
+            className="flex min-h-11 cursor-pointer items-center gap-2.5 border-b border-line px-3 last:border-0 hover:bg-hover"
           >
             <input
               type="checkbox"
+              disabled={pending}
               checked={selected.includes(c.id)}
               onChange={(e) =>
                 setSelected((s) =>
@@ -653,18 +666,23 @@ function AddTargetDialog({
             </span>
           </label>
         ))}
-        {filtered.length === 0 && (
+        {!loading && !error && contacts.length === 0 && (
           <p className="py-6 text-center text-[12.5px] text-faint">
             Aucun décideur disponible — tous les contacts sont déjà ciblés ou l&apos;annuaire est vide.
           </p>
         )}
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="outline" size="sm" disabled={page === 1 || loading || pending} onClick={() => setPage((value) => value - 1)}>Précédent</Button>
+        <span className="text-[12px] tabular-nums text-faint">Page {page}</span>
+        <Button variant="outline" size="sm" disabled={!hasMore || loading || pending || !!error} onClick={() => setPage((value) => value + 1)}>Suivant</Button>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[12px] text-faint">{selected.length} sélectionné(s)</span>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Annuler</Button>
-          <Button size="sm" disabled={!selected.length} onClick={() => onAdd(selected)}>
-            Ajouter ({selected.length})
+          <Button size="sm" disabled={!selected.length || pending} onClick={() => void addSelected()}>
+            {pending ? "Ajout en cours…" : `Ajouter (${selected.length})`}
           </Button>
         </div>
       </div>
@@ -672,23 +690,16 @@ function AddTargetDialog({
   );
 }
 
-// Fenêtre modale locale légère pour éviter un câblage Radix supplémentaire.
-function Dialogish({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
+function Dialogish({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative z-10 mx-4 w-full max-w-lg overflow-hidden rounded-xl border border-line bg-raised p-5 shadow-2xl shadow-black/60 animate-fade-up">
-        <h2 className="mb-4 text-[15px] font-semibold text-fg">{title}</h2>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); document.querySelector<HTMLButtonElement>("[data-add-target-trigger]")?.focus(); }}>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Sélectionnez les contacts à suivre dans cette campagne.</DialogDescription>
+        </DialogHeader>
         <div className="flex flex-col gap-3">{children}</div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { slugify } from "@/lib/utils";
-import { getCampaignAccess } from "@/lib/campaign-access";
+import { getCampaignAccess, campaignAccessWhere, resolveCampaignAccess } from "@/lib/campaign-access";
 
 // ── Campaigns ────────────────────────────────────────────────────────────────
 
@@ -399,4 +399,35 @@ export async function removeCardAction(cardId: string) {
   if (!card) throw new Error("Carte introuvable");
   await db.kanbanCard.delete({ where: { id: cardId } });
   revalidatePath(`/campaigns/${card.campaignId}/kanban`);
+}
+
+/** Recherche paginée, chargée uniquement à l'ouverture du sélecteur de cibles. */
+export async function getCampaignAvailableContactsAction(campaignId: string, query = "", page = 1) {
+  const session = await getSession();
+  if (!session || !can(session.role, "card:create")) throw new Error("Permission refusée");
+  const campaign = await db.campaign.findFirst({
+    where: campaignAccessWhere(campaignId, session.workspaceId),
+    select: { workspaceId: true, shares: { where: { workspaceId: session.workspaceId }, select: { workspaceId: true, access: true, pinned: true } } },
+  });
+  if (!campaign || !resolveCampaignAccess(campaign, session.workspaceId).canContribute) throw new Error("Campagne en lecture seule ou introuvable");
+  const q = query.trim().slice(0, 120);
+  const safePage = Number.isSafeInteger(page) ? Math.min(10000, Math.max(1, page)) : 1;
+  const contacts = await db.contact.findMany({
+    where: {
+      workspaceId: campaign.workspaceId,
+      NOT: { cards: { some: { campaignId } } },
+      ...(q ? { OR: [
+        { firstName: { contains: q, mode: "insensitive" as const } },
+        { lastName: { contains: q, mode: "insensitive" as const } },
+        { institution: { contains: q, mode: "insensitive" as const } },
+        { party: { contains: q, mode: "insensitive" as const } },
+        ...((q.includes(" ")) ? [{ AND: q.split(/\s+/).map((term) => ({ OR: [{ firstName: { contains: term, mode: "insensitive" as const } }, { lastName: { contains: term, mode: "insensitive" as const } }] })) }] : []),
+      ] } : {}),
+    },
+    orderBy: [{ lastName: "asc" }, { id: "asc" }],
+    select: { id: true, firstName: true, lastName: true, title: true, institution: true, party: true, avatarColor: true },
+    take: 51,
+    skip: (safePage - 1) * 50,
+  });
+  return { contacts: contacts.slice(0, 50), hasMore: contacts.length > 50 };
 }

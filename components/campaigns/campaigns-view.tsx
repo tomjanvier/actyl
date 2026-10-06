@@ -11,11 +11,13 @@ import {
   Plus,
   Trophy,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
 import {
   CAMPAIGN_STATUS_META,
+  CAMPAIGN_STATUSES,
   PRIORITIES,
   PRIORITY_META,
   type CampaignStatus,
@@ -25,6 +27,7 @@ import { createCampaignAction } from "@/app/actions/campaigns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { SearchField } from "@/components/ui/filter-bar";
 import { Label } from "@/components/ui/controls";
 import {
   Select,
@@ -65,15 +68,47 @@ export function CampaignsView({
 }) {
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const normalizedQuery = query.trim().toLocaleLowerCase("fr");
+  const filtered = campaigns.filter((campaign) =>
+    (!status || campaign.status === status) &&
+    (!normalizedQuery || [campaign.name, campaign.description, campaign.sharedBy, ...campaign.squads.map((squad) => squad.name)]
+      .some((value) => value?.toLocaleLowerCase("fr").includes(normalizedQuery))),
+  );
 
   useEffect(() => {
-    if (params.get("new") === "1") setOpen(true);
-  }, [params]);
+    if (canCreate && params.get("new") === "1") setOpen(true);
+  }, [params, canCreate]);
 
   return (
-    <div className="px-4 py-5 sm:px-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {campaigns.map((c) => {
+    <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-7">
+      <div className="mb-6 flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SearchField label="Rechercher une campagne" placeholder="Rechercher une campagne…" value={query} onValueChange={setQuery} width="w-full sm:w-96" inputClassName="bg-raised" />
+          <span role="status" className="text-[13px] tabular-nums text-faint">
+            {filtered.length} campagne{filtered.length > 1 ? "s" : ""}{filtered.length !== campaigns.length ? ` sur ${campaigns.length}` : ""}
+          </span>
+        </div>
+        <div aria-label="Filtrer par statut" className="flex flex-wrap items-center gap-1.5">
+          {[{ value: "", label: "Toutes" }, ...CAMPAIGN_STATUSES.filter((value) => campaigns.some((campaign) => campaign.status === value)).map((value) => ({ value, label: CAMPAIGN_STATUS_META[value].label }))].map((filter) => (
+            <button key={filter.value} type="button" aria-pressed={status === filter.value} onClick={() => setStatus(filter.value)} className={cn("min-h-11 rounded-lg px-3 text-[13px] font-medium transition-colors sm:min-h-9", status === filter.value ? "bg-raised text-fg shadow-sm ring-1 ring-line" : "text-faint hover:bg-hover hover:text-fg")}>
+              {filter.label}
+            </button>
+          ))}
+          {(query || status) && <Button variant="ghost" size="sm" onClick={() => { setQuery(""); setStatus(""); }}><X /> Effacer les filtres</Button>}
+        </div>
+      </div>
+      {filtered.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-line px-6 py-14 text-center">
+          <KanbanSquare aria-hidden className="mx-auto mb-4 size-7 text-faint" />
+          <h2 className="text-lg font-semibold">{campaigns.length ? "Aucune campagne ne correspond" : "Votre première campagne commence ici"}</h2>
+          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-faint">{campaigns.length ? "Essayez un autre nom ou retirez un filtre." : "Rassemblez vos cibles, suivez vos échanges et préparez la mobilisation dans un même espace."}</p>
+          {campaigns.length ? <Button variant="outline" className="mt-5" onClick={() => { setQuery(""); setStatus(""); }}>Réinitialiser les filtres</Button> : canCreate && <Button className="mt-5" onClick={() => setOpen(true)}><Plus /> Nouvelle campagne</Button>}
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+        {filtered.map((c) => {
           const statusMeta =
             CAMPAIGN_STATUS_META[c.status as CampaignStatus] ??
             CAMPAIGN_STATUS_META.ACTIVE!;
@@ -83,17 +118,17 @@ export function CampaignsView({
             <Link
               key={c.id}
               href={`/campaigns/${c.id}/kanban`}
-              className="group flex flex-col rounded-xl crm-surface p-4 transition-all hover:border-accent-ring hover:bg-hover"
+              className="group flex min-w-0 flex-col rounded-2xl crm-surface p-5 transition-[border-color,background-color] duration-150 hover:border-accent-ring hover:bg-raised"
             >
               <div className="flex items-start gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-elev text-lg ring-1 ring-inset ring-line">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-canvas text-xl ring-1 ring-inset ring-line">
                   {c.emoji}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-[14.5px] font-semibold text-fg group-hover:text-coral-800 dark:group-hover:text-coral-300">
+                  <h3 className="line-clamp-2 text-[17px] leading-snug font-semibold text-fg group-hover:text-coral-800 dark:group-hover:text-coral-300">
                     {c.name}
                   </h3>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     {c.sharedBy && (
                       <span className="rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-inset ring-sky-500/20 dark:text-sky-300">
                         Partagée par {c.sharedBy} · {c.shareAccess === "CONTRIBUTE" ? "contribution" : "lecture"}
@@ -124,34 +159,34 @@ export function CampaignsView({
               </div>
 
               {c.description && (
-                <p className="mt-3 line-clamp-2 text-[12.5px] leading-relaxed text-faint">
+                <p className="mt-4 min-h-10 line-clamp-2 text-[13px] leading-relaxed text-faint">
                   {c.description}
                 </p>
               )}
 
               {/* Progression synthétique de la campagne. */}
-              <div className="mt-4 flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-elev">
+              <div className="mt-5 flex items-center gap-3">
+                <div role="progressbar" aria-label="Cibles gagnées" aria-valuenow={c.progress} aria-valuemin={0} aria-valuemax={100} className="h-1.5 flex-1 overflow-hidden rounded-full bg-elev">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all"
-                    style={{ width: `${Math.max(c.progress, c.progress ? 4 : 0)}%` }}
+                    className="h-full rounded-full bg-accent"
+                    style={{ width: `${c.progress}%` }}
                   />
                 </div>
                 <span className="text-[11px] tabular-nums text-faint">{c.progress}%</span>
               </div>
 
-              <dl className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+              <dl className="mt-4 grid grid-cols-2 gap-y-3 border-y border-linesoft py-4 sm:grid-cols-4">
                 {[
                   { icon: Users, label: "Cibles", value: c.cardCount },
                   { icon: Trophy, label: "Gagnées", value: c.won },
-                  { icon: Mail, label: "Blasts", value: c.blastCount },
+                  { icon: Mail, label: "Envois", value: c.blastCount },
                   { icon: KanbanSquare, label: "Alliés", value: c.allies },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-lg bg-hover py-1.5">
-                    <dd className="text-[14px] font-semibold tabular-nums text-fg">
+                  <div key={s.label} className="pl-3 first:pl-0 sm:border-l sm:border-linesoft sm:first:border-0">
+                    <dd className="text-[19px] font-semibold tabular-nums text-fg">
                       {s.value}
                     </dd>
-                    <dt className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-wide text-faint">
+                    <dt className="flex items-center gap-1 text-[11px] text-faint">
                       <s.icon className="size-2.5" />
                       {s.label}
                     </dt>
@@ -159,8 +194,8 @@ export function CampaignsView({
                 ))}
               </dl>
 
-              <footer className="mt-3 flex items-center justify-between border-t border-line pt-3">
-                <div className="flex min-w-0 items-center gap-1">
+              <footer className="mt-auto flex items-center justify-between gap-3 pt-4">
+                <div className="flex min-w-0 flex-wrap items-center gap-1">
                   {c.squads.slice(0, 3).map((g) => (
                     <span
                       key={g.name}
@@ -183,10 +218,10 @@ export function CampaignsView({
           );
         })}
 
-        {canCreate && (
+        {canCreate && filtered.length > 0 && (
           <button
             onClick={() => setOpen(true)}
-            className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line text-faint transition-colors hover:border-accent-ring hover:text-mut"
+            className="flex min-h-[240px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line text-faint transition-colors hover:border-accent-ring hover:text-mut"
           >
             <Plus className="size-6" />
             <span className="text-[13px]">Nouvelle campagne</span>
@@ -194,7 +229,7 @@ export function CampaignsView({
         )}
       </div>
 
-      <CreateCampaignDialog open={open} onOpenChange={setOpen} />
+      {canCreate && open && <CreateCampaignDialog open={open} onOpenChange={setOpen} />}
     </div>
   );
 }

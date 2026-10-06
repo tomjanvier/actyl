@@ -56,3 +56,45 @@ Le cache régional OpenNext conserve les données R2 localement pendant une minu
 Validation locale : build Cloudflare, déploiement à blanc, lint et types passent, ainsi que les gardes et le script public. Avec une réponse sans compression, la navigation arrive dans le premier morceau HTML, tandis que les données continuent de charger. La compression du runtime local peut regrouper les morceaux : ces temps locaux ne prouvent pas un gain identique sur le réseau Cloudflare. Les mesures distantes confirment que la production actuelle diffuse déjà son corps HTML progressivement ; aucune règle de compression Cloudflare n’a été changée.
 
 À remesurer après déploiement du correctif : début de réponse, arrivée du texte principal, annuaire, navigation dans une vraie session utilisateur. Aucun score Lighthouse ou gain sur les pages authentifiées n’est annoncé à partir de ces mesures publiques.
+
+
+## Pages campagnes et menu — 6 octobre 2026
+
+Le menu gauche reste attaché au haut de la fenêtre sur desktop. Sa navigation défile indépendamment quand elle dépasse la hauteur disponible. Recherche, compte et réglages restent accessibles en bas. Le tiroir mobile se ferme aussi après le choix d'un segment.
+
+Les onglets de campagne utilisent désormais les transitions du routeur Next.js. Des squelettes propres aux campagnes rendent l'attente visible. La liste propose une recherche locale et des filtres de statut ; ces interactions ne demandent aucune nouvelle lecture en base.
+
+### Lectures et volume initial
+
+- Liste : les compteurs par type d'étape sont inclus dans la lecture des campagnes. Les deux opérations applicatives successives de regroupement des cartes et de lecture des étapes sont supprimées. Prisma peut toujours exécuter plusieurs requêtes SQL pour les relations.
+- Chaque onglet : le filtre d'accès et la lecture de la campagne partagent la même opération. Les droits sont calculés à partir du propriétaire et du partage correspondant à l'espace courant.
+- Pipeline : aucun contact disponible n'est transmis à l'ouverture. Le sélecteur charge 50 contacts par page à la demande, recherche sur l'annuaire autorisé, et ignore les réponses d'une recherche dépassée. Le serveur vérifie la permission de création et l'accès en contribution avant toute lecture.
+- Mobilisation : seulement les huit signatures affichées sont chargées. Le total utilise un vrai compteur, au lieu de plafonner silencieusement à 50. Les événements non utilisés ne sont plus lus.
+
+### Mesures locales en lecture seule
+
+Comparaison des deux formes de lecture de la liste sur les mêmes données, après échauffement, cinq essais alternant l'ordre ancien/nouveau. Ancienne version : 501, 526, 523, 463, 525 ms. Nouvelle version : 363, 331, 280, 397, 279 ms. Médiane : **523 → 331 ms, soit environ -37 %**. Les statistiques produites sont identiques. Cela mesure les lectures de données depuis la machine locale, pas le chargement complet ni les Core Web Vitals du Worker.
+
+Le chargement initial de 300 contacts représentait 56 933 octets de JSON dans l'espace vérifié. Ce tableau n'est plus envoyé à l'ouverture du pipeline. Le sélecteur affiche 50 contacts à l'ouverture ; la recherche « Gabriel Attal » a été vérifiée dans le navigateur.
+
+Commandes reproductibles :
+
+```sh
+pnpm exec dotenv -e .env.local -e .env -- tsx scripts/check-campaign-performance.mts
+pnpm exec dotenv -e .env.local -e .env -- tsx scripts/check-campaign-access.mts
+pnpm typecheck
+pnpm lint --max-warnings=0
+pnpm build:cf
+```
+
+Le script d'accès couvre propriétaire, partage VIEW, partage CONTRIBUTE et espace sans partage. Il vérifie aussi, sans écriture, le refus d'un espace étranger sur une campagne réelle. La requête anonyme sur `/campaigns` redirige vers la connexion.
+
+Vérification visuelle effectuée avec une session locale existante : liste, pipeline, interpellation, mobilisation, état sans pétition des signataires, thèmes clair et sombre, largeur desktop 1280 px et mobile 390 px. Le menu conserve sa position lors du défilement ; aucun débordement horizontal de page n'a été observé. Un marqueur conservé entre Kanban et Mobilisation confirme la navigation sans rechargement complet. Aucun envoi d'email, publication ou ajout de contact n'a été effectué pendant cette vérification. L'aperçu T3 s'est déconnecté avant la dernière confirmation du retour de focus et du passage à la page 2 du sélecteur.
+
+Références techniques : [navigation Next.js](https://nextjs.org/docs/app/getting-started/linking-and-navigating) et [requêtes relationnelles Prisma](https://docs.prisma.io/docs/orm/v7/prisma-client/queries/relation-queries).
+
+Ces changements ne constituent pas une preuve de déploiement. Refaire les mesures et le parcours connecté sur Cloudflare après livraison.
+
+Compilation `build:cf` validée dans une copie temporaire isolée, avec les dépendances clonées localement : `.open-next/worker.js` produit et correctif Prisma WASM appliqué. Next.js signale les avertissements préexistants de `jose` sur CompressionStream/DecompressionStream dans le runtime Edge ; ils n'empêchent pas cette compilation. Lint strict, TypeScript, gardes de cache et tests d'accès passent.
+
+Le dry-run Wrangler de production passe également : bundle Worker et bindings R2/DO reconnus, sans upload ni déploiement.

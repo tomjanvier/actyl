@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { CampaignHeader } from "@/components/campaigns/campaign-header";
-import { getCampaignAccess } from "@/lib/campaign-access";
+import { campaignAccessWhere, resolveCampaignAccess } from "@/lib/campaign-access";
 
 export const metadata = { title: "Pipeline" };
 
@@ -16,10 +16,8 @@ export default async function KanbanPage({
   const session = await requireSession();
   const { id } = await params;
 
-  const access = await getCampaignAccess(id, session.workspaceId);
-  if (!access) notFound();
-  const campaign = await db.campaign.findUnique({
-    where: { id },
+  const campaign = await db.campaign.findFirst({
+    where: campaignAccessWhere(id, session.workspaceId),
     include: {
       squads: { include: { group: true } },
       shares: { include: { workspace: { select: { name: true } } } },
@@ -27,8 +25,9 @@ export default async function KanbanPage({
     },
   });
   if (!campaign) notFound();
+  const access = resolveCampaignAccess(campaign, session.workspaceId);
 
-  const [stages, cards, events, contacts] = await Promise.all([
+  const [stages, cards, events] = await Promise.all([
     db.pipelineStage.findMany({
       where: { campaignId: campaign.id },
       orderBy: { position: "asc" },
@@ -64,23 +63,6 @@ export default async function KanbanPage({
         createdAt: true,
         card: { select: { contact: { select: { firstName: true, lastName: true } } } },
       },
-    }),
-    db.contact.findMany({
-      where: {
-        workspaceId: campaign.workspaceId,
-        NOT: { cards: { some: { campaignId: campaign.id } } },
-      },
-      orderBy: [{ lastName: "asc" }],
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        title: true,
-        institution: true,
-        party: true,
-        avatarColor: true,
-      },
-      take: 300,
     }),
   ]);
 
@@ -136,10 +118,9 @@ export default async function KanbanPage({
           actorName: e.actorName,
           createdAt: e.createdAt.toISOString(),
         }))}
-        availableContacts={access.canContribute ? contacts : []}
-        canMove={can(session.role, "card:move")}
-        canCreate={can(session.role, "card:create")}
-        canDelete={can(session.role, "card:delete")}
+        canMove={access.canContribute && can(session.role, "card:move")}
+        canCreate={access.canContribute && can(session.role, "card:create")}
+        canDelete={access.canContribute && can(session.role, "card:delete")}
       />
     </>
   );

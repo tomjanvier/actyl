@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { CampaignHeader } from "@/components/campaigns/campaign-header";
 import { SignaturesView } from "@/components/campaigns/signatures-view";
-import { getCampaignAccess } from "@/lib/campaign-access";
+import { campaignAccessWhere, resolveCampaignAccess } from "@/lib/campaign-access";
 
 export const metadata = { title: "Signataires" };
 
@@ -26,12 +26,11 @@ export default async function SignaturesPage({
   const { q, city, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const access = await getCampaignAccess(id, session.workspaceId);
-  if (!access) notFound();
-  const campaign = await db.campaign.findUnique({
-    where: { id },
+  const campaign = await db.campaign.findFirst({
+    where: campaignAccessWhere(id, session.workspaceId),
     select: {
       id: true,
+      workspaceId: true,
       name: true,
       slug: true,
       workspace: { select: { slug: true } },
@@ -44,12 +43,13 @@ export default async function SignaturesPage({
       pinned: true,
       squads: { select: { group: { select: { name: true, color: true } } } },
       shares: {
-        select: { id: true, access: true, workspace: { select: { name: true } } },
+        select: { id: true, workspaceId: true, pinned: true, access: true, workspace: { select: { name: true } } },
       },
       petition: { select: { id: true, title: true, goal: true, isPublished: true } },
     },
   });
   if (!campaign) notFound();
+  const access = resolveCampaignAccess(campaign, session.workspaceId);
 
   const qTrim = q?.trim() ?? "";
   const cityTrim = city?.trim() ?? "";

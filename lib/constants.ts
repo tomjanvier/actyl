@@ -196,27 +196,27 @@ export const STAGE_KIND_META: Record<
 > = {
   NEUTRAL: {
     headerDot: "bg-zinc-500",
-    headerText: "text-zinc-300",
+    headerText: "text-mut",
     glow: "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]",
   },
   POSITIVE: {
     headerDot: "bg-emerald-500",
-    headerText: "text-emerald-300",
+    headerText: "text-tone-success-fg",
     glow: "",
   },
   NEGATIVE: {
     headerDot: "bg-rose-500",
-    headerText: "text-rose-300",
+    headerText: "text-rose-700 dark:text-rose-300",
     glow: "",
   },
   ACTIVE: {
     headerDot: "bg-coral-500",
-    headerText: "text-coral-300",
+    headerText: "text-accent-text",
     glow: "",
   },
   WON: {
     headerDot: "bg-emerald-400",
-    headerText: "text-emerald-200",
+    headerText: "text-tone-success-fg",
     glow: "",
   },
 };

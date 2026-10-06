@@ -277,7 +277,7 @@ export function Sidebar({
     <aside
       data-testid="app-sidebar"
       className={cn(
-        "sticky top-0 relative flex h-dvh min-w-0 shrink-0 flex-col overflow-x-hidden border-r border-line bg-sidebar max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:!w-[min(86vw,300px)] max-md:shadow-2xl",
+        "sticky top-0 self-start flex h-dvh min-w-0 shrink-0 flex-col overflow-x-hidden border-r border-line bg-sidebar max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:!w-[min(86vw,300px)] max-md:shadow-2xl",
         rail ? "w-[60px]" : "w-[var(--sidebar-width)]",
         !resizing && "transition-[width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
         !mobileOpen && "max-md:-translate-x-full",
@@ -350,7 +350,7 @@ export function Sidebar({
       </div>
 
       {/* Navigation principale. */}
-      <nav className={cn("mt-2 flex min-h-0 min-w-0 flex-col gap-0.5 overflow-y-auto px-3", rail && "items-center px-0")}>
+      <nav aria-label="Navigation principale" className={cn("mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overscroll-contain overflow-y-auto px-3", rail && "items-center px-0")}>
         {nav.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -359,6 +359,7 @@ export function Sidebar({
           const link = (
             <Link
               href={item.href}
+              aria-current={active && !searchCategory ? "page" : undefined}
               onClick={() => setMobileOpen(false)}
               className={cn(
                 "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors md:min-h-8",
@@ -419,6 +420,8 @@ export function Sidebar({
                       <Link
                         key={seg.key || "all"}
                         href={seg.key ? `/contacts?category=${seg.key}` : "/contacts"}
+                        aria-current={segActive ? "page" : undefined}
+                        onClick={() => setMobileOpen(false)}
                         className={cn(
                           "flex min-h-11 items-center justify-between rounded-md px-1.5 text-[12px] transition-colors md:min-h-8",
                           segActive
@@ -440,7 +443,6 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="flex-1" />
 
       {!rail && (
         <div className="px-4 pb-1 pt-2">
