@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/controls";
 
-type ActionRes = { error?: string; ok?: boolean };
+type ActionRes = { error?: string; ok?: boolean; proposed?: number };
 
 export function ContactDrawer({
   contact,
@@ -115,6 +115,24 @@ export function ContactDrawer({
               ) : null}
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {contact.phone && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={`tel:${contact.phone}`}><Phone /> Appeler</a>
+            </Button>
+          )}
+          {contact.email && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={`mailto:${contact.email}`}><Mail /> Écrire</a>
+            </Button>
+          )}
+          {contact.website && (
+            <Button variant="ghost" size="sm" asChild>
+              <a href={contact.website} target="_blank" rel="noreferrer"><Globe /> Site web</a>
+            </Button>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-4">
@@ -191,8 +209,8 @@ export function ContactDrawer({
               disabled={isPending}
               onClick={() => {
                 if (!confirm(`Supprimer ${fullName(contact)} ? Cette action est irréversible.`)) return;
-                void deleteContactAction(contact.id).then(() => {
-                  toast.success("Contact supprimé");
+                void deleteContactAction(contact.id).then((result) => {
+                  toast.success(result?.proposed ? "Suppression proposée pour validation" : "Contact supprimé");
                   onDeleted();
                 });
               }}
@@ -348,7 +366,7 @@ function EditForm({
   );
   useEffect(() => {
     if (state?.ok) {
-      toast.success("Fiche mise à jour");
+      toast.success(state.proposed ? "Proposition transmise pour validation" : "Fiche mise à jour");
       onSaved();
     }
     if (state?.error) toast.error(state.error);

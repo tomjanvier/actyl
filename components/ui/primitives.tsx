@@ -7,7 +7,7 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-line bg-card shadow-sm",
+        "crm-surface rounded-xl",
         className,
       )}
       {...props}
@@ -48,7 +48,7 @@ function THead({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       className={cn(
-        "[&_th]:h-9 [&_th]:border-b [&_th]:border-line [&_th]:px-3 [&_th]:text-left [&_th]:align-middle [&_th]:text-[11px] [&_th]:font-medium [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-faint",
+        "sticky top-0 z-10 bg-card/95 [&_th]:h-10 [&_th]:border-b [&_th]:border-line [&_th]:px-3 [&_th]:text-left [&_th]:align-middle [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-normal [&_th]:text-faint",
         className,
       )}
       {...props}
@@ -60,8 +60,8 @@ function TBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       className={cn(
-        "[&_tr]:border-b [&_tr]:border-line [&_tr:last-child]:border-0 [&_td]:h-[42px] [&_td]:max-w-[280px] [&_td]:truncate [&_td]:px-3 [&_td]:align-middle [&_td]:text-mut",
-        "[&_tr:hover]:bg-hover",
+        "[&_tr]:border-b [&_tr]:border-line [&_tr:last-child]:border-0 [&_td]:h-[48px] [&_td]:max-w-[280px] [&_td]:truncate [&_td]:px-3 [&_td]:align-middle [&_td]:text-mut",
+        "[&_tr:hover]:bg-hover [&_tr]:transition-colors",
         className,
       )}
       {...props}

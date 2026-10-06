@@ -383,7 +383,7 @@ export function ContactsView({
   return (
     <div className="flex min-h-[calc(100vh-89px)] min-w-0 flex-col overflow-hidden">
       {/* Barre d'outils */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:px-6">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-card/55 px-3 py-3 sm:px-7">
         <div className="relative w-full sm:w-auto">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
           <input
@@ -391,7 +391,7 @@ export function ContactsView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher un décideur…"
-            className="h-9 w-full rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none transition-colors placeholder:text-faint focus:border-coral-500/60 sm:w-64"
+            className="h-10 w-full rounded-lg border border-line bg-card pl-8.5 pr-8 text-[13px] text-fg shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-coral-500/60 focus:shadow-[0_0_0_3px_var(--accent-ring)] sm:w-72"
           />
           {query && (
             <button
@@ -574,7 +574,16 @@ export function ContactsView({
       </div>
 
       {/* Tableau */}
-      <div className="flex-1 px-3 pb-10 sm:px-6">
+      <div className="flex-1 px-3 pb-10 pt-4 sm:px-7">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+          <div>
+            <p className="text-[13px] font-semibold text-fg">{filtered.length.toLocaleString("fr-FR")} fiches visibles</p>
+            <p className="mt-0.5 text-[12px] text-faint">
+              {pagination?.total.toLocaleString("fr-FR")} au total · cliquez sur une ligne pour ouvrir la fiche
+            </p>
+          </div>
+          {checked.size > 0 && <span className="rounded-md bg-accent-soft px-2 py-1 text-[11px] font-medium text-coral-800 dark:text-coral-200">{checked.size} sélectionnée{checked.size > 1 ? "s" : ""}</span>}
+        </div>
         {filtered.length === 0 ? (
           <EmptyState
             icon={<Search className="size-5" />}
@@ -589,6 +598,7 @@ export function ContactsView({
             }
           />
         ) : (
+          <div className="crm-surface overflow-hidden rounded-xl">
           <Table>
             <THead>
               <tr>
@@ -625,7 +635,15 @@ export function ContactsView({
                   <tr
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
-                    className={cn("cursor-pointer", checked.has(c.id) && "bg-coral-500/[0.04]")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedId(c.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    aria-label={`Ouvrir la fiche de ${fullName(c)}`}
+                    className={cn("cursor-pointer focus-visible:bg-hover", checked.has(c.id) && "bg-coral-500/[0.04]")}
                   >
                     {(newsletterEnabled || canDelete) && (
                       <td onClick={(e) => e.stopPropagation()}>
@@ -642,6 +660,7 @@ export function ContactsView({
                             })
                           }
                           title={c.email || canDelete ? "" : "Pas d'email sur cette fiche"}
+                          aria-label={`Sélectionner ${fullName(c)}`}
                           className="size-3.5 accent-coral-600 disabled:opacity-30"
                         />
                       </td>
@@ -704,6 +723,7 @@ export function ContactsView({
               })}
             </TBody>
           </Table>
+          </div>
         )}
         {pagination && (
           <div className="mt-4 border-t border-linesoft pt-3">

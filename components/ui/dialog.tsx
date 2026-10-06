@@ -69,12 +69,17 @@ function SlideOver({
         <DialogOverlay />
         <DialogPrimitive.Content
           className={cn(
-            "fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-line bg-raised shadow-2xl shadow-black/60 outline-none data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col rounded-l-2xl border-l border-line bg-raised shadow-2xl shadow-black/25 outline-none data-[state=open]:animate-in data-[state=closed]:animate-out max-md:rounded-none",
             "data-[state=open]:slide-in-from-right duration-200",
             className,
           )}
           style={{ animation: "none" }}
         >
+          <DialogPrimitive.Title className="sr-only">Panneau latéral</DialogPrimitive.Title>
+          <DialogPrimitive.Close className="absolute right-4 top-4 z-10 rounded-md p-1.5 text-faint transition-colors hover:bg-elev hover:text-fg focus:outline-none focus:ring-2 focus:ring-accent-ring">
+            <X className="size-4" />
+            <span className="sr-only">Fermer</span>
+          </DialogPrimitive.Close>
           {children}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

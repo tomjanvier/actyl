@@ -20,7 +20,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-end justify-between gap-3 border-b border-line px-4 pb-4 pt-5 sm:px-6",
+        "flex flex-wrap items-end justify-between gap-3 border-b border-line bg-canvas/80 px-4 pb-5 pt-6 backdrop-blur-sm sm:px-7",
         className,
       )}
     >
@@ -44,7 +44,7 @@ export function PageHeader({
             ))}
           </nav>
         )}
-        <h1 className="truncate text-[19px] font-semibold tracking-tight text-fg">
+        <h1 className="truncate text-[21px] font-semibold tracking-[-0.03em] text-fg sm:text-[23px]">
           {title}
         </h1>
         {description && (

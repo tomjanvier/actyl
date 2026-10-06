@@ -137,7 +137,7 @@ export function Sidebar({
       className={cn(
         "sticky top-0 flex h-dvh min-w-0 shrink-0 flex-col overflow-x-hidden border-r border-line bg-sidebar transition-[width] duration-200 max-md:fixed max-md:left-0 max-md:top-0 max-md:z-50 max-md:w-[min(86vw,300px)] max-md:shadow-2xl",
         !mobileOpen && "max-md:-translate-x-full",
-        collapsed ? "w-[56px] max-md:!w-[min(86vw,300px)]" : "w-[228px]",
+        collapsed ? "w-[56px] max-md:!w-[min(86vw,300px)]" : "w-[244px]",
       )}
     >
       <div
@@ -222,7 +222,7 @@ export function Sidebar({
                   "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors md:min-h-8",
                   collapsed && "w-9 justify-center px-0",
                   active && !searchCategory
-                    ? "bg-hoverstrong font-medium text-fg"
+                    ? "bg-accent-soft font-semibold text-fg ring-1 ring-inset ring-accent-ring/40"
                     : "text-faint hover:bg-elev hover:text-mut",
                 )}
               >

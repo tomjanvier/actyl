@@ -87,7 +87,7 @@ export async function updateContactAction(
   contactId: string,
   _prev: unknown,
   formData: FormData,
-): Promise<{ error?: string; ok?: boolean }> {
+): Promise<{ error?: string; ok?: boolean; proposed?: number }> {
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
   if (!can(session.role, "contact:edit")) return { error: "Permission refusée" };
@@ -119,7 +119,7 @@ export async function updateContactAction(
       }),
     ));
     revalidatePath("/lists");
-    return { ok: true };
+    return { ok: true, proposed: referenceLists.length };
   }
   await db.contact.update({
     where: { id: contactId },
