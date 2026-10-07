@@ -51,7 +51,7 @@ export function AccountRequestsSection({
   }
 
   return (
-    <section className="mb-5 rounded-xl border border-line bg-card p-4">
+    <section className="mb-5 rounded-xl crm-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-[13px] font-semibold text-fg">Accès à la plateforme</h3>
@@ -193,7 +193,7 @@ export function ApiTokensCard({
   }
 
   return (
-    <div className="rounded-xl border border-line bg-card">
+    <div className="rounded-xl crm-surface">
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
           <h3 className="text-[13.5px] font-semibold text-fg">Tokens API</h3>
@@ -215,8 +215,8 @@ export function ApiTokensCard({
       )}
 
       {freshToken && (
-        <div className="border-b border-line bg-coral-500/[0.06] px-4 py-3">
-          <p className="mb-1.5 text-[12px] font-medium text-coral-700 dark:text-coral-300">
+        <div className="border-b border-line bg-accent-soft px-4 py-3">
+          <p className="mb-1.5 text-[12px] font-medium text-accent-text">
             Copiez ce token maintenant — il ne sera plus jamais affiché :
           </p>
           <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ export function ApiTokensCard({
       <ul>
         {tokens.map((t) => (
           <li key={t.id} className="flex items-center gap-3 border-b border-linesoft px-4 py-2.5 last:border-0">
-            <Plug className={cn("size-4 shrink-0", t.revoked ? "text-faint line-through" : "text-coral-700 dark:text-coral-400")} />
+            <Plug className={cn("size-4 shrink-0", t.revoked ? "text-faint line-through" : "text-accent-text")} />
             <div className="min-w-0 flex-1">
               <p className={cn("truncate text-[13px] font-medium text-fg", t.revoked && "line-through opacity-50")}>
                 {t.name}
@@ -316,7 +316,7 @@ export function OidcClientsCard({
   }
 
   return (
-    <div className="rounded-xl border border-line bg-card">
+    <div className="rounded-xl crm-surface">
       <div className="border-b border-line px-4 py-3">
         <h3 className="text-[13.5px] font-semibold text-fg">Clients « Se connecter avec Act »</h3>
         <p className="mt-1 text-[11.5px] text-faint">
@@ -436,7 +436,7 @@ export function NewsletterCard({
   return (
     <div className={cn(
       "max-w-3xl rounded-xl border bg-card transition-colors",
-      enabled ? "border-coral-500/40 ring-1 ring-inset ring-coral-500/20" : "border-line",
+      enabled ? "border-accent-ring ring-1 ring-inset ring-accent-ring" : "border-line",
     )}>
       <div className="flex items-start justify-between gap-4 border-b border-line p-5">
         <div className="max-w-xl">
@@ -444,7 +444,7 @@ export function NewsletterCard({
             <Mail className="size-4.5 text-sky-600 dark:text-sky-400" />
             Module newsletter — EmailOctopus
             {enabled && (
-              <span className="rounded-md bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-300">
+              <span className="rounded-md bg-tone-accent px-1.5 py-0.5 text-[10.5px] font-medium text-tone-accent-fg ring-1 ring-inset ring-tone-accent-line">
                 Actif
               </span>
             )}
@@ -468,7 +468,7 @@ export function NewsletterCard({
           }
           className={cn(
             "relative mt-1 h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50",
-            enabled ? "bg-coral-600" : "bg-elev ring-1 ring-inset ring-line",
+            enabled ? "bg-accent" : "bg-elev ring-1 ring-inset ring-line",
           )}
         >
           <span

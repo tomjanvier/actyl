@@ -44,7 +44,7 @@ export function SignInForm({
         <div className="flex flex-col gap-2">
           <a
             href={actStartHref}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-medium ring-1 ring-inset ring-coral-500/30 bg-coral-500/10 text-coral-700 dark:text-coral-300 hover:bg-coral-500/20"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-medium ring-1 ring-inset ring-accent-ring bg-accent-soft text-accent-text hover:bg-accent-soft"
           >
             <Image src="/brand/act-clair-icone.svg" width={24} height={24} alt="" /> Se connecter avec Act
           </a>
@@ -88,7 +88,7 @@ export function SignInForm({
       </form>
       <p className="mt-5 text-center text-[13px] text-faint">
         Pas encore de compte ?{" "}
-        <Link href="/sign-up" className="text-coral-700 dark:text-coral-400 hover:text-coral-700 dark:text-coral-300">
+        <Link href="/sign-up" className="text-accent-text hover:text-accent-text">
           S’inscrire
         </Link>
       </p>

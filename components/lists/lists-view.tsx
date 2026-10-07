@@ -2,7 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Globe, Trash2, Users, X, Search, Code2, Tag, Download, Pin } from "lucide-react";
+import { Plus, Globe, Trash2, Users, X, Code2, Tag, Download, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { fullName } from "@/components/lists/shared";
@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { SearchField } from "@/components/ui/filter-bar";
 import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/controls";
@@ -66,7 +67,7 @@ export function ListsView({
           <p className="mt-1 text-[11.5px] text-mut">
             Une validation est répercutée dans chaque espace utilisant le même référentiel.
           </p>
-          <div className="mt-3 divide-y divide-line rounded-lg border border-line bg-card">
+          <div className="mt-3 divide-y divide-line rounded-lg crm-surface">
             {proposals.map((proposal) => (
               <div key={proposal.id} className="flex flex-wrap items-center gap-3 p-3">
                 <div className="min-w-0 flex-1 text-[12px] text-mut">
@@ -106,7 +107,7 @@ export function ListsView({
         <article
           key={list.id}
           id={list.sourcePack ? `list-${list.sourcePack}` : undefined}
-          className="flex flex-col rounded-xl border border-line bg-card transition-colors hover:border-line"
+          className="flex flex-col rounded-xl crm-surface transition-colors hover:border-hoverstrong"
         >
           <header className="flex items-start gap-2 p-4 pb-3">
             <div className="min-w-0 flex-1">
@@ -240,7 +241,7 @@ export function ListsView({
               <li className="px-2 pb-1 pt-1">
                 <button
                   type="button"
-                  className="w-full rounded-lg px-2 py-1.5 text-left text-[11.5px] font-medium text-coral-700 hover:bg-hover dark:text-coral-400"
+                  className="w-full rounded-lg px-2 py-1.5 text-left text-[11.5px] font-medium text-accent-text hover:bg-hover"
                   onClick={() => router.push(`/contacts?list=${encodeURIComponent(list.id)}`)}
                 >
                   Voir les {list.totalItems - 5} autres dans le répertoire
@@ -260,7 +261,7 @@ export function ListsView({
                 {(list.attributes ?? []).map((a) => (
                   <span
                     key={a.id}
-                    className="inline-flex items-center gap-1 rounded-md bg-coral-500/10 px-1.5 py-0.5 text-[10.5px] font-medium text-coral-700 ring-1 ring-inset ring-coral-500/20 dark:text-coral-400"
+                    className="inline-flex items-center gap-1 rounded-md bg-tone-accent px-1.5 py-0.5 text-[10.5px] font-medium text-tone-accent-fg ring-1 ring-inset ring-tone-accent-line"
                   >
                     {a.label}
                     {list.canEdit && (
@@ -269,7 +270,7 @@ export function ListsView({
                         onClick={() => {
                           void deleteListFieldAction(a.id).then(refresh);
                         }}
-                        className="text-coral-700/60 hover:text-rose-600 dark:text-coral-400/60"
+                        className="text-accent-text/60 hover:text-rose-600"
                       >
                         <X className="size-2.5" />
                       </button>
@@ -539,16 +540,13 @@ function AddContactsDialog({
           <DialogTitle>Ajouter à « {list?.name} »</DialogTitle>
           <DialogDescription>Sélectionnez des décideurs dans l&apos;annuaire.</DialogDescription>
         </DialogHeader>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
-          <Input
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-            placeholder="Filtrer…"
-            className="pl-8"
-            autoFocus
-          />
-        </div>
+        <SearchField
+          value={query}
+          onValueChange={(value) => { setQuery(value); setPage(1); }}
+          placeholder="Filtrer…"
+          width="w-full"
+          autoFocus
+        />
         <p role="status" className="text-sm text-mut">{loading ? "Chargement…" : error}</p>
         <div aria-busy={loading} className="max-h-64 overflow-y-auto rounded-lg border border-line">
           {filtered.map((c) => (
@@ -646,12 +644,12 @@ function ListAttrCreator({
         autoFocus
         maxLength={60}
         placeholder="Ex : Commission, Mandat…"
-        className="h-6 w-40 rounded-md border border-line bg-elev px-1.5 text-[11px] text-fg outline-none focus:border-coral-500/60"
+        className="h-6 w-40 rounded-md border border-line bg-elev px-1.5 text-[11px] text-fg outline-none focus:border-accent"
       />
       <button
         onClick={() => void create()}
         disabled={busy || !label.trim()}
-        className="text-[11px] font-medium text-coral-700 hover:text-coral-600 disabled:opacity-40 dark:text-coral-400"
+        className="text-[11px] font-medium text-accent-text hover:text-accent hover:underline disabled:opacity-40"
       >
         ok
       </button>

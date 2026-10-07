@@ -81,8 +81,8 @@ export function CampaignHeader({
   }
 
   return (
-    <div className="border-b border-line px-6 pb-4 pt-5">
-      <nav className="mb-1 flex items-center gap-1 text-[12px] text-faint">
+    <div className="border-b border-line bg-raised px-4 pt-16 sm:px-7 md:pt-6">
+      <nav className="mb-5 flex items-center gap-1 text-[12px] text-faint">
         <Link href="/" aria-label="Accueil Actyl" className="mr-0.5">
           <ActylLogo variant="icon" className="size-4" />
         </Link>
@@ -91,14 +91,14 @@ export function CampaignHeader({
           Campagnes
         </Link>
       </nav>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-elev text-xl ring-1 ring-inset ring-line">
+      <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="flex size-11 shrink-0 sm:size-14 items-center justify-center rounded-2xl bg-canvas text-2xl ring-1 ring-inset ring-line">
             {campaign.emoji}
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-[19px] font-semibold tracking-tight text-fg">
+              <h1 className="break-words text-[22px] leading-tight sm:text-[28px] font-semibold tracking-tight text-fg">
                 {campaign.name}
               </h1>
               <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", meta.badge)}>
@@ -107,86 +107,13 @@ export function CampaignHeader({
               <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", (PRIORITY_META[campaign.priority as Priority] ?? PRIORITY_META.MEDIUM!).badge)}>
                 {(PRIORITY_META[campaign.priority as Priority] ?? PRIORITY_META.MEDIUM!).label}
               </span>
-              {canEdit && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" title="Modifier le statut">
-                      <Settings2 />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuLabel>Statut de la campagne</DropdownMenuLabel>
-                    {CAMPAIGN_STATUSES.map((s) => (
-                      <DropdownMenuItem
-                        key={s}
-                        onClick={() => {
-                          void updateCampaignStatusAction(campaign.id, s).then(() =>
-                            startTransition(() => router.refresh()),
-                          );
-                        }}
-                      >
-                        <span className={cn("size-2 rounded-full", CAMPAIGN_STATUS_META[s].dot)} />
-                        {CAMPAIGN_STATUS_META[s].label}
-                        {s === campaign.status && <span className="ml-auto text-coral-700 dark:text-coral-400">✓</span>}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              {canShare && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Partager avec une organisation"
-                  onClick={() => {
-                    const workspaceSlug = window.prompt(
-                      "Slug de l’organisation destinataire (visible dans son URL) :",
-                    )?.trim();
-                    if (!workspaceSlug) return;
-                    const contribute = window.confirm(
-                      "Autoriser cette organisation à contribuer au kanban ?\n\nAnnuler = lecture seule.",
-                    );
-                    void shareCampaignAction({
-                      campaignId: campaign.id,
-                      workspaceSlug,
-                      access: contribute ? "CONTRIBUTE" : "VIEW",
-                    })
-                      .then((result) => {
-                        toast.success(`Campagne partagée avec ${result.workspaceName}`);
-                        startTransition(() => router.refresh());
-                      })
-                      .catch((error: Error) => toast.error(error.message));
-                  }}
-                >
-                  <Share2 />
-                </Button>
-              )}
-              {canPublish && (
-                <Button
-                  variant={isPublished ? "secondary" : "outline"}
-                  size="sm"
-                  disabled={publishing}
-                  onClick={() => void togglePublish()}
-                  aria-pressed={isPublished}
-                >
-                  <Globe /> {publishing ? "Mise à jour…" : isPublished ? "Publiée" : "Publier"}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                title={campaign.pinned ? "Désépingler la campagne" : "Épingler la campagne"}
-                onClick={() => void toggleCampaignPinAction(campaign.id, !campaign.pinned).then(() => startTransition(() => router.refresh()))}
-              >
-                <Pin className={cn(campaign.pinned && "fill-current text-amber-600")} />
-              </Button>
             </div>
             {campaign.description && (
-              <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-faint line-clamp-2">
+              <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-faint line-clamp-2">
                 {campaign.description}
               </p>
             )}
-            <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[12px] text-faint">
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-faint">
               {campaign.dueDate && (
                 <span className="inline-flex items-center gap-1">
                   <CalendarDays className="size-3" /> Échéance : {formatDate(campaign.dueDate)}
@@ -197,14 +124,14 @@ export function CampaignHeader({
                   href={`/association/${campaign.workspaceSlug}/${campaign.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 transition-colors hover:text-coral-700 dark:text-coral-400"
+                  className="inline-flex items-center gap-1 transition-colors hover:text-accent-text"
                   title={`Page publique : /association/${campaign.workspaceSlug}/${campaign.slug}`}
                 >
-                  <Globe className="size-3" /> /association/{campaign.workspaceSlug}/{campaign.slug} · publique ↗
+                  <Globe className="size-3 shrink-0" /> /association/{campaign.workspaceSlug}/{campaign.slug} · publique ↗
                 </a>
               ) : (
                 <span className="inline-flex items-center gap-1 text-faint" title="Publiez la campagne pour activer cette page">
-                  <Globe className="size-3" /> /association/{campaign.workspaceSlug}/{campaign.slug} · brouillon
+                  <Globe className="size-3 shrink-0" /> /association/{campaign.workspaceSlug}/{campaign.slug} · brouillon
                 </span>
               )}
               {campaign.squads.map((g) => (
@@ -242,8 +169,85 @@ export function CampaignHeader({
           </div>
         </div>
 
+        <div aria-label="Actions de la campagne" className="flex flex-wrap items-center gap-2">
+          {canEdit && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" title="Modifier le statut" aria-label="Modifier le statut">
+                  <Settings2 />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Statut de la campagne</DropdownMenuLabel>
+                {CAMPAIGN_STATUSES.map((s) => (
+                  <DropdownMenuItem
+                    key={s}
+                    onClick={() => {
+                      void updateCampaignStatusAction(campaign.id, s).then(() =>
+                        startTransition(() => router.refresh()),
+                      );
+                    }}
+                  >
+                    <span className={cn("size-2 rounded-full", CAMPAIGN_STATUS_META[s].dot)} />
+                    {CAMPAIGN_STATUS_META[s].label}
+                    {s === campaign.status && <span className="ml-auto text-accent-text">✓</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {canShare && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Partager avec une organisation" aria-label="Partager avec une organisation"
+              onClick={() => {
+                const workspaceSlug = window.prompt(
+                  "Slug de l’organisation destinataire (visible dans son URL) :",
+                )?.trim();
+                if (!workspaceSlug) return;
+                const contribute = window.confirm(
+                  "Autoriser cette organisation à contribuer au kanban ?\n\nAnnuler = lecture seule.",
+                );
+                void shareCampaignAction({
+                  campaignId: campaign.id,
+                  workspaceSlug,
+                  access: contribute ? "CONTRIBUTE" : "VIEW",
+                })
+                  .then((result) => {
+                    toast.success(`Campagne partagée avec ${result.workspaceName}`);
+                    startTransition(() => router.refresh());
+                  })
+                  .catch((error: Error) => toast.error(error.message));
+              }}
+            >
+              <Share2 />
+            </Button>
+          )}
+          {canPublish && (
+            <Button
+              variant={isPublished ? "secondary" : "outline"}
+              size="sm"
+              disabled={publishing}
+              onClick={() => void togglePublish()}
+              aria-pressed={isPublished}
+            >
+              <Globe /> {publishing ? "Mise à jour…" : isPublished ? "Publiée" : "Publier"}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={campaign.pinned ? "Désépingler la campagne" : "Épingler la campagne"}
+            title={campaign.pinned ? "Désépingler la campagne" : "Épingler la campagne"}
+            onClick={() => void toggleCampaignPinAction(campaign.id, !campaign.pinned).then(() => startTransition(() => router.refresh()))}
+          >
+            <Pin className={cn(campaign.pinned && "fill-current text-amber-600")} />
+          </Button>
+        </div>
+
         {/* Navigation interne de la campagne. */}
-        <nav className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-elev p-1 ring-1 ring-inset ring-line">
+        <nav aria-label="Sections de la campagne" className="flex max-w-full items-center gap-5 overflow-x-auto">
           <TabLink href={`/campaigns/${campaign.id}/kanban`} label="Kanban" />
           <TabLink href={`/campaigns/${campaign.id}/emails`} label="Interpellation" />
           <TabLink href={`/campaigns/${campaign.id}/mobilization`} label="Mobilisation" />
@@ -261,22 +265,23 @@ function TabLink({ href, label }: { href: string; label: string }) {
     pathname === href ||
     (pathname.startsWith(`${href}/`) && !pathname.slice(href.length + 1).includes("/"));
   return (
-    <a
+    <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "rounded-md px-3 py-1 text-[12.5px] font-medium transition-colors",
+        "shrink-0 border-b-2 px-1 py-3 text-[13px] font-medium transition-colors",
         active
-          ? "bg-hoverstrong text-fg shadow-sm"
-          : "text-faint hover:text-mut",
+          ? "border-accent text-fg"
+          : "border-transparent text-faint hover:border-line hover:text-mut",
       )}
     >
       {label}
-    </a>
+    </Link>
   );
 }
 
 const SQUAD_TINTS: Record<string, string> = {
-  coral: "bg-coral-500/10 text-coral-700 dark:text-coral-300 ring-coral-500/20",
+  coral: "bg-tone-accent text-tone-accent-fg ring-tone-accent-line",
   sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/20",
   emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20",
   amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/20",

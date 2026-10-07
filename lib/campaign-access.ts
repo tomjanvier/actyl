@@ -1,14 +1,13 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { campaignAccessWhere } from "@/lib/campaign-permissions";
+export { campaignAccessWhere, resolveCampaignAccess } from "@/lib/campaign-permissions";
 
 /** Résout l'accès d'un espace à une campagne possédée ou reçue en partage. */
 export async function getCampaignAccess(campaignId: string, workspaceId: string) {
   const campaign = await db.campaign.findFirst({
-    where: {
-      id: campaignId,
-      OR: [{ workspaceId }, { shares: { some: { workspaceId } } }],
-    },
+    where: campaignAccessWhere(campaignId, workspaceId),
     select: {
       id: true,
       workspaceId: true,

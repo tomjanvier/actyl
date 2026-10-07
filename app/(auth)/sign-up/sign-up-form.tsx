@@ -23,7 +23,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
 
   if (state?.pending) {
     return (
-      <div className="w-full max-w-sm rounded-xl border border-coral-500/20 bg-coral-500/[0.06] p-5 text-center">
+      <div className="w-full max-w-sm rounded-xl border border-accent-ring bg-accent-soft p-5 text-center">
         <p className="text-[28px]">🙏</p>
         <h1 className="mt-2 text-[16px] font-semibold text-fg">
           Demande envoyée !
@@ -154,7 +154,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
       </form>
       <p className="mt-5 text-center text-[13px] text-faint">
         Déjà un compte ?{" "}
-        <Link href="/sign-in" className="text-coral-700 dark:text-coral-400 hover:text-coral-700 dark:text-coral-300">
+        <Link href="/sign-in" className="text-accent-text hover:text-accent-text">
           Se connecter
         </Link>
       </p>

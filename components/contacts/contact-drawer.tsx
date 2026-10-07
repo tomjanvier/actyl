@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/controls";
 
-type ActionRes = { error?: string; ok?: boolean };
+type ActionRes = { error?: string; ok?: boolean; proposed?: number };
 
 export function ContactDrawer({
   contact,
@@ -115,6 +115,24 @@ export function ContactDrawer({
               ) : null}
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {contact.phone && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={`tel:${contact.phone}`}><Phone /> Appeler</a>
+            </Button>
+          )}
+          {contact.email && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={`mailto:${contact.email}`}><Mail /> Écrire</a>
+            </Button>
+          )}
+          {contact.website && (
+            <Button variant="ghost" size="sm" asChild>
+              <a href={contact.website} target="_blank" rel="noreferrer"><Globe /> Site web</a>
+            </Button>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-4">
@@ -191,8 +209,8 @@ export function ContactDrawer({
               disabled={isPending}
               onClick={() => {
                 if (!confirm(`Supprimer ${fullName(contact)} ? Cette action est irréversible.`)) return;
-                void deleteContactAction(contact.id).then(() => {
-                  toast.success("Contact supprimé");
+                void deleteContactAction(contact.id).then((result) => {
+                  toast.success(result?.proposed ? "Suppression proposée pour validation" : "Contact supprimé");
                   onDeleted();
                 });
               }}
@@ -251,7 +269,7 @@ function CandidatePoliticalLayer({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-line bg-card p-4">
+      <section className="rounded-xl crm-surface p-4">
         <h3 className="text-[13.5px] font-semibold text-fg">{profile.candidateName}</h3>
         {profile.programUrl ? (
           <Button variant="outline" size="sm" className="mt-3" asChild>
@@ -265,7 +283,7 @@ function CandidatePoliticalLayer({
       </section>
 
       {canAdd && (
-        <form action={action} className="rounded-xl border border-line bg-card p-4">
+        <form action={action} className="rounded-xl crm-surface p-4">
           <input type="hidden" name="teamId" value={profile.teamId} />
           <h3 className="text-[13.5px] font-semibold text-fg">Ajouter une piste de travail</h3>
           <p className="mt-1 text-[11.5px] text-mut">
@@ -348,7 +366,7 @@ function EditForm({
   );
   useEffect(() => {
     if (state?.ok) {
-      toast.success("Fiche mise à jour");
+      toast.success(state.proposed ? "Proposition transmise pour validation" : "Fiche mise à jour");
       onSaved();
     }
     if (state?.error) toast.error(state.error);
@@ -480,7 +498,7 @@ function SocialLinks({ contact, large }: { contact: ContactRow; large?: boolean 
           rel="noopener noreferrer"
           title={label}
           className={cn(
-            "inline-flex items-center justify-center rounded-lg border border-line text-faint transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:text-coral-300",
+            "inline-flex items-center justify-center rounded-lg border border-line text-faint transition-colors hover:border-accent-ring hover:text-accent-text",
             large ? "size-9" : "size-7",
           )}
         >
@@ -539,9 +557,9 @@ function PrivateLayer({
   return (
     <>
       {/* Couche personnelle. */}
-      <section className="rounded-xl border border-coral-500/15 bg-coral-500/[0.04] p-4">
+      <section className="rounded-xl border border-accent-ring bg-accent-soft p-4">
         <header className="mb-3 flex items-center gap-2">
-          <Star className="size-3.5 text-coral-700 dark:text-coral-400" />
+          <Star className="size-3.5 text-accent-text" />
           <h3 className="text-[12.5px] font-semibold text-fg">
             Mon espace privé
           </h3>
@@ -654,7 +672,7 @@ function OrgNotesLayer({
 
   return (
     <>
-      <p className="rounded-lg border border-coral-500/20 bg-coral-500/[0.05] px-3 py-2 text-[12px] leading-relaxed text-mut">
+      <p className="rounded-lg border border-accent-ring bg-accent-soft px-3 py-2 text-[12px] leading-relaxed text-mut">
         🤝 Ces notes sont partagées avec toute votre organisation : chacun peut
         enrichir la connaissance collective sur ce décideur.
       </p>

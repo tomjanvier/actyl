@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { CampaignHeader } from "@/components/campaigns/campaign-header";
 import { EmailsView } from "@/components/emails/emails-view";
-import { getCampaignAccess } from "@/lib/campaign-access";
+import { campaignAccessWhere, resolveCampaignAccess } from "@/lib/campaign-access";
 
 export const metadata = { title: "Interpellation" };
 
@@ -16,10 +16,8 @@ export default async function EmailsPage({
   const session = await requireSession();
   const { id } = await params;
 
-  const access = await getCampaignAccess(id, session.workspaceId);
-  if (!access) notFound();
-  const campaign = await db.campaign.findUnique({
-    where: { id },
+  const campaign = await db.campaign.findFirst({
+    where: campaignAccessWhere(id, session.workspaceId),
     include: {
       squads: { include: { group: true } },
       shares: { include: { workspace: { select: { name: true } } } },
@@ -27,6 +25,7 @@ export default async function EmailsPage({
     },
   });
   if (!campaign) notFound();
+  const access = resolveCampaignAccess(campaign, session.workspaceId);
 
   const [templates, cards, blasts] = await Promise.all([
     db.emailTemplate.findMany({

@@ -19,6 +19,7 @@ export default async function CampaignsPage() {
     },
     orderBy: { createdAt: "desc" },
     include: {
+      stages: { select: { kind: true, _count: { select: { cards: true } } } },
       squads: { include: { group: { select: { name: true, color: true } } } },
       _count: {
         select: {
@@ -35,41 +36,15 @@ export default async function CampaignsPage() {
     },
   });
 
-  const campaignIds = campaigns.map((campaign) => campaign.id);
-  const cardCountsByStage = campaignIds.length
-    ? await db.kanbanCard.groupBy({
-        by: ["campaignId", "stageId"],
-        where: { campaignId: { in: campaignIds } },
-        _count: { _all: true },
-      })
-    : [];
-  const stageIds = [...new Set(cardCountsByStage.map((group) => group.stageId))];
-  const stages = stageIds.length
-    ? await db.pipelineStage.findMany({
-        where: { id: { in: stageIds } },
-        select: { id: true, kind: true },
-      })
-    : [];
-  const stageKinds = new Map(stages.map((stage) => [stage.id, stage.kind]));
-  const campaignStats = new Map<string, { total: number; won: number; allies: number; opponents: number }>();
-  for (const group of cardCountsByStage) {
-    const count = group._count._all;
-    const stats = campaignStats.get(group.campaignId) ?? {
-      total: 0,
-      won: 0,
-      allies: 0,
-      opponents: 0,
-    };
-    const kind = stageKinds.get(group.stageId);
-    stats.total += count;
-    if (kind === "WON") stats.won += count;
-    if (kind === "POSITIVE" || kind === "WON") stats.allies += count;
-    if (kind === "NEGATIVE") stats.opponents += count;
-    campaignStats.set(group.campaignId, stats);
-  }
-
   const serialized = campaigns.map((c) => {
-    const stats = campaignStats.get(c.id) ?? { total: 0, won: 0, allies: 0, opponents: 0 };
+    const stats = c.stages.reduce((total, stage) => {
+      const count = stage._count.cards;
+      total.total += count;
+      if (stage.kind === "WON") total.won += count;
+      if (stage.kind === "POSITIVE" || stage.kind === "WON") total.allies += count;
+      if (stage.kind === "NEGATIVE") total.opponents += count;
+      return total;
+    }, { total: 0, won: 0, allies: 0, opponents: 0 });
     return {
       id: c.id,
       name: c.name,
@@ -103,7 +78,7 @@ export default async function CampaignsPage() {
           can(session.role, "campaign:create") ? (
             <Link
               href="/campaigns?new=1"
-              className="inline-flex h-8 items-center gap-2 rounded-lg bg-coral-600 px-3 text-xs font-medium text-white transition-colors hover:bg-coral-500"
+              className="inline-flex h-8 items-center gap-2 rounded-lg bg-accent px-3 text-xs font-medium text-accent-ink transition-colors hover:bg-accent-hover"
             >
               + Nouvelle campagne
             </Link>

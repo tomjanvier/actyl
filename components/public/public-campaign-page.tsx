@@ -127,7 +127,7 @@ export async function PublicCampaignPage({
             {targets.map(({ contact }) => (
               <div
                 key={contact.id}
-                className="flex items-center gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5"
+                className="flex items-center gap-3 rounded-xl crm-surface px-3.5 py-2.5"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-medium text-fg">
@@ -157,7 +157,7 @@ export async function PublicCampaignPage({
             ),
           ]}
         /> : (
-          <section className="mt-10 rounded-2xl border border-dashed border-line bg-card p-6 text-center">
+          <section className="mt-10 rounded-2xl border border-dashed border-line p-6 text-center">
             <h2 className="font-semibold text-fg">Interpellation bientôt disponible</h2>
             <p className="mt-2 text-sm text-faint">Cette association prépare encore les messages de sa campagne.</p>
           </section>
@@ -165,7 +165,7 @@ export async function PublicCampaignPage({
 
         {/* Petition */}
         {petition && (
-          <section className="mt-10 rounded-2xl border border-line bg-card p-6">
+          <section className="mt-10 rounded-2xl crm-surface p-6">
             <h2 className="text-[17px] font-semibold text-fg">
               🖊️ {petition.title}
             </h2>

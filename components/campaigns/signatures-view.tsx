@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Download,
-  Search,
-  X,
   Trash2,
   UserPlus,
   Send,
@@ -28,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { PaginationBar } from "@/components/ui/pagination";
 import { EntityAvatar } from "@/components/ui/badge";
+import { Card, StatCard } from "@/components/ui/primitives";
+import { FilterBar, FilterSelect, SearchField } from "@/components/ui/filter-bar";
 import {
   deleteSignaturesAction,
   convertSignaturesToContactsAction,
@@ -154,7 +154,7 @@ export function SignaturesView({
   if (!petition) {
     return (
       <div className="px-6 py-10">
-        <div className="mx-auto max-w-lg rounded-xl border border-line bg-card p-6 text-center">
+        <div className="mx-auto max-w-lg rounded-xl crm-surface p-6 text-center">
           <PenLine className="mx-auto mb-3 size-6 text-faint" />
           <h2 className="text-[15px] font-semibold text-fg">
             Aucune pétition sur cette campagne
@@ -176,44 +176,41 @@ export function SignaturesView({
   return (
     <div className="flex min-h-[calc(100vh-160px)] flex-col">
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 px-6 pt-5 sm:grid-cols-3 lg:max-w-2xl">
-        <div className="rounded-xl border border-line bg-card p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Signatures</p>
-          <p className="mt-1 flex items-center gap-2 text-2xl font-semibold tabular-nums text-fg">
-            <Users className="size-4.5 text-coral-700 dark:text-coral-400" />
-            {petition.totalSignatures.toLocaleString("fr-FR")}
-            <span className="text-[13px] font-normal text-mut">/ {petition.goal.toLocaleString("fr-FR")}</span>
-          </p>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-hover">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-coral-600 to-coral-400"
-              style={{
-                width: `${Math.min(100, Math.round((petition.totalSignatures / Math.max(petition.goal, 1)) * 100))}%`,
-              }}
-            />
-          </div>
-        </div>
-        <div className="rounded-xl border border-line bg-card p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-faint">Pétition</p>
-          <p className="mt-1 truncate text-[14px] font-medium text-fg">{petition.title}</p>
+      <div className="grid grid-cols-1 gap-3 px-4 pt-5 sm:grid-cols-3 sm:px-7 lg:max-w-2xl">
+        <StatCard
+          label="Signatures"
+          value={petition.totalSignatures.toLocaleString("fr-FR")}
+          suffix={<> / {petition.goal.toLocaleString("fr-FR")}</>}
+          icon={<Users className="size-3 text-accent-text" />}
+          progress={petition.totalSignatures / Math.max(petition.goal, 1)}
+        />
+        <Card className="p-4">
+          <p className="crm-kicker">Pétition</p>
+          <p className="mt-1.5 truncate text-[14px] font-medium text-fg">{petition.title}</p>
           <span
             className={cn(
-              "mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+              "mt-2 inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
               petition.isPublished
-                ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400"
-                : "bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-400",
+                ? "bg-tone-success text-tone-success-fg ring-tone-success-line"
+                : "bg-tone-warning text-tone-warning-fg ring-tone-warning-line",
             )}
           >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                petition.isPublished ? "bg-emerald-500" : "bg-amber-500",
+              )}
+            />
             {petition.isPublished ? "Publiée" : "Brouillon"}
           </span>
-        </div>
+        </Card>
         <a
           href={`/association/${workspaceSlug}/${campaignSlug}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="group rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 transition-colors hover:border-emerald-500/40"
+          className="group crm-surface rounded-xl p-4 transition-colors hover:border-tone-success-line"
         >
-          <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-faint">
+          <p className="crm-kicker flex items-center gap-1.5">
             Page publique <ExternalLink className="size-3" />
           </p>
           <p className="mt-1 truncate text-[13px] font-medium text-fg">/association/{workspaceSlug}/{campaignSlug}</p>
@@ -221,38 +218,25 @@ export function SignaturesView({
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 px-6 py-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un signataire…"
-            className="h-9 w-60 rounded-lg border border-line bg-elev pl-8.5 pr-8 text-[13px] text-fg outline-none placeholder:text-faint focus:border-coral-500/60"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-faint hover:text-mut"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
+      <FilterBar>
+        <SearchField
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Rechercher un signataire…"
+          width="w-full sm:w-64"
+        />
         {cities.length > 0 && (
-          <select
+          <FilterSelect
             value={cityF}
             onChange={(e) => setCityF(e.target.value)}
-            className={cn(
-              "h-9 rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-mut outline-none [&>option]:bg-raised",
-              cityF && "border-coral-500/40",
-            )}
+            active={!!cityF}
+            aria-label="Filtrer par ville"
           >
             <option value="">Toutes villes</option>
             {cities.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
-          </select>
+          </FilterSelect>
         )}
 
         <span className="ml-auto flex flex-wrap items-center gap-2">
@@ -281,17 +265,17 @@ export function SignaturesView({
             </Button>
           )}
         </span>
-      </div>
+      </FilterBar>
 
       {/* Table */}
-      <div className="flex-1 px-6 pb-10">
-        <ul className="overflow-hidden rounded-xl border border-line">
+      <div className="flex-1 px-4 pb-10 sm:px-7">
+        <ul className="crm-surface overflow-hidden rounded-xl">
           <li className="flex items-center gap-3 border-b border-line bg-elev px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-faint">
             <input
               type="checkbox"
               checked={allChecked}
               onChange={toggleAll}
-              className="size-3.5 accent-coral-600"
+              className="size-3.5 accent-coral-500"
               aria-label="Tout sélectionner sur la page"
             />
             Signataire
@@ -307,7 +291,7 @@ export function SignaturesView({
                 type="checkbox"
                 checked={checked.has(s.id)}
                 onChange={() => toggle(s.id)}
-                className="size-3.5 accent-coral-600"
+                className="size-3.5 accent-coral-500"
                 aria-label={`Sélectionner ${s.name}`}
               />
               <EntityAvatar name={s.name} size="md" />

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { cn, fullName, toCSV, downloadFile } from "@/lib/utils";
 import { LEVELS, LEVEL_META, STANCE_META } from "@/lib/constants";
 import { EntityAvatar } from "@/components/ui/badge";
+import { FilterSelect, SearchField } from "@/components/ui/filter-bar";
 
 type EmbedRow = {
   id: string;
@@ -124,11 +125,8 @@ export function EmbedListTable({
     downloadFile("\uFEFF" + csv, `${listName}.csv`, "text/csv");
   }
 
-  const selCls =
-    "h-8 rounded-lg border border-line bg-elev px-2 text-[12px] text-fg outline-none [&>option]:bg-raised";
-
   return (
-    <div className="rounded-xl border border-line bg-raised">
+    <div className="crm-surface rounded-xl">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5">
         <h1 className="mr-2 truncate text-[13.5px] font-semibold text-fg">
           {listName}
@@ -140,42 +138,58 @@ export function EmbedListTable({
           </p>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-faint" />
-            <input
-              value={query}
-              onChange={(e) => resetPage(() => setQuery(e.target.value))}
-              placeholder="Rechercher…"
-              className="h-8 w-36 rounded-lg border border-line bg-elev pl-7 pr-2 text-[12px] text-fg outline-none focus:border-coral-500/60"
-            />
-          </div>
-          <select value={levelF} onChange={(e) => resetPage(() => setLevelF(e.target.value))} className={cn(selCls, levelF && "border-coral-500/40")}>
+          <SearchField
+            value={query}
+            onValueChange={(value) => resetPage(() => setQuery(value))}
+            placeholder="Rechercher…"
+            size="sm"
+            width="w-36"
+          />
+          <FilterSelect
+            size="sm"
+            value={levelF}
+            onChange={(e) => resetPage(() => setLevelF(e.target.value))}
+            active={!!levelF}
+            aria-label="Filtrer par niveau"
+          >
             <option value="">Niveau</option>
             {LEVELS.map((l) => (
               <option key={l} value={l}>{LEVEL_META[l].label}</option>
             ))}
-          </select>
+          </FilterSelect>
           {parties.length > 0 && (
-            <select value={partyF} onChange={(e) => resetPage(() => setPartyF(e.target.value))} className={cn(selCls, partyF && "border-coral-500/40")}>
+            <FilterSelect
+              size="sm"
+              value={partyF}
+              onChange={(e) => resetPage(() => setPartyF(e.target.value))}
+              active={!!partyF}
+              aria-label="Filtrer par parti"
+            >
               <option value="">Parti</option>
               {parties.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
-            </select>
+            </FilterSelect>
           )}
           {institutions.length > 1 && (
-            <select value={institutionF} onChange={(e) => resetPage(() => setInstitutionF(e.target.value))} className={cn(selCls, institutionF && "border-coral-500/40")}>
+            <FilterSelect
+              size="sm"
+              value={institutionF}
+              onChange={(e) => resetPage(() => setInstitutionF(e.target.value))}
+              active={!!institutionF}
+              aria-label="Filtrer par institution"
+            >
               <option value="">Institution</option>
               {institutions.map((i) => (
                 <option key={i} value={i}>{i}</option>
               ))}
-            </select>
+            </FilterSelect>
           )}
           <button
             disabled={loading || !!error}
             onClick={exportCsv}
             title="Exporter en CSV"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line px-2.5 text-[12px] text-mut transition-colors hover:border-coral-500/50 hover:text-coral-700 dark:hover:text-coral-400"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line px-2.5 text-[12px] text-mut transition-colors hover:border-accent-ring hover:text-accent-text"
           >
             <Download className="size-3.5" /> CSV
           </button>

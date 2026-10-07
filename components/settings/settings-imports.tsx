@@ -108,7 +108,7 @@ export function ImportOfficials({
               const operation = `shared:${pack.key}`;
               const active = pack.installed && pack.enabled;
               return (
-                <article key={pack.key} className="rounded-xl border border-line bg-card p-4">
+                <article key={pack.key} className="rounded-xl crm-surface p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-[13.5px] font-semibold text-fg">{pack.name}</h3>
@@ -163,7 +163,7 @@ export function ImportOfficials({
           {referencePacks.map((pack) => {
             const operation = `directory:${pack.key}`;
             return (
-              <article key={pack.key} className="flex items-center gap-3 rounded-xl border border-line bg-card p-4">
+              <article key={pack.key} className="flex items-center gap-3 rounded-xl crm-surface p-4">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[13px] font-semibold text-fg">{pack.name}</h3>
                   <p className="mt-0.5 text-[11.5px] text-faint">Copie locale sans synchronisation</p>
