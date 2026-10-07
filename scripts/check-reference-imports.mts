@@ -5,6 +5,7 @@ import {
 } from "../lib/import-contact-match";
 import { parseCommissions } from "../lib/commission-values";
 import { withDbTransaction } from "../lib/db-transaction";
+import { accountRequestContributions } from "../lib/account-request-contributions";
 import { db } from "../lib/db";
 assert.deepEqual(parseCommissions("Finances"), ["Finances"]);
 assert.deepEqual(parseCommissions('["Finances","Lois"]'), ["Finances", "Lois"]);
@@ -55,6 +56,7 @@ assert.equal(
   false,
 );
 if (process.env.DATABASE_URL && process.argv.includes("--database")) {
+  assert.equal((await accountRequestContributions(["__actyl_nonexistent_request__"])).size, 0);
   const marker = `__actyl_transaction_check_${Date.now()}__`;
   await assert.rejects(
     withDbTransaction(async (tx) => {

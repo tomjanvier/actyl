@@ -5,7 +5,9 @@ le mode d’inscription et les réglages de la page publique. Elle exige le rôl
 super administrateur côté serveur. Les sauvegardes administratives utilisent
 une transaction Neon sur WebSocket ; les lectures habituelles restent en HTTP.
 Les décisions sur les demandes d’accès vérifient leur état pour éviter une
-approbation ou un refus concurrent.
+approbation ou un refus concurrent. Les contributions facultatives des demandes
+sont lues par JSON de ligne, compatible avec les anciennes tables où ces colonnes
+sont absentes et avec les nouvelles tables où elles sont renseignées.
 
 L’annuaire interactif est placé immédiatement sous la présentation de la landing.
 Son chargement et son état vide sont explicites. Les liens et boutons ne sont

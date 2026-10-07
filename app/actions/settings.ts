@@ -2,6 +2,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
+import { accountRequestContributions } from "@/lib/account-request-contributions";
 import { withDbTransaction } from "@/lib/db-transaction";
 import { db } from "@/lib/db";
 import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
@@ -378,11 +379,12 @@ export async function approveAccountRequestAction(requestId: string) {
   if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
 
   await withDbTransaction(async tx => {
-    const req = await tx.accountRequest.findUnique({ where: { id: requestId } });
+    const req = await tx.accountRequest.findUnique({ where: { id: requestId }, select: { id: true, status: true, email: true, name: true, passwordHash: true, orgName: true, website: true, phone: true } });
     if (!req || req.status !== "PENDING") throw new Error("Demande introuvable");
     const claimed = await tx.accountRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: "APPROVED" } });
     if (claimed.count !== 1) throw new Error("Demande déjà traitée");
 
+    const contribution = (await accountRequestContributions([requestId], tx)).get(requestId);
     let user = await tx.user.findUnique({ where: { email: req.email } });
     if (!user) {
       user = await tx.user.create({
@@ -411,8 +413,8 @@ export async function approveAccountRequestAction(requestId: string) {
         slug,
         website: req.website,
         phone: req.phone,
-        monthlyContributionInterest: req.monthlyContributionInterest,
-        monthlyContributionAmount: req.monthlyContributionAmount,
+        monthlyContributionInterest: contribution?.interest ?? null,
+        monthlyContributionAmount: contribution?.amount ?? null,
         memberships: {
           create: [
             { userId: user.id, role: "ADMIN" },

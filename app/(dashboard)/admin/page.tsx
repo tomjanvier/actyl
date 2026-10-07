@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
+import { accountRequestContributions } from "@/lib/account-request-contributions";
 import { db } from "@/lib/db";
 import { getLandingSettings } from "@/lib/landing-settings";
 import { getSignupMode } from "@/lib/signup-mode";
@@ -42,8 +43,6 @@ export default async function AdminPage() {
           orgName: true,
           website: true,
           phone: true,
-          monthlyContributionInterest: true,
-          monthlyContributionAmount: true,
           createdAt: true,
         },
       }),
@@ -51,6 +50,7 @@ export default async function AdminPage() {
       getSignupMode(),
       getLandingSettings(),
     ]);
+  const contributions = await accountRequestContributions(requests.map(r => r.id));
   return (
     <>
       <PageHeader
@@ -65,6 +65,8 @@ export default async function AdminPage() {
         }))}
         pending={requests.map((r) => ({
           ...r,
+          monthlyContributionInterest: contributions.get(r.id)?.interest ?? null,
+          monthlyContributionAmount: contributions.get(r.id)?.amount ?? null,
           createdAt: r.createdAt.toISOString(),
         }))}
         pendingProposals={pendingProposals}
