@@ -10,7 +10,7 @@ export async function LandingDemoTable() {
       ? await db.sharedList.findFirst({ where: { id: configuredId, isPublished: true }, select: selection })
       : await db.sharedList.findFirst({ where: { isPublished: true, sourcePack: "deputes", items: { some: {} } }, orderBy: { createdAt: "asc" }, select: selection })
         ?? await db.sharedList.findFirst({ where: { isPublished: true, items: { some: {} } }, orderBy: { createdAt: "asc" }, select: selection });
-    if (!list) return null;
+    if (!list) return <p className="crm-surface rounded-xl p-6 text-sm text-mut">Aucun annuaire public n’est disponible pour le moment.</p>;
     const initialPage = await getDirectoryPage(list.id, 1, "", "", "", "", 10);
     return <EmbedListTable listName={list.name} description={list.description} rows={initialPage.rows} pageSize={10} listId={list.id} initialPage={initialPage} />;
   } catch {

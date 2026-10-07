@@ -16,6 +16,7 @@ import { jwtVerify } from "jose";
 const SESSION_COOKIE = "actyl_session";
 
 const PROTECTED_PREFIXES = [
+  "/admin",
   "/contacts",
   "/campaigns",
   "/lists",

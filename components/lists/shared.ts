@@ -3,6 +3,7 @@ import { fullName } from "@/lib/utils";
 export { fullName };
 
 export type ContactLite = {
+  commissions?: string[];
   id: string;
   firstName: string;
   lastName: string;

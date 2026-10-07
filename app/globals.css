@@ -66,14 +66,14 @@
 .dark {
   color-scheme: dark;
 
-  --canvas: #1f1917;
-  --sidebar: #291f1c;
-  --raised: var(--brand-plum);
-  --overlay: var(--brand-plum);
+  --canvas: #101113;
+  --sidebar: #151619;
+  --raised: #202226;
+  --overlay: #25272c;
 
-  --fg: #fbfaf8;
-  --mut: #d1c4bd;
-  --faint: #a9988e;
+  --fg: #f3f4f6;
+  --mut: #c0c3ca;
+  --faint: #969ba6;
 
   --line: rgba(247, 241, 232, 0.12);
   --line-soft: rgba(247, 241, 232, 0.07);
@@ -82,7 +82,7 @@
   --elev: rgba(247, 241, 232, 0.075);
   --hoverstrong: rgba(247, 241, 232, 0.13);
 
-  --card: rgba(251, 250, 248, 0.045);
+  --card: #191b1f;
   --accent: var(--brand-primary);
   --accent-hover: #fa7563;
   --accent-soft: rgba(242, 95, 76, 0.14);
@@ -320,7 +320,7 @@ h3 {
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-up {
-  animation: ahq-fade-up 0.18s ease-out both;
+  animation: ahq-fade-up 0.22s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 @keyframes ahq-pulse-dot {
@@ -347,3 +347,10 @@ h3 {
     scroll-behavior: auto !important;
   }
 }
+
+/* Hover feedback without continuous animation or layout work. */
+.ui-lift { transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), border-color 180ms; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .ui-lift:hover { transform: translateY(-2px); border-color: var(--accent-ring); }
+}
+.dark body { background-image: none; }

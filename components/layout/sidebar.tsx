@@ -117,9 +117,10 @@ export function Sidebar({
     base.push(
       { href: "/lists", label: "Listes partagées", icon: ListChecks },
       { href: "/settings", label: "Paramètres", icon: Settings },
+      ...(isSuperAdmin ? [{ href: "/admin", label: "Super administration", icon: Settings }] : []),
     );
     return base;
-  }, [presidentialEnabled]);
+  }, [presidentialEnabled, isSuperAdmin]);
 
   // Restaure la largeur et le repli mémorisés, une seule fois au montage.
   useEffect(() => {
@@ -339,9 +340,9 @@ export function Sidebar({
             {isSuperAdmin && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push("/settings?tab=espaces")}>
+                <DropdownMenuItem onClick={() => router.push("/admin")}>
                   <Plus />
-                  Nouvel espace
+                  Super administration
                 </DropdownMenuItem>
               </>
             )}

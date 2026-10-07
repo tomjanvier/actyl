@@ -200,6 +200,7 @@ export function ListsView({
                   {fullName(contact)}
                   <span className="text-faint"> · {contact.title ?? contact.institution ?? "—"}</span>
                 </button>
+                {contact.commissions?.length ? <span title={contact.commissions.join(" · ")} className="hidden max-w-40 truncate rounded-md bg-elev px-2 py-1 text-[11px] text-mut sm:block">{contact.commissions.join(" · ")}</span> : null}
                 {/* Valeurs des attributs propres à la liste. */}
                 {(list.attributes ?? []).slice(0, 2).map((a) => {
                   const v = list.values?.[`${contact.id}:${a.id}`];

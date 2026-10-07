@@ -1,3 +1,4 @@
+import { parseCommissions } from "@/lib/commission-values";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
@@ -41,6 +42,7 @@ export default async function ListsPage() {
           include: {
             contact: {
               select: {
+                customValues: { where: { field: { name: "commission" } }, select: { value: true } },
                 id: true,
                 firstName: true,
                 lastName: true,
@@ -137,7 +139,7 @@ export default async function ListsPage() {
             description: l.description,
             isPublished: l.isPublished,
             sourcePack: l.sourcePack,
-            items: l.items.map((i) => ({ itemId: i.id, contact: i.contact })),
+            items: l.items.map((i) => ({ itemId: i.id, contact: { ...i.contact, commissions: parseCommissions(i.contact.customValues[0]?.value) } })),
             totalItems: l._count.items,
             pinned: shortcutSet.has(l.id),
             canEdit,

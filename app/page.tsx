@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   KanbanSquare,
@@ -19,10 +20,10 @@ import { getLandingSettings } from "@/lib/landing-settings";
 export default async function LandingPage() {
   const settings = await getLandingSettings();
   const primaryButton = (
-    <Button size="lg" className="w-full sm:w-auto">
+    <Button asChild size="lg" className="w-full sm:w-auto"><Link href={settings.primaryHref}>
       {settings.primaryCta}
       <ArrowRight />
-    </Button>
+    </Link></Button>
   );
   return (
     <div className="min-h-screen bg-canvas">
@@ -33,23 +34,14 @@ export default async function LandingPage() {
         </Link>
         <nav className="flex items-center gap-3">
           <ThemeToggle />
-          <Link href="/sign-in">
-            <Button variant="ghost" size="sm">
-              Connexion
-            </Button>
-          </Link>
-          <Link href="/sign-up">
-            <Button size="sm">
-              S’inscrire
-              <ArrowRight />
-            </Button>
-          </Link>
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link href="/sign-in">Connexion</Link></Button>
+          <Button asChild size="sm"><Link href="/sign-up">S’inscrire<ArrowRight /></Link></Button>
         </nav>
       </header>
 
       {/* Hero */}
       <main className="mx-auto max-w-5xl px-6">
-        <section className="flex flex-col items-center pb-16 pt-20 text-center sm:pt-28">
+        <section className="animate-fade-up flex flex-col items-center pb-16 pt-20 text-center sm:pt-28">
           <Badge className="mb-5 border-none bg-elev px-2.5 py-1 text-mut ring-line">
             Open source · MIT · Auto-hébergeable · by PLAID·ACT
           </Badge>
@@ -63,21 +55,26 @@ export default async function LandingPage() {
             {settings.heroText}
           </p>
           <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
-            {settings.primaryHref.startsWith("https://") ? (
-              <a href={settings.primaryHref} className="w-full sm:w-auto">
-                {primaryButton}
-              </a>
-            ) : (
-              <Link href={settings.primaryHref} className="w-full sm:w-auto">
-                {primaryButton}
-              </Link>
-            )}
-            <Link href="/sign-in" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                Se connecter
-              </Button>
-            </Link>
+            {primaryButton}
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"><Link href="/sign-in">Se connecter</Link></Button>
           </div>
+        </section>
+
+        {/* Demo directory */}
+        <section id="annuaire" className="animate-fade-up pb-16">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-[18px] font-semibold tracking-tight text-fg">
+                Un annuaire des décideurs, en accès direct
+              </h2>
+              <p className="mt-1 text-[13px] text-mut">
+                Recherchez et filtrez les contacts d’une liste publique, sans créer de compte.
+              </p>
+            </div>
+          </div>
+          <Suspense fallback={<div className="crm-surface rounded-xl p-6 text-sm text-mut" role="status">Chargement de l’annuaire public…</div>}>
+            <LandingDemoTable />
+          </Suspense>
         </section>
 
         {/* Features */}
@@ -116,7 +113,7 @@ export default async function LandingPage() {
           ].map((f) => (
             <div
               key={f.title}
-              className="group rounded-xl border border-line bg-card p-5 transition-colors hover:border-line"
+              className="group ui-lift rounded-xl border border-line bg-card p-5"
             >
               <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-elev text-mut ring-1 ring-inset ring-line transition-colors group-hover:text-accent-text">
                 <f.icon className="size-4.5" />
@@ -129,21 +126,6 @@ export default async function LandingPage() {
               </p>
             </div>
           ))}
-        </section>
-
-        {/* Demo directory */}
-        <section className="pb-20">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <h2 className="text-[18px] font-semibold tracking-tight text-fg">
-                Un annuaire des décideurs, en accès direct
-              </h2>
-              <p className="mt-1 text-[13px] text-mut">
-                Aperçu réel du module Contacts — 10 député·e·s par page.
-              </p>
-            </div>
-          </div>
-          <LandingDemoTable />
         </section>
 
         {/* Footer */}
