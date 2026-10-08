@@ -48,6 +48,7 @@ export function AdminView({
   landingSettings: LandingSettings;
   currentWorkspaceId: string;
 }) {
+  const [section, setSection] = useState("espaces");
   const [query, setQuery] = useState("");
   const [entering, setEntering] = useState<string | null>(null);
   const router = useRouter();
@@ -67,7 +68,7 @@ export function AdminView({
     }
   }
   return (
-    <div className="animate-fade-up space-y-8 px-4 pb-12 sm:px-6">
+    <div className="animate-fade-up mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-7">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           ["Espaces", workspaces.length],
@@ -99,24 +100,11 @@ export function AdminView({
         aria-label="Sections d’administration"
         className="flex flex-wrap gap-2 text-sm text-accent-text"
       >
-        <a
-          className="rounded-lg border border-line px-3 py-2 hover:bg-hover"
-          href="#espaces"
-        >
-          Espaces
-        </a>
-        <a
-          className="rounded-lg border border-line px-3 py-2 hover:bg-hover"
-          href="#acces"
-        >
-          Demandes d’accès
-        </a>
-        <a
-          className="rounded-lg border border-line px-3 py-2 hover:bg-hover"
-          href="#page-publique"
-        >
-          Page publique
-        </a>
+        {([["espaces", "Espaces"], ["acces", "Demandes d’accès"], ["page-publique", "Page d’accueil"]] as const).map(([id, label]) => (
+          <Button key={id} variant="outline" aria-pressed={section === id} onClick={() => setSection(id)} className={section === id ? "border-accent-ring bg-accent-soft text-accent-text" : ""}>
+            {label}
+          </Button>
+        ))}
         <Button asChild variant="outline">
           <Link href="/settings?tab=import">Référentiels</Link>
         </Button>
@@ -126,7 +114,7 @@ export function AdminView({
       </nav>
       <section
         id="espaces"
-        className="grid items-start gap-6 xl:grid-cols-[1fr_340px]"
+        className={section === "espaces" ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]" : "hidden"}
       >
         <div className="crm-surface min-w-0 overflow-hidden rounded-xl">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
@@ -135,6 +123,7 @@ export function AdminView({
               value={query}
               onValueChange={setQuery}
               placeholder="Rechercher un espace…"
+              width="w-full sm:w-60"
             />
           </header>
           {workspaces
@@ -208,7 +197,7 @@ export function AdminView({
         </div>
         <CreateWorkspaceForm onCreated={() => router.refresh()} />
       </section>
-      <section id="acces">
+      <section id="acces" hidden={section !== "acces"}>
         <AccountRequestsSection
           isAdmin
           signupMode={signupMode}
@@ -216,7 +205,7 @@ export function AdminView({
           onChanged={() => router.refresh()}
         />
       </section>
-      <section id="page-publique">
+      <section id="page-publique" hidden={section !== "page-publique"}>
         <LandingSettingsForm settings={landingSettings} />
       </section>
     </div>

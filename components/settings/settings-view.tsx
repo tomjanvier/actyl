@@ -1,4 +1,5 @@
 "use client";
+import type { LandingSettings } from "@/lib/landing-settings";
 
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -154,14 +155,7 @@ export function SettingsView({
     monthlyContributionInterest: string | null;
     monthlyContributionAmount: number | null;
   }>;
-  landingSettings: {
-    heroTitle: string;
-    heroHighlight: string;
-    heroText: string;
-    primaryCta: string;
-    primaryHref: string;
-    footerText: string;
-  };
+  landingSettings: LandingSettings;
   oidcClients: Array<{
     id: string;
     clientId: string;

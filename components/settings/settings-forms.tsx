@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, UserPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import type { LandingSettings } from "@/lib/landing-settings";
 import { cn } from "@/lib/utils";
 import {
   createCustomFieldAction,
@@ -24,14 +25,7 @@ import { EntityAvatar } from "@/components/ui/badge";
 export function LandingSettingsForm({
   settings,
 }: {
-  settings: {
-    heroTitle: string;
-    heroHighlight: string;
-    heroText: string;
-    primaryCta: string;
-    primaryHref: string;
-    footerText: string;
-  };
+  settings: LandingSettings;
 }) {
   const [state, action, pending] = useActionState<
     { error?: string; ok?: boolean } | undefined,
@@ -44,35 +38,57 @@ export function LandingSettingsForm({
   }, [state]);
 
   return (
-    <form action={action} className="mt-6 rounded-xl crm-surface p-4">
-      <h2 className="text-[14px] font-semibold text-fg">Page publique</h2>
+    <form action={action} className="rounded-xl crm-surface p-4 sm:p-6">
+      <h2 className="text-[14px] font-semibold text-fg">Page d’accueil</h2>
       <p className="mt-1 text-[11.5px] text-faint">
         Ce contenu est commun à tous les espaces et modifiable uniquement par le super-administrateur.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div>
-          <Label>Titre principal</Label>
-          <Input name="heroTitle" defaultValue={settings.heroTitle} required />
+          <Label htmlFor="heroTitle">Titre principal</Label>
+          <Input id="heroTitle" name="heroTitle" defaultValue={settings.heroTitle} required />
         </div>
         <div>
-          <Label>Texte mis en valeur</Label>
-          <Input name="heroHighlight" defaultValue={settings.heroHighlight} required />
+          <Label htmlFor="heroHighlight">Texte mis en valeur</Label>
+          <Input id="heroHighlight" name="heroHighlight" defaultValue={settings.heroHighlight} required />
         </div>
         <div className="sm:col-span-2">
-          <Label>Texte d’introduction</Label>
-          <Textarea name="heroText" defaultValue={settings.heroText} required />
+          <Label htmlFor="heroText">Texte d’introduction</Label>
+          <Textarea id="heroText" name="heroText" defaultValue={settings.heroText} required />
         </div>
         <div>
-          <Label>Libellé du bouton</Label>
-          <Input name="primaryCta" defaultValue={settings.primaryCta} required />
+          <Label htmlFor="primaryCta">Libellé du bouton</Label>
+          <Input id="primaryCta" name="primaryCta" defaultValue={settings.primaryCta} required />
         </div>
         <div>
-          <Label>Lien du bouton</Label>
-          <Input name="primaryHref" defaultValue={settings.primaryHref} required />
+          <Label htmlFor="primaryHref">Lien du bouton</Label>
+          <Input id="primaryHref" name="primaryHref" defaultValue={settings.primaryHref} required />
+        </div>
+        <fieldset className="sm:col-span-2 space-y-3 border-t border-line pt-5">
+          <legend className="pt-5 text-sm font-semibold text-fg">Blocs de présentation</legend>
+          <p className="text-xs text-mut">Les six blocs apparaissent sous l’introduction, avant l’annuaire public.</p>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="min-w-0 space-y-2 rounded-lg border border-line p-3">
+                <Label htmlFor={`feature${i}Title`}>Titre du bloc {i}</Label>
+                <Input id={`feature${i}Title`} name={`feature${i}Title`} defaultValue={settings[`feature${i}Title` as keyof LandingSettings]} maxLength={120} required />
+                <Label htmlFor={`feature${i}Text`}>Description du bloc {i}</Label>
+                <Textarea id={`feature${i}Text`} name={`feature${i}Text`} defaultValue={settings[`feature${i}Text` as keyof LandingSettings]} maxLength={600} required />
+              </div>
+            ))}
+          </div>
+        </fieldset>
+        <div className="sm:col-span-2 border-t border-line pt-5">
+          <Label htmlFor="directoryTitle">Titre de l’annuaire public</Label>
+          <Input id="directoryTitle" name="directoryTitle" defaultValue={settings.directoryTitle} maxLength={120} required />
         </div>
         <div className="sm:col-span-2">
-          <Label>Pied de page</Label>
-          <Input name="footerText" defaultValue={settings.footerText} required />
+          <Label htmlFor="directoryText">Présentation de l’annuaire</Label>
+          <Textarea id="directoryText" name="directoryText" defaultValue={settings.directoryText} maxLength={600} required />
+        </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="footerText">Pied de page</Label>
+          <Input id="footerText" name="footerText" defaultValue={settings.footerText} required />
         </div>
       </div>
       <Button type="submit" size="sm" className="mt-4" disabled={pending}>

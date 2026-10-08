@@ -73,3 +73,25 @@ ajout ou retrait automatique de ces personnes n’a été effectué.
 Aucune demande d’accès n’était en attente : le flux d’approbation complet n’a
 pas été exercé avec un compte réel. Aucune migration de schéma ni publication
 en production n’a été effectuée dans cette livraison.
+
+## Correctif du 8 octobre 2026
+
+L’annuaire est replacé après les six blocs de présentation. La home est rendue
+à la demande afin de ne pas servir une page prérendue contenant un échec de
+chargement de l’annuaire ; les données de l’annuaire gardent leur cache dédié.
+Une erreur de chargement propose de réessayer. L’API et la home publiques ont
+répondu lors du diagnostic : l’incident signalé n’a pas été reproduit sur ces
+requêtes, mais le risque de figer un échec dans le rendu statique est supprimé.
+
+Les titres et descriptions des six blocs ainsi que les deux textes de l’annuaire
+se modifient dans Super administration → Page d’accueil. Le formulaire est
+validé côté serveur et réservé au super administrateur. La sauvegarde du contenu
+existant a créé les 14 réglages correspondants, sans changer les textes publics.
+Le menu passe de 252 à 224 px par défaut, reste redimensionnable et ancré au scroll.
+Les sections administratives s’affichent une à une sans perdre les champs saisis.
+
+Vérifications : lint, TypeScript et garde-fous du cache ; aperçu à 390 et 1280 px,
+zéro débordement horizontal et labels reliés aux champs. Build OpenNext sans
+DATABASE_URL, route `/` dynamique, dry-run Wrangler puis Worker local compilé :
+home 200 avec annuaire réel après les blocs, `/admin` authentifié et sauvegarde
+des réglages réussis. Aucun déploiement de ce correctif en production.

@@ -1,3 +1,4 @@
+import { DirectoryUnavailable } from "./directory-unavailable";
 import { db } from "@/lib/db";
 import { getDirectoryPage } from "@/lib/public-directory";
 import { EmbedListTable } from "@/components/public/embed-list-table";
@@ -13,7 +14,8 @@ export async function LandingDemoTable() {
     if (!list) return <p className="crm-surface rounded-xl p-6 text-sm text-mut">Aucun annuaire public n’est disponible pour le moment.</p>;
     const initialPage = await getDirectoryPage(list.id, 1, "", "", "", "", 10);
     return <EmbedListTable listName={list.name} description={list.description} rows={initialPage.rows} pageSize={10} listId={list.id} initialPage={initialPage} />;
-  } catch {
-    return <p className="p-4 text-sm text-mut">L’annuaire est temporairement indisponible.</p>;
+  } catch (error) {
+    console.error("[landing-directory] Loading failed", error instanceof Error ? { name: error.name, message: error.message } : { name: "UnknownError" });
+    return <DirectoryUnavailable />;
   }
 }

@@ -5,11 +5,11 @@
 Les textes principaux de la page d’accueil sont déjà modifiables sans changer le code :
 
 1. Connectez-vous avec le compte super-administrateur.
-2. Ouvrez **Paramètres → Espaces**.
-3. Dans **Page publique**, modifiez le titre, le texte mis en valeur, l’introduction, le libellé et le lien du bouton, puis le pied de page.
+2. Ouvrez **Super administration → Page d’accueil** (`/admin`).
+3. Modifiez le titre, l’introduction et le bouton, les titres et descriptions des six blocs, la présentation de l’annuaire public, puis le pied de page.
 4. Enregistrez. Les changements s’appliquent à la page `/`.
 
-Cette configuration est globale à toute l’instance Actyl. Les libellés « Connexion », « Créer mon espace », les six cartes de fonctionnalités, les titres de sections et le crédit technique sont encore écrits dans `app/page.tsx`.
+Cette configuration est globale à toute l’instance Actyl. L’ordre est : introduction → six blocs de présentation → annuaire public → pied de page. Les icônes, les libellés de connexion et d’inscription, ainsi que le crédit technique restent dans le code. Les paramètres historiques permettent aussi d’ouvrir le même formulaire depuis Paramètres → Espaces.
 
 ## Textes de l’outil
 
