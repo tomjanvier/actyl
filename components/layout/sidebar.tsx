@@ -41,10 +41,10 @@ import { PlaidActCredit } from "@/components/layout/plaidact-credit";
 import { ActylLogo } from "@/components/layout/actyl-logo";
 
 const RAIL_WIDTH = 60;
-const MIN_WIDTH = 208;
+const MIN_WIDTH = 192;
 const MAX_WIDTH = 360;
-const DEFAULT_WIDTH = 252;
-const WIDTH_KEY = "actyl_sidebar_width";
+const DEFAULT_WIDTH = 224;
+const WIDTH_KEY = "actyl_sidebar_width_v2";
 const COLLAPSED_KEY = "actyl_sidebar_collapsed";
 
 function clampWidth(value: number) {

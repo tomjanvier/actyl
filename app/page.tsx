@@ -17,6 +17,9 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LandingDemoTable } from "@/components/public/landing-demo-table";
 import { getLandingSettings } from "@/lib/landing-settings";
 
+// Resolve the live public directory at request time, never freeze a build-time failure.
+export const dynamic = "force-dynamic";
+
 export default async function LandingPage() {
   const settings = await getLandingSettings();
   const primaryButton = (
@@ -60,72 +63,41 @@ export default async function LandingPage() {
           </div>
         </section>
 
+        {/* Features */}
+        <section className="grid grid-cols-1 gap-4 pb-24 sm:grid-cols-2 lg:grid-cols-3">
+          {[Users, KanbanSquare, Megaphone, ShieldCheck, FileSignature, CalendarDays].map((Icon, i) => (
+            <div
+              key={i}
+              className="group ui-lift rounded-xl border border-line bg-card p-5"
+            >
+              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-elev text-mut ring-1 ring-inset ring-line transition-colors group-hover:text-accent-text">
+                <Icon className="size-4.5" />
+              </div>
+              <h3 className="text-[14px] font-semibold text-fg">
+                {settings[`feature${i + 1}Title` as keyof typeof settings]}
+              </h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-faint">
+                {settings[`feature${i + 1}Text` as keyof typeof settings]}
+              </p>
+            </div>
+          ))}
+        </section>
+
         {/* Demo directory */}
         <section id="annuaire" className="animate-fade-up pb-16">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <h2 className="text-[18px] font-semibold tracking-tight text-fg">
-                Un annuaire des décideurs, en accès direct
+                {settings.directoryTitle}
               </h2>
               <p className="mt-1 text-[13px] text-mut">
-                Recherchez et filtrez les contacts d’une liste publique, sans créer de compte.
+                {settings.directoryText}
               </p>
             </div>
           </div>
           <Suspense fallback={<div className="crm-surface rounded-xl p-6 text-sm text-mut" role="status">Chargement de l’annuaire public…</div>}>
             <LandingDemoTable />
           </Suspense>
-        </section>
-
-        {/* Features */}
-        <section className="grid grid-cols-1 gap-4 pb-24 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            {
-              icon: Users,
-              title: "Annuaire des décideurs",
-              desc: "Députés, sénateurs, eurodéputés, maires, patrons, presse : une base centralisée avec champs personnalisés, positions et scores d'influence.",
-            },
-            {
-              icon: KanbanSquare,
-              title: "Pipeline kanban",
-              desc: "Glissez-déposez chaque cible de « À contacter » à « Officiellement gagné·e ». Chaque mouvement est horodaté dans l'historique.",
-            },
-            {
-              icon: Megaphone,
-              title: "Interpellation citoyenne",
-              desc: "Une page publique par campagne : vos soutiens envoient en un clic des messages personnalisés aux décideurs cibles.",
-            },
-            {
-              icon: ShieldCheck,
-              title: "Rôles granulaires",
-              desc: "Admins, responsables campagne, militant·e·s, observateur·rice·s — chacun voit et fait exactement ce qu'il faut.",
-            },
-            {
-              icon: FileSignature,
-              title: "Pétitions publiques",
-              desc: "Une page de signature par campagne avec objectif, barre de progression et liste des derniers signataires.",
-            },
-            {
-              icon: CalendarDays,
-              title: "Événements & RSVP",
-              desc: "Réunions publiques, porte-à-porte, formations : publiez, suivez les inscriptions et mobilisez vos équipes.",
-            },
-          ].map((f) => (
-            <div
-              key={f.title}
-              className="group ui-lift rounded-xl border border-line bg-card p-5"
-            >
-              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-elev text-mut ring-1 ring-inset ring-line transition-colors group-hover:text-accent-text">
-                <f.icon className="size-4.5" />
-              </div>
-              <h3 className="text-[14px] font-semibold text-fg">
-                {f.title}
-              </h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-faint">
-                {f.desc}
-              </p>
-            </div>
-          ))}
         </section>
 
         {/* Footer */}
