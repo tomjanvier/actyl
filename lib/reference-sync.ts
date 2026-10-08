@@ -1,5 +1,6 @@
 import "server-only";
 
+import { parseCommissions } from "@/lib/commissions";
 import { db } from "@/lib/db";
 import { PRESIDENTIELLE_LISTS } from "@/lib/datasets/presidentielle-2027";
 import { REFERENCE_PACKS, type ReferencePackKey } from "@/lib/datasets/reference-packs";
@@ -127,10 +128,12 @@ type CurrentContact = {
   instagramUrl: string | null;
   youtubeUrl: string | null;
   mastodonUrl: string | null;
+  customValues: Array<{ value: string | null }>;
 };
 
 function changed(person: MergePerson, contact: CurrentContact) {
-  return ([
+  const membershipsChanged = person.commissions !== undefined && JSON.stringify([...person.commissions].sort()) !== JSON.stringify(parseCommissions(contact.customValues[0]?.value).sort());
+  return membershipsChanged || ([
     "firstName",
     "lastName",
     "email",
@@ -166,6 +169,7 @@ export async function syncReferenceListProposals(
           include: {
             contact: {
               select: {
+                customValues: { where: { field: { name: "commission" } }, select: { value: true } },
                 id: true,
                 firstName: true,
                 lastName: true,

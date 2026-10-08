@@ -86,7 +86,9 @@ export function ContactsView({
   politicalGroups = [],
   canAddPoliticalPosition = false,
   pagination,
+  activeCommission = "",
 }: {
+  activeCommission?: string;
   contacts: ContactRow[];
   fields: CustomFieldLite[];
   notes: Array<{
@@ -129,7 +131,7 @@ export function ContactsView({
   const [stanceFilter, setStanceFilter] = useState<string>("");
   const [partyFilter, setPartyFilter] = useState<string>("");
   const [institutionFilter, setInstitutionFilter] = useState<string>("");
-  const [commissionFilter, setCommissionFilter] = useState<string>("");
+  const commissionFilter = activeCommission;
   const [themeQuery, setThemeQuery] = useState<string>("");
   const [newsletterFilter, setNewsletterFilter] = useState<string>("");
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -169,7 +171,7 @@ export function ContactsView({
     );
   }
 
-  function changeDirectoryFilter(key: "unlisted" | "mandate", value: string) {
+  function changeDirectoryFilter(key: "unlisted" | "mandate" | "commission", value: string) {
     const params = new URLSearchParams(window.location.search);
     if (value) params.set(key, value); else params.delete(key);
     params.delete("page"); params.delete("contact");
@@ -217,7 +219,7 @@ export function ContactsView({
   }, []);
 
   const commissionField = fields.find(
-    (f) => f.type === "SELECT" || f.type === "MULTI_SELECT",
+    (f) => f.name === "commission" && (f.type === "SELECT" || f.type === "MULTI_SELECT"),
   );
   const commissions = useMemo(() => {
     if (!commissionField?.options) return [];
@@ -256,21 +258,6 @@ export function ContactsView({
         )
           return false;
       }
-      if (
-        commissionFilter &&
-        commissionField &&
-        (() => {
-          try {
-            const v = JSON.parse(c.customValues[commissionField.id] ?? "[]");
-            return Array.isArray(v)
-              ? !v.includes(commissionFilter)
-              : v !== commissionFilter;
-          } catch {
-            return c.customValues[commissionField.id ?? ""] !== commissionFilter;
-          }
-        })()
-      )
-        return false;
       if (themeQuery.trim()) {
         const themes = (c.themes ?? "").toLowerCase();
         if (!themes.includes(themeQuery.trim().toLowerCase())) return false;
@@ -287,8 +274,7 @@ export function ContactsView({
     });
   }, [
     contacts, query, levelFilter, stanceFilter, partyFilter,
-    institutionFilter, commissionFilter, themeQuery, newsletterFilter,
-    commissionField,
+    institutionFilter, themeQuery, newsletterFilter,
   ]);
 
   // ── Actions groupées de newsletter lorsque le module est actif ──
@@ -482,7 +468,8 @@ export function ContactsView({
         {commissions.length > 0 && commissionField && (
           <FilterSelect
             value={commissionFilter}
-            onChange={(e) => setCommissionFilter(e.target.value)}
+            onChange={(e) => changeDirectoryFilter("commission", e.target.value)}
+            disabled={isPending}
             active={!!commissionFilter}
             aria-label="Filtrer par commission"
           >

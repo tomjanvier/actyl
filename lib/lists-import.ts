@@ -1,3 +1,5 @@
+import { legacyContactMatcher, matchesEmailIdentity } from "@/lib/import-contact-match";
+import { fillContactCommissions } from "@/lib/commissions";
 import "server-only";
 import { db } from "@/lib/db";
 
@@ -121,7 +123,7 @@ export async function mergePeopleIntoList(
       skipped++;
       continue;
     }
-    cleaned.set(sourceKey(person) ?? emailKey(person) ?? identityKey(person), person);
+    cleaned.set(sourceKey(person) ?? identityKey(person), person);
   }
 
   // Indexe une seule fois l'annuaire de l'espace avec des clés normalisées.
@@ -132,6 +134,8 @@ export async function mergePeopleIntoList(
       firstName: true,
       lastName: true,
       institution: true,
+      title: true,
+      party: true,
       email: true,
       sourceSystem: true,
       sourceId: true,
@@ -141,6 +145,7 @@ export async function mergePeopleIntoList(
       mastodonUrl: true,
     },
   });
+  const matchLegacy = legacyContactMatcher(existing);
   const index = new Map<string, string>();
   for (const c of existing) {
     index.set(identityKey(c), c.id);
@@ -158,8 +163,12 @@ export async function mergePeopleIntoList(
     const stableKey = sourceKey(person);
     const contactId =
       (stableKey ? index.get(stableKey) : undefined) ?? index.get(identityKey(person));
-    const matchedId = contactId ?? index.get(emailKey(person) ?? "");
+    const emailId = index.get(emailKey(person) ?? "");
+    const emailMatch = matchesEmailIdentity(person, existingById.get(emailId ?? "")) ? emailId : undefined;
+    const matchedId = contactId ?? emailMatch ?? matchLegacy({ ...person, institution: person.institution ?? null, title: person.title ?? null, party: person.party ?? null, sourceSystem: person.sourceSystem ?? null, sourceId: person.sourceId ?? null });
     if (!matchedId) continue;
+    index.set(sourceKey(person) ?? identityKey(person), matchedId);
+    index.set(identityKey(person), matchedId);
     if (stableKey) index.set(stableKey, matchedId);
     const contact = existingById.get(matchedId);
     if (!contact) continue;
@@ -177,9 +186,10 @@ export async function mergePeopleIntoList(
     if (Object.keys(data).length) enrichments.set(matchedId, data);
   }
   if (enrichments.size) {
-    await db.$transaction(
-      [...enrichments].map(([id, data]) => db.contact.update({ where: { id }, data })),
-    );
+    const entries = [...enrichments];
+    for (let offset = 0; offset < entries.length; offset += 8) {
+      await Promise.all(entries.slice(offset, offset + 8).map(([id, data]) => db.contact.update({ where: { id }, data })));
+    }
   }
 
   const listItems = await db.listItem.findMany({
@@ -251,6 +261,12 @@ export async function mergePeopleIntoList(
   const linked = toLink.length
     ? await db.listItem.createMany({ data: toLink, skipDuplicates: true })
     : { count: 0 };
+
+  await fillContactCommissions(workspaceId, [...cleaned.values()].flatMap(person => {
+    const stableKey = sourceKey(person);
+    const contactId = (stableKey ? index.get(stableKey) : undefined) ?? index.get(identityKey(person));
+    return contactId ? [{ contactId, commissions: person.commissions }] : [];
+  }));
 
   return {
     created: created.count,

@@ -171,6 +171,7 @@ export async function importSenat(): Promise<ImportedContact[]> {
   const iCirco = idx("Circonscription");
   const iMail = idx("Courrier électronique");
   const iMatricule = idx("Matricule");
+  const iCommission = idx("Commission permanente");
 
   const out: ImportedContact[] = [];
   for (const line of lines.slice(1)) {
@@ -195,6 +196,7 @@ export async function importSenat(): Promise<ImportedContact[]> {
       level: "NATIONAL",
       sourceSystem: "senat",
       sourceId: matricule || null,
+      commissions: iCommission >= 0 && cols[iCommission]?.trim() ? [cols[iCommission]!.trim()] : [],
     });
   }
   await discardUnavailablePhotos(out);
@@ -301,10 +303,11 @@ export async function importParlementEuropeen(
   async function loadOrg(orgId: string): Promise<string> {
     if (orgCache.has(orgId)) return orgCache.get(orgId)!;
     try {
-      const res = await fetchWithTimeout(`${EP_BASE}/${orgId}`, { headers: LD }, 30_000);
+      const res = await fetchWithTimeout(`${EP_BASE}/corporate-bodies/${encodeURIComponent(orgId.replace(/^org\//, ""))}`, { headers: LD }, 30_000);
       if (res.ok) {
         const json = (await res.json()) as EuropeanParliamentResponse;
-        const label = json?.data?.[0]?.label ?? "";
+        const body = json?.data?.[0];
+        const label = body?.altLabel?.fr ?? body?.label ?? "";
         orgCache.set(orgId, label);
         return label;
       }
@@ -328,6 +331,7 @@ export async function importParlementEuropeen(
       const p = s.value.data[0];
       // Ne conserve que les membres dont l'URI de citoyenneté se termine par FRA.
       const memberships: any[] = p.hasMembership ?? [];
+      const committeeOrgs = new Set<string>();
       let euGroupOrg: string | null = null;
       let nationalGroupOrg: string | null = null;
       for (const mem of memberships) {
@@ -335,9 +339,11 @@ export async function importParlementEuropeen(
         if (mem?.memberDuring?.endDate) continue; // Mandats en cours uniquement.
         const orgId = typeof mem?.organization === "string" ? mem.organization : null;
         if (!orgId) continue;
+        if (cls.includes("COMMITTEE_PARLIAMENTARY")) committeeOrgs.add(orgId);
         if (cls.includes("EU_POLITICAL_GROUP")) euGroupOrg ??= orgId;
         if (cls.includes("NATIONAL_POLITICAL_GROUP")) nationalGroupOrg ??= orgId;
       }
+      const commissions = (await Promise.all([...committeeOrgs].map(loadOrg))).filter(Boolean);
       const party = nationalGroupOrg ? await loadOrg(nationalGroupOrg) : "";
       const group = euGroupOrg ? await loadOrg(euGroupOrg) : "";
 
@@ -358,6 +364,7 @@ export async function importParlementEuropeen(
         level: "EU",
         sourceSystem: "parlement-europeen",
         sourceId: String(p.identifier),
+        commissions,
       });
     }
     done += batch.length;

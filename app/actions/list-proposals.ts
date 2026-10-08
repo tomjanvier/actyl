@@ -4,6 +4,8 @@ import { invalidatePublicDirectory } from "@/lib/public-directory";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { withDbTransaction } from "@/lib/db-transaction";
+import { ensureCommissionField } from "@/lib/commissions";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
@@ -115,7 +117,7 @@ export async function approveListChangeProposalAction(proposalId: string) {
   if (!session) throw new Error("Non authentifié");
   if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
 
-  await db.$transaction(async (tx) => {
+  await withDbTransaction(async (tx) => {
     const proposal = await tx.listChangeProposal.findFirst({
       where: { id: proposalId, status: "PENDING" },
       include: { list: { select: { id: true, sourcePack: true, workspaceId: true } } },
@@ -175,10 +177,9 @@ export async function approveListChangeProposalAction(proposalId: string) {
     });
     const commissionFieldByWorkspace = new Map<string, string>();
     for (const referenceList of referenceLists) {
-      const field = await tx.customField.findFirst({
-        where: { workspaceId: referenceList.workspaceId, name: "commission" },
-        select: { id: true },
-      });
+      const field = person.commissions !== undefined
+        ? await ensureCommissionField(referenceList.workspaceId, person.commissions, tx)
+        : await tx.customField.findFirst({ where: { workspaceId: referenceList.workspaceId, name: "commission" }, select: { id: true } });
       if (field) commissionFieldByWorkspace.set(referenceList.workspaceId, field.id);
     }
 
@@ -248,7 +249,7 @@ export async function approveListChangeProposalAction(proposalId: string) {
           update: {},
         });
         const fieldId = commissionFieldByWorkspace.get(referenceList.workspaceId);
-        if (fieldId && person.commissions?.length) {
+        if (fieldId && person.commissions !== undefined) {
           await tx.customFieldValue.upsert({
             where: { fieldId_contactId: { fieldId, contactId: contact.id } },
             create: { fieldId, contactId: contact.id, value: JSON.stringify(person.commissions) },
@@ -287,7 +288,7 @@ export async function approveListChangeProposalAction(proposalId: string) {
           },
         });
         const fieldId = commissionFieldByWorkspace.get(referenceList.workspaceId);
-        if (fieldId && person.commissions?.length) {
+        if (fieldId && person.commissions !== undefined) {
           await tx.customFieldValue.upsert({
             where: { fieldId_contactId: { fieldId, contactId: contact.id } },
             create: { fieldId, contactId: contact.id, value: JSON.stringify(person.commissions) },

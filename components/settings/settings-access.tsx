@@ -38,16 +38,28 @@ export function AccountRequestsSection({
   onChanged: () => void;
 }) {
   const [mode, setMode] = useState(signupMode);
+  const [busy, setBusy] = useState<string | null>(null);
 
   async function changeMode(next: "OPEN" | "APPROVAL") {
-    setMode(next);
-    await setSignupModeAction(next);
-    toast.success(
-      next === "OPEN"
-        ? "Inscriptions ouvertes : création de compte immédiate."
-        : "Inscriptions modérées : les demandes doivent être approuvées.",
-    );
-    onChanged();
+    if (busy) return;
+    setBusy("mode");
+    try {
+      await setSignupModeAction(next);
+      setMode(next);
+      toast.success(next === "OPEN" ? "Inscriptions ouvertes." : "Demandes soumises à validation.");
+      onChanged();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Modification impossible"); }
+    finally { setBusy(null); }
+  }
+  async function review(id: string, approve: boolean) {
+    if (busy) return;
+    setBusy(id);
+    try {
+      await (approve ? approveAccountRequestAction(id) : rejectAccountRequestAction(id));
+      toast.success(approve ? "Compte approuvé" : "Demande refusée");
+      onChanged();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Traitement impossible"); }
+    finally { setBusy(null); }
   }
 
   return (
@@ -62,6 +74,8 @@ export function AccountRequestsSection({
         {isAdmin && (
           <div className="flex items-center gap-1 rounded-lg bg-elev p-1 ring-1 ring-inset ring-line">
             <button
+              disabled={busy !== null}
+              aria-pressed={mode === "OPEN"}
               onClick={() => void changeMode("OPEN")}
               className={cn(
                 "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
@@ -71,6 +85,8 @@ export function AccountRequestsSection({
               Ouvert
             </button>
             <button
+              disabled={busy !== null}
+              aria-pressed={mode === "APPROVAL"}
               onClick={() => void changeMode("APPROVAL")}
               className={cn(
                 "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
@@ -83,6 +99,7 @@ export function AccountRequestsSection({
         )}
       </div>
 
+      {pending.length === 0 && <p className="mt-4 border-t border-linesoft pt-3 text-sm text-mut">Aucune demande en attente.</p>}
       {pending.length > 0 && (
         <ul className="mt-4 flex flex-col gap-2 border-t border-linesoft pt-3">
           <li className="text-[11px] font-semibold uppercase tracking-wider text-faint">
@@ -117,23 +134,16 @@ export function AccountRequestsSection({
                 <div className="flex shrink-0 items-center gap-2">
                   <Button
                     size="sm"
-                    onClick={() =>
-                      void approveAccountRequestAction(r.id)
-                        .then(() => {
-                          toast.success(`Compte créé pour ${r.orgName}`);
-                          onChanged();
-                        })
-                        .catch((e: Error) => toast.error(e.message))
-                    }
+                    disabled={busy !== null}
+                    onClick={() => void review(r.id, true)}
                   >
                     Approuver
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      void rejectAccountRequestAction(r.id).then(onChanged)
-                    }
+                    disabled={busy !== null}
+                    onClick={() => void review(r.id, false)}
                   >
                     Refuser
                   </Button>

@@ -8,6 +8,7 @@ import { EntityAvatar } from "@/components/ui/badge";
 import { FilterSelect, SearchField } from "@/components/ui/filter-bar";
 
 type EmbedRow = {
+  commissions?: string[];
   id: string;
   firstName: string;
   lastName: string;
@@ -128,16 +129,16 @@ export function EmbedListTable({
   return (
     <div className="crm-surface rounded-xl">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2.5">
-        <h1 className="mr-2 truncate text-[13.5px] font-semibold text-fg">
+        <h2 className="mr-2 truncate text-[13.5px] font-semibold text-fg">
           {listName}
           <span className="ml-2 font-normal text-faint tabular-nums">({total})</span>
-        </h1>
+        </h2>
         {description && (
           <p className="hidden max-w-xs truncate text-[11.5px] text-faint md:block">
             {description}
           </p>
         )}
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        <div className="flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto [&>span]:max-w-full [&_select]:max-w-full">
           <SearchField
             value={query}
             onValueChange={(value) => resetPage(() => setQuery(value))}
@@ -212,6 +213,7 @@ export function EmbedListTable({
                   {[r.title, r.party].filter(Boolean).join(" · ") || "—"}
                 </p>
               </div>
+              {r.commissions?.length ? <span title={r.commissions.join(" · ")} className="hidden max-w-48 truncate rounded-md bg-elev px-2 py-1 text-[11px] text-mut md:block">{r.commissions.join(" · ")}</span> : null}
               <span className="hidden w-32 truncate text-right text-[11px] text-faint sm:block">
                 {r.region ?? ""}
               </span>

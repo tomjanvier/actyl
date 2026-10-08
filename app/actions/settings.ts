@@ -2,6 +2,8 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
+import { accountRequestContributions } from "@/lib/account-request-contributions";
+import { withDbTransaction } from "@/lib/db-transaction";
 import { db } from "@/lib/db";
 import { getSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { can, ROLES, type Role } from "@/lib/constants";
@@ -43,17 +45,14 @@ export async function saveLandingPageSettingsAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Contenu invalide" };
   }
-  await db.$transaction(
-    Object.entries(parsed.data).map(([key, value]) =>
-      db.appSetting.upsert({
-        where: { key: `landing_${key}` },
-        create: { key: `landing_${key}`, value },
-        update: { value },
-      }),
-    ),
-  );
+  await withDbTransaction(async tx => {
+    for (const [key, value] of Object.entries(parsed.data)) await tx.appSetting.upsert({
+      where: { key: `landing_${key}` }, create: { key: `landing_${key}`, value }, update: { value },
+    });
+  });
   revalidateTag("landing-settings");
   revalidatePath("/");
+  revalidatePath("/admin");
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -83,6 +82,7 @@ export async function createWorkspaceAction(
       },
     },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   revalidatePath("/", "layout");
   return { ok: true };
@@ -150,6 +150,7 @@ export async function createCustomFieldAction(
       position: count,
     },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   revalidatePath("/contacts");
   return { ok: true };
@@ -162,6 +163,7 @@ export async function deleteCustomFieldAction(fieldId: string) {
   await db.customField.deleteMany({
     where: { id: fieldId, workspaceId: session.workspaceId },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   revalidatePath("/contacts");
 }
@@ -189,6 +191,7 @@ export async function createGroupAction(
       color,
     },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -200,6 +203,7 @@ export async function deleteGroupAction(groupId: string) {
   await db.group.deleteMany({
     where: { id: groupId, workspaceId: session.workspaceId },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -222,6 +226,7 @@ export async function addMembershipToGroupAction(input: {
     create: { groupId: group.id, membershipId: membership.id },
     update: {},
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -230,6 +235,7 @@ export async function removeGroupMemberAction(groupMemberId: string) {
   if (!session) throw new Error("Non authentifié");
   if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
   await db.groupMember.deleteMany({ where: { id: groupMemberId, group: { workspaceId: session.workspaceId } } });
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -250,6 +256,7 @@ export async function updateMemberRoleAction(
   if (membership.userId === session.user.id && role !== "ADMIN")
     return { error: "Vous ne pouvez pas retirer votre propre rôle admin." };
   await db.membership.update({ where: { id: membershipId }, data: { role } });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -286,6 +293,7 @@ export async function inviteMemberAction(
   await db.membership.create({
     data: { userId: user.id, workspaceId: session.workspaceId, role },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -301,6 +309,7 @@ export async function removeMemberAction(membershipId: string) {
   if (membership.userId === session.user.id)
     throw new Error("Vous ne pouvez pas vous retirer vous-même.");
   await db.membership.delete({ where: { id: membershipId } });
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -346,6 +355,7 @@ export async function updateProfileAction(
     data.passwordHash = await hashPassword(newPassword);
   }
   await db.user.update({ where: { id: session.user.id }, data });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -353,11 +363,13 @@ export async function updateProfileAction(
 // ── Demandes de compte modérées ──────────────────────────────────────────────
 
 export async function setSignupModeAction(mode: "OPEN" | "APPROVAL") {
+  if (mode !== "OPEN" && mode !== "APPROVAL") throw new Error("Mode invalide");
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
   const { setSignupMode } = await import("@/lib/signup-mode");
   await setSignupMode(mode);
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -366,54 +378,56 @@ export async function approveAccountRequestAction(requestId: string) {
   if (!session) throw new Error("Non authentifié");
   if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
 
-  const req = await db.accountRequest.findUnique({ where: { id: requestId } });
-  if (!req || req.status !== "PENDING") throw new Error("Demande introuvable");
+  await withDbTransaction(async tx => {
+    const req = await tx.accountRequest.findUnique({ where: { id: requestId }, select: { id: true, status: true, email: true, name: true, passwordHash: true, orgName: true, website: true, phone: true } });
+    if (!req || req.status !== "PENDING") throw new Error("Demande introuvable");
+    const claimed = await tx.accountRequest.updateMany({ where: { id: requestId, status: "PENDING" }, data: { status: "APPROVED" } });
+    if (claimed.count !== 1) throw new Error("Demande déjà traitée");
 
-  let user = await db.user.findUnique({ where: { email: req.email } });
-  if (!user) {
-    user = await db.user.create({
+    const contribution = (await accountRequestContributions([requestId], tx)).get(requestId);
+    let user = await tx.user.findUnique({ where: { email: req.email } });
+    if (!user) {
+      user = await tx.user.create({
+        data: {
+          email: req.email,
+          name: req.name,
+          passwordHash: req.passwordHash,
+        },
+      });
+    }
+
+    let slug = req.orgName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "")
+      .slice(0, 50) || `org-${Date.now()}`;
+    if (await tx.workspace.findUnique({ where: { slug } })) {
+      slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+    }
+
+    await tx.workspace.create({
       data: {
-        email: req.email,
-        name: req.name,
-        passwordHash: req.passwordHash,
+        name: req.orgName,
+        slug,
+        website: req.website,
+        phone: req.phone,
+        monthlyContributionInterest: contribution?.interest ?? null,
+        monthlyContributionAmount: contribution?.amount ?? null,
+        memberships: {
+          create: [
+            { userId: user.id, role: "ADMIN" },
+            ...(user.id === session.user.id
+              ? []
+              : [{ userId: session.user.id, role: "ADMIN" }]),
+          ],
+        },
       },
     });
-  }
 
-  let slug = req.orgName
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "")
-    .slice(0, 50) || `org-${Date.now()}`;
-  if (await db.workspace.findUnique({ where: { slug } })) {
-    slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
-  }
-
-  await db.workspace.create({
-    data: {
-      name: req.orgName,
-      slug,
-      website: req.website,
-      phone: req.phone,
-      monthlyContributionInterest: req.monthlyContributionInterest,
-      monthlyContributionAmount: req.monthlyContributionAmount,
-      memberships: {
-        create: [
-          { userId: user.id, role: "ADMIN" },
-          ...(user.id === session.user.id
-            ? []
-            : [{ userId: session.user.id, role: "ADMIN" }]),
-        ],
-      },
-    },
   });
-
-  await db.accountRequest.update({
-    where: { id: requestId },
-    data: { status: "APPROVED" },
-  });
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -421,10 +435,11 @@ export async function rejectAccountRequestAction(requestId: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (!session.user.isSuperAdmin) throw new Error("Réservé au super-administrateur");
-  await db.accountRequest.update({
-    where: { id: requestId },
-    data: { status: "REJECTED" },
+  const result = await db.accountRequest.updateMany({
+    where: { id: requestId, status: "PENDING" }, data: { status: "REJECTED" },
   });
+  if (result.count !== 1) throw new Error("Demande introuvable ou déjà traitée");
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -450,6 +465,7 @@ export async function createApiTokenAction(input: {
   await db.apiToken.create({
     data: { workspaceId: session.workspaceId, name, tokenHash: hash, prefix },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   // La valeur en clair n'est renvoyée qu'une fois ; seul son condensat est stocké.
   return { ok: true, plaintext, prefix };
@@ -463,6 +479,7 @@ export async function revokeApiTokenAction(tokenId: string) {
     where: { id: tokenId, workspaceId: session.workspaceId },
     data: { revokedAt: new Date() },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
 }
 
@@ -483,6 +500,7 @@ export async function setSegmentFlagAction(
     create: { key: scopedKey, value: enabled ? "on" : "off" },
     update: { value: enabled ? "on" : "off" },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   revalidatePath("/contacts");
 }
@@ -513,6 +531,7 @@ export async function setNewsletterModuleAction(enabled: boolean) {
     create: { key, value: enabled ? "on" : "off" },
     update: { value: enabled ? "on" : "off" },
   });
+  revalidatePath("/admin");
   revalidatePath("/settings");
   revalidatePath("/contacts");
 }
@@ -563,6 +582,7 @@ export async function saveNewsletterSettingsAction(input: {
       update: { value: "on" },
     }),
   ]);
+  revalidatePath("/admin");
   revalidatePath("/settings");
   revalidatePath("/contacts");
   return { ok: true, listName: test.listName };

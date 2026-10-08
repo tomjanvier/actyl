@@ -1,5 +1,7 @@
 "use server";
 
+import { legacyContactMatcher } from "@/lib/import-contact-match";
+import { fillContactCommissions } from "@/lib/commissions";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -76,6 +78,7 @@ async function upsertImported(
     instagramUrl: c.instagramUrl,
     youtubeUrl: c.youtubeUrl,
     mastodonUrl: c.mastodonUrl,
+    commissions: c.commissions,
     note: null,
   }));
   if (listId) {
@@ -98,6 +101,7 @@ async function mergePeopleIntoDirectory(
     party: string | null;
     region: string | null;
     level: string;
+    commissions?: string[];
     sourceSystem?: string | null;
     sourceId?: string | null;
     facebookUrl?: string | null;
@@ -114,6 +118,8 @@ async function mergePeopleIntoDirectory(
       firstName: true,
       lastName: true,
       institution: true,
+      title: true,
+      party: true,
       sourceSystem: true,
       sourceId: true,
       facebookUrl: true,
@@ -122,6 +128,7 @@ async function mergePeopleIntoDirectory(
       mastodonUrl: true,
     },
   });
+  const matchLegacy = legacyContactMatcher(existing);
   const index = new Map<string, string>();
   for (const contact of existing) {
     index.set(
@@ -150,7 +157,7 @@ async function mergePeopleIntoDirectory(
         ? `source:${norm(p.sourceSystem)}|${norm(p.sourceId)}`
         : null;
     const existingId =
-      (sourceKey ? index.get(sourceKey) : undefined) ?? index.get(identityKey);
+      (sourceKey ? index.get(sourceKey) : undefined) ?? index.get(identityKey) ?? matchLegacy({ ...p, sourceSystem: p.sourceSystem ?? null, sourceId: p.sourceId ?? null });
     if (existingId) {
       const contact = existingById.get(existingId);
       if (contact) {
@@ -205,6 +212,11 @@ async function mergePeopleIntoDirectory(
     if (sourceKey) index.set(sourceKey, "created");
     created++;
   }
+  const commissionContacts = await db.contact.findMany({ where: { workspaceId }, select: { id: true, firstName: true, lastName: true, institution: true, sourceSystem: true, sourceId: true } });
+  await fillContactCommissions(workspaceId, people.flatMap(person => {
+    const contact = commissionContacts.find(c => (person.sourceId && c.sourceId === person.sourceId && c.sourceSystem === person.sourceSystem) || (norm(c.firstName) === norm(person.firstName) && norm(c.lastName) === norm(person.lastName) && norm(c.institution) === norm(person.institution)));
+    return contact ? [{ contactId: contact.id, commissions: person.commissions }] : [];
+  }));
   return { created, linked: 0, already: 0, skipped };
 }
 

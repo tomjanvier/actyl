@@ -1,8 +1,10 @@
 import "server-only";
 import { unstable_cache, revalidateTag } from "next/cache";
+import { parseCommissions } from "@/lib/commission-values";
 import { db } from "@/lib/db";
 
 export const publicContactSelection = {
+  customValues: { where: { field: { name: "commission" } }, select: { value: true } },
   id: true, firstName: true, lastName: true, title: true, institution: true,
   party: true, region: true, level: true, stance: true, photoUrl: true, themes: true,
 } as const;
@@ -32,7 +34,7 @@ const loadDirectoryPage = async (id: string, page: number, query: string, level:
   const loadRows = (page: number) => db.contact.findMany({
     where, select: publicContactSelection,
     orderBy: [...orderBy], skip: (page - 1) * pageSize, take: pageSize,
-  });
+  }).then(rows => rows.map(({ customValues, ...row }) => ({ ...row, commissions: parseCommissions(customValues[0]?.value) })));
   const [total, facets, requestedRows] = await Promise.all([
     db.contact.count({ where }),
     getDirectoryFacets(id),
@@ -43,7 +45,7 @@ const loadDirectoryPage = async (id: string, page: number, query: string, level:
   return { rows, total, page: currentPage, parties: [...new Set(facets.flatMap(r => r.party ? [r.party] : []))].sort(), institutions: [...new Set(facets.flatMap(r => r.institution ? [r.institution] : []))].sort() };
 };
 
-const cachedDirectoryPage = unstable_cache(loadDirectoryPage, ["public-directory-v1"], { revalidate: 60, tags: ["public-directory"] });
+const cachedDirectoryPage = unstable_cache(loadDirectoryPage, ["public-directory-v2"], { revalidate: 60, tags: ["public-directory"] });
 export function getDirectoryPage(id: string, page: number, query: string, level: string, party: string, institution: string, pageSize: number) {
   // Search terms must not create an unbounded persistent cache.
   const load = query || level || party || institution ? loadDirectoryPage : cachedDirectoryPage;

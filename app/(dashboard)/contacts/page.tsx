@@ -24,6 +24,7 @@ export default async function ContactsPage({
   searchParams,
 }: {
   searchParams: Promise<{
+    commission?: string;
     category?: string;
     page?: string;
     list?: string;
@@ -35,6 +36,7 @@ export default async function ContactsPage({
   const session = await requireSession();
   const {
     category,
+    commission,
     page: pageParam,
     list: requestedListId,
     contact: initialContactId,
@@ -81,10 +83,13 @@ export default async function ContactsPage({
     category && enabledCategories.has(category) ? category : null;
 
   // La pagination serveur limite la réponse à cent contacts.
-  const page = Math.max(1, Number(pageParam) || 1);
+  const requestedPage = Number(pageParam);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage <= 10000 ? requestedPage : 1;
+  const activeCommission = commission && commission.length <= 300 ? commission : "";
   const newsletterEnabled = newsletter.enabled;
   const where = {
     workspaceId: session.workspaceId,
+    ...(activeCommission ? { customValues: { some: { field: { workspaceId: session.workspaceId, name: "commission" }, OR: [{ value: { contains: JSON.stringify(activeCommission) } }, { value: activeCommission }] } } } : {}),
     ...(activeCategory ? { category: activeCategory } : {}),
     ...(activeList
       ? { listItems: { some: { listId: activeList.id } } }
@@ -243,6 +248,7 @@ export default async function ContactsPage({
         }
       />
       <ContactsView
+        activeCommission={activeCommission}
         contacts={serialized}
         fields={fields.map((f) => ({
           id: f.id,
