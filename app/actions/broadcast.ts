@@ -6,12 +6,14 @@
  * moteur d'interpellation, via Resend ou le mode simulé.
  */
 
+import { Prisma } from "@/generated/prisma/client";
+import { supporterSearchWhere } from "@/lib/supporter-search";
+import { EMAIL_BATCH_LIMIT, EMAIL_BATCH_ERROR } from "@/lib/email-batch";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
 import { dispatchEmail, wrapEmailHtml } from "@/lib/email";
 
-const MAX_BATCH = 500;
 const MAX_SUBJECT = 200;
 const MAX_BODY = 8000;
 
@@ -22,17 +24,16 @@ export type BroadcastAudience = {
   tag?: string;
 };
 
+function audienceWhere(workspaceId: string, audience: BroadcastAudience) {
+  return Prisma.sql`${supporterSearchWhere(workspaceId, { q: "", source: audience.source?.trim() ?? "", tag: audience.tag?.trim() ?? "" })} AND btrim("email") <> ''`;
+}
+
 async function resolveRecipients(workspaceId: string, audience: BroadcastAudience) {
-  return db.supporter.findMany({
-    where: {
-      workspaceId,
-      ...(audience.source ? { source: audience.source } : {}),
-      ...(audience.tag ? { tags: { contains: audience.tag } } : {}),
-    },
-    select: { id: true, email: true, name: true },
-    orderBy: { lastSeenAt: "desc" },
-    take: MAX_BATCH,
-  });
+  const where = audienceWhere(workspaceId, audience);
+  return db.$queryRaw<Array<{ id: string; email: string; name: string }>>(Prisma.sql`
+    SELECT "id", "email", "name" FROM "supporters" WHERE ${where}
+    ORDER BY "lastSeenAt" DESC, "id" ASC LIMIT ${EMAIL_BATCH_LIMIT + 1}
+  `);
 }
 
 /** Aperçu permettant d'afficher le nombre de destinataires avant l'envoi. */
@@ -42,8 +43,11 @@ export async function countBroadcastAudienceAction(
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
   if (!can(session.role, "email:send")) return { error: "Permission refusée" };
-  const recipients = await resolveRecipients(session.workspaceId, audience);
-  return { count: recipients.filter((r) => r.email).length };
+  const where = audienceWhere(session.workspaceId, audience);
+  const rows = await db.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+    SELECT count(*)::int AS count FROM "supporters" WHERE ${where}
+  `);
+  return { count: rows[0]?.count ?? 0 };
 }
 
 export async function sendBroadcastAction(input: {
@@ -65,6 +69,7 @@ export async function sendBroadcastAction(input: {
 
   const recipients = (await resolveRecipients(session.workspaceId, input.audience))
     .filter((r) => r.email);
+  if (recipients.length > EMAIL_BATCH_LIMIT) return { error: EMAIL_BATCH_ERROR };
   if (!recipients.length) return { error: "Aucun destinataire dans ce segment." };
 
   const workspaceName = session.workspaceName;

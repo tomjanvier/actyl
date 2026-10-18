@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { EMAIL_BATCH_LIMIT } from "@/lib/email-batch";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -46,6 +47,7 @@ type SignatureRow = {
 
 export function SignaturesView({
   campaignId,
+  filters,
   campaignSlug,
   workspaceSlug,
   canManage,
@@ -55,6 +57,7 @@ export function SignaturesView({
   pagination,
 }: {
   campaignId: string;
+  filters: { q: string; city: string };
   campaignSlug: string;
   workspaceSlug: string;
   canManage: boolean;
@@ -69,22 +72,23 @@ export function SignaturesView({
   pagination: { page: number; pageCount: number; total: number };
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [cityF, setCityF] = useState("");
+  const [query, setQuery] = useState(filters.q);
+  const [cityF, setCityF] = useState(filters.city);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
 
-  // Affine côté client la page courante ; le serveur gère aussi la recherche.
-  // Le paramètre ?q= permet une recherche entre plusieurs pages.
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return signatures.filter((s) => {
-      if (cityF && s.city !== cityF) return false;
-      if (!q) return true;
-      return `${s.name} ${s.email} ${s.city ?? ""}`.toLowerCase().includes(q);
-    });
-  }, [signatures, query, cityF]);
+  const [isPending, startTransition] = useTransition();
+  const filtered = signatures;
+
+  function applyFilters() {
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries({ q: query.trim(), city: cityF })) {
+      if (value) params.set(key, value); else params.delete(key);
+    }
+    params.delete("page");
+    startTransition(() => router.push(`/campaigns/${campaignId}/signatures${params.size ? `?${params}` : ""}`, { scroll: false }));
+  }
 
   const allChecked = filtered.length > 0 && filtered.every((s) => checked.has(s.id));
 
@@ -107,48 +111,60 @@ export function SignaturesView({
   }
 
   async function exportCsv() {
+    if (busy) return;
     setBusy("export");
-    const res = await exportSignaturesCsvAction({ campaignId });
-    setBusy(null);
-    if ("csv" in res && res.csv !== undefined) {
-      downloadFile(
-        res.csv,
-        `signataires-${campaignSlug}-${new Date().toISOString().slice(0, 10)}.csv`,
-        "text/csv",
-      );
-      toast.success(`${res.count} signature(s) exportée(s)`);
-    } else if ("error" in res) toast.error(res.error);
+    try {
+      const res = await exportSignaturesCsvAction({ campaignId });
+      if ("csv" in res && res.csv !== undefined) {
+        downloadFile(
+          res.csv,
+          `signataires-${campaignSlug}-${new Date().toISOString().slice(0, 10)}.csv`,
+          "text/csv",
+        );
+        toast.success(`${res.count} signature(s) exportée(s)`);
+      } else if ("error" in res) toast.error(res.error);
+    } catch {
+      toast.error("L’action a échoué. Réessayez.");
+    } finally { setBusy(null); }
   }
 
   async function deleteSelected() {
     if (!checked.size || busy) return;
     if (!confirm(`Supprimer définitivement ${checked.size} signature(s) ?`)) return;
     setBusy("delete");
-    const res = await deleteSignaturesAction({
-      campaignId,
-      ids: [...checked],
-    });
-    setBusy(null);
-    if ("ok" in res) {
-      toast.success(`${res.deleted} signature(s) supprimée(s)`);
-      setChecked(new Set());
-      router.refresh();
-    } else toast.error(res.error);
+    try {
+      const res = await deleteSignaturesAction({
+        campaignId,
+        ids: [...checked],
+      });
+      if ("ok" in res) {
+        toast.success(`${res.deleted} signature(s) supprimée(s)`);
+        setChecked(new Set());
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("L’action a échoué. Réessayez.");
+    } finally { setBusy(null); }
   }
 
   async function convertSelected() {
     if (!checked.size || busy) return;
     setBusy("convert");
-    const res = await convertSignaturesToContactsAction({
-      campaignId,
-      ids: [...checked],
-    });
-    setBusy(null);
-    if ("ok" in res) {
-      toast.success(
-        `${res.created} contact(s) créé(s), ${res.updated} mis à jour dans le répertoire.`,
-      );
-    } else toast.error(res.error);
+    try {
+      const res = await convertSignaturesToContactsAction({
+        campaignId,
+        ids: [...checked],
+      });
+      if ("ok" in res) {
+        toast.success(
+          `${res.created} contact(s) créé(s), ${res.updated} mis à jour dans le répertoire.`,
+        );
+        setChecked(new Set());
+        router.refresh();
+      } else toast.error(res.error);
+    } catch {
+      toast.error("La conversion a échoué. Réessayez.");
+    } finally { setBusy(null); }
   }
 
   if (!petition) {
@@ -219,6 +235,7 @@ export function SignaturesView({
 
       {/* Toolbar */}
       <FilterBar>
+        <form className="flex min-w-0 flex-wrap items-center gap-2" aria-label="Filtres des signataires" onSubmit={(event) => { event.preventDefault(); applyFilters(); }}>
         <SearchField
           value={query}
           onValueChange={setQuery}
@@ -239,6 +256,10 @@ export function SignaturesView({
           </FilterSelect>
         )}
 
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending && <Loader2 className="animate-spin" />} Rechercher
+        </Button>
+        </form>
         <span className="ml-auto flex flex-wrap items-center gap-2">
           {checked.size > 0 && canManage && (
             <>
@@ -257,7 +278,7 @@ export function SignaturesView({
           )}
           <Button variant="outline" size="sm" disabled={!!busy || !petition.totalSignatures} onClick={() => void exportCsv()}>
             {busy === "export" ? <Loader2 className="animate-spin" /> : <Download />}
-            Exporter CSV
+            Exporter toutes les signatures
           </Button>
           {canManage && (
             <Button size="sm" disabled={!petition.totalSignatures} onClick={() => setEmailOpen(true)}>
@@ -268,7 +289,8 @@ export function SignaturesView({
       </FilterBar>
 
       {/* Table */}
-      <div className="flex-1 px-4 pb-10 sm:px-7">
+      <div className="flex-1 px-4 pb-10 sm:px-7" aria-busy={isPending}>
+        <p className="py-3 text-[12px] text-faint" role="status">{isPending ? "Recherche en cours…" : `${pagination.total.toLocaleString("fr-FR")} signature(s) correspondant(s)`}</p>
         <ul className="crm-surface overflow-hidden rounded-xl">
           <li className="flex items-center gap-3 border-b border-line bg-elev px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-faint">
             <input
@@ -312,12 +334,15 @@ export function SignaturesView({
                   onClick={async () => {
                     if (!confirm(`Supprimer la signature de ${s.name} ?`)) return;
                     setBusy(`del-${s.id}`);
-                    const res = await deleteSignaturesAction({ campaignId, ids: [s.id] });
-                    setBusy(null);
-                    if ("ok" in res) {
-                      toast.success("Signature supprimée");
-                      router.refresh();
-                    } else toast.error(res.error);
+                    try {
+                      const res = await deleteSignaturesAction({ campaignId, ids: [s.id] });
+                      if ("ok" in res) {
+                        toast.success("Signature supprimée");
+                        router.refresh();
+                      } else toast.error(res.error);
+                    } catch {
+                      toast.error("La suppression n’a pas pu être confirmée. Actualisez la page avant de réessayer.");
+                    } finally { setBusy(null); }
                   }}
                   className="shrink-0 rounded-md p-1 text-faint transition-colors hover:bg-hover hover:text-rose-600 disabled:opacity-40"
                 >
@@ -332,8 +357,7 @@ export function SignaturesView({
           ))}
           {filtered.length === 0 && (
             <li className="px-4 py-12 text-center text-[13px] text-mut">
-              Aucun signataire — les signatures arrivent ici dès que la pétition
-              reçoit des soutiens (page publique ou formulaire WordPress).
+              {filters.q || filters.city ? "Aucun signataire ne correspond à ces filtres." : "Aucun signataire — les signatures arrivent ici dès que la pétition reçoit des soutiens."}
             </li>
           )}
         </ul>
@@ -368,41 +392,50 @@ function EmailSignersDialog({
 }) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [count, setCount] = useState<number | null>(null);
+  const [estimate, setEstimate] = useState<{ key: string; count?: number; error?: string } | null>(null);
+  const audienceKey = campaignId;
+  const count = estimate?.key === audienceKey ? estimate.count ?? null : null;
+  const countError = estimate?.key === audienceKey ? estimate.error : null;
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void countPetitionSignersAction({ campaignId }).then((r) => {
-      if (!cancelled && "count" in r && r.count !== undefined) setCount(r.count);
+    setEstimate(null);
+    void countPetitionSignersAction({ campaignId }).then((result) => {
+      if (!cancelled) setEstimate({ key: audienceKey, ...result });
+    }).catch(() => {
+      if (!cancelled) setEstimate({ key: audienceKey, error: "Impossible de vérifier les destinataires. Réessayez." });
     });
     return () => {
       cancelled = true;
     };
-  }, [open, campaignId]);
+  }, [open, campaignId, audienceKey]);
 
   async function send() {
-    if (sending || !subject.trim() || !body.trim()) return;
+    if (sending || count === null || count === 0 || count > EMAIL_BATCH_LIMIT || !subject.trim() || !body.trim()) return;
     if (!confirm(`Envoyer cet email à ${count ?? "?"} signataire(s) ? L'action est immédiate.`))
       return;
     setSending(true);
-    const res = await emailPetitionSignersAction({ campaignId, subject, body });
-    setSending(false);
-    if ("ok" in res && res.ok) {
-      toast.success(
-        `${res.sent} email(s) envoyé(s)` +
-          (res.failed ? `, ${res.failed} en échec` : "") +
-          (res.simulated ? " — mode démo, aucun envoi réel" : ""),
-      );
-      onClose();
-      setSubject("");
-      setBody("");
-    } else if ("error" in res) toast.error(res.error);
+    try {
+      const res = await emailPetitionSignersAction({ campaignId, subject, body });
+      if ("ok" in res && res.ok) {
+        toast.success(
+          `${res.sent} email(s) envoyé(s)` +
+            (res.failed ? `, ${res.failed} en échec` : "") +
+            (res.simulated ? " — mode démo, aucun envoi réel" : ""),
+        );
+        onClose();
+        setSubject("");
+        setBody("");
+      } else if ("error" in res) toast.error(res.error);
+    } catch {
+      toast.error("L’envoi n’a pas pu être confirmé. Vérifiez son état avant de réessayer.");
+    } finally { setSending(false); }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && !sending && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Emailing aux signataires</DialogTitle>
@@ -414,6 +447,8 @@ function EmailSignersDialog({
         <p className="text-[12px] tabular-nums text-faint">
           {count === null ? "…" : `${count} destinataire(s)`}
         </p>
+        {countError && <p role="alert" className="text-sm text-rose-600">{countError}</p>}
+        {count !== null && count > EMAIL_BATCH_LIMIT && <p role="alert" className="text-sm text-mut">L’audience dépasse {EMAIL_BATCH_LIMIT} destinataires. Utilisez un segment plus restreint depuis la base des soutiens.</p>}
         <Input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -432,10 +467,10 @@ function EmailSignersDialog({
           tant que signataire&nbsp;» est ajoutée automatiquement.
         </p>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Annuler</Button>
+          <Button variant="ghost" size="sm" disabled={sending} onClick={onClose}>Annuler</Button>
           <Button
             size="sm"
-            disabled={sending || !subject.trim() || !body.trim() || count === 0}
+            disabled={sending || count === null || count === 0 || count > EMAIL_BATCH_LIMIT || !!countError || !subject.trim() || !body.trim()}
             onClick={() => void send()}
           >
             {sending ? <Loader2 className="animate-spin" /> : <Send />}

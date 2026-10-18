@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { EMAIL_BATCH_LIMIT } from "@/lib/email-batch";
 import { useRouter } from "next/navigation";
 import {
   Download,
@@ -310,26 +311,29 @@ function BroadcastDialog({
   const [tagF, setTagF] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [count, setCount] = useState<number | null>(null);
+  const [estimate, setEstimate] = useState<{ key: string; count?: number; error?: string } | null>(null);
+  const audienceKey = JSON.stringify([sourceF, tagF]);
+  const count = estimate?.key === audienceKey ? estimate.count ?? null : null;
+  const countError = estimate?.key === audienceKey ? estimate.error : null;
   const [sending, setSending] = useState(false);
 
   // Recompte côté serveur, source de vérité, après un changement d'audience.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void countBroadcastAudienceAction({
-      source: sourceF || undefined,
-      tag: tagF || undefined,
-    }).then((r) => {
-      if (!cancelled && "count" in r && r.count !== undefined) setCount(r.count);
+    setEstimate(null);
+    void countBroadcastAudienceAction({ source: sourceF || undefined, tag: tagF || undefined }).then((result) => {
+      if (!cancelled) setEstimate({ key: audienceKey, ...result });
+    }).catch(() => {
+      if (!cancelled) setEstimate({ key: audienceKey, error: "Impossible de vérifier les destinataires. Réessayez." });
     });
     return () => {
       cancelled = true;
     };
-  }, [open, sourceF, tagF]);
+  }, [open, sourceF, tagF, audienceKey]);
 
   async function send() {
-    if (sending || !subject.trim() || !body.trim()) return;
+    if (sending || count === null || count === 0 || count > EMAIL_BATCH_LIMIT || !subject.trim() || !body.trim()) return;
     if (
       !confirm(
         `Envoyer cet email à ${count ?? "?"} soutien(s) ? L'action est immédiate.`,
@@ -337,28 +341,31 @@ function BroadcastDialog({
     )
       return;
     setSending(true);
-    const res = await sendBroadcastAction({
-      subject,
-      body,
-      audience: { source: sourceF || undefined, tag: tagF || undefined },
-    });
-    setSending(false);
-    if ("ok" in res && res.ok) {
-      toast.success(
-        `${res.sent} email(s) envoyé(s)` +
-          (res.failed ? `, ${res.failed} en échec` : "") +
-          (res.simulated ? " — mode démo, aucun envoi réel" : ""),
-      );
-      onClose();
-      setSubject("");
-      setBody("");
-    } else if ("error" in res && res.error) {
-      toast.error(res.error);
-    }
+    try {
+      const res = await sendBroadcastAction({
+        subject,
+        body,
+        audience: { source: sourceF || undefined, tag: tagF || undefined },
+      });
+      if ("ok" in res && res.ok) {
+        toast.success(
+          `${res.sent} email(s) envoyé(s)` +
+            (res.failed ? `, ${res.failed} en échec` : "") +
+            (res.simulated ? " — mode démo, aucun envoi réel" : ""),
+        );
+        onClose();
+        setSubject("");
+        setBody("");
+      } else if ("error" in res && res.error) {
+        toast.error(res.error);
+      }
+    } catch {
+      toast.error("L’envoi n’a pas pu être confirmé. Vérifiez son état avant de réessayer.");
+    } finally { setSending(false); }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && !sending && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Emailing aux soutiens</DialogTitle>
@@ -370,6 +377,7 @@ function BroadcastDialog({
         <div className="flex flex-wrap items-center gap-2">
           <FilterSelect
             value={sourceF}
+            disabled={sending}
             onChange={(e) => setSourceF(e.target.value)}
             active={!!sourceF}
             aria-label="Filtrer par origine"
@@ -380,6 +388,7 @@ function BroadcastDialog({
           {tags.length > 0 && (
             <FilterSelect
               value={tagF}
+              disabled={sending}
               onChange={(e) => setTagF(e.target.value)}
               active={!!tagF}
               aria-label="Filtrer par tag"
@@ -392,6 +401,8 @@ function BroadcastDialog({
             {count === null ? "…" : `${count} destinataire(s)`}
           </span>
         </div>
+        {countError && <p role="alert" className="text-sm text-rose-600">{countError}</p>}
+        {count !== null && count > EMAIL_BATCH_LIMIT && <p role="alert" className="text-sm text-mut">L’audience dépasse {EMAIL_BATCH_LIMIT} destinataires. Affinez l’origine ou le tag avant l’envoi.</p>}
         <Input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -410,10 +421,10 @@ function BroadcastDialog({
           tant que soutien&nbsp;» est ajoutée automatiquement.
         </p>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Annuler</Button>
+          <Button variant="ghost" size="sm" disabled={sending} onClick={onClose}>Annuler</Button>
           <Button
             size="sm"
-            disabled={sending || !subject.trim() || !body.trim() || count === 0}
+            disabled={sending || count === null || count === 0 || count > EMAIL_BATCH_LIMIT || !!countError || !subject.trim() || !body.trim()}
             onClick={() => void send()}
           >
             {sending ? <Loader2 className="animate-spin" /> : <Send />}
