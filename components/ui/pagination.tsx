@@ -30,6 +30,8 @@ export function PaginationBar({
   function hrefFor(p: number) {
     const sp = new URLSearchParams(searchParams.toString());
     sp.set("page", String(p));
+    // Un lien de fiche ne doit pas forcer le retour à sa page lors de la navigation.
+    sp.delete("contact");
     return `${pathname}?${sp.toString()}`;
   }
 

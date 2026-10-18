@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { CONTACT_FILTER_KEYS, type ContactFilters } from "@/lib/crm-filters";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -68,6 +69,9 @@ export const NEWSLETTER_META: Record<string, { label: string; badge: string; dot
 
 export function ContactsView({
   contacts,
+  filters,
+  parties,
+  institutions,
   fields,
   notes,
   orgNotes,
@@ -88,6 +92,9 @@ export function ContactsView({
   pagination,
   activeCommission = "",
 }: {
+  filters: ContactFilters;
+  parties: string[];
+  institutions: string[];
   activeCommission?: string;
   contacts: ContactRow[];
   fields: CustomFieldLite[];
@@ -126,14 +133,14 @@ export function ContactsView({
   pagination?: { page: number; pageCount: number; total: number };
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [levelFilter, setLevelFilter] = useState<string>("");
-  const [stanceFilter, setStanceFilter] = useState<string>("");
-  const [partyFilter, setPartyFilter] = useState<string>("");
-  const [institutionFilter, setInstitutionFilter] = useState<string>("");
+  const [query, setQuery] = useState(filters.q);
+  const [levelFilter, setLevelFilter] = useState<string>(filters.level);
+  const [stanceFilter, setStanceFilter] = useState<string>(filters.stance);
+  const [partyFilter, setPartyFilter] = useState<string>(filters.party);
+  const [institutionFilter, setInstitutionFilter] = useState<string>(filters.institution);
   const commissionFilter = activeCommission;
-  const [themeQuery, setThemeQuery] = useState<string>("");
-  const [newsletterFilter, setNewsletterFilter] = useState<string>("");
+  const [themeQuery, setThemeQuery] = useState<string>(filters.theme);
+  const [newsletterFilter, setNewsletterFilter] = useState<string>(filters.newsletter);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [moveBusy, setMoveBusy] = useState(false);
@@ -147,7 +154,9 @@ export function ContactsView({
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("new") === "1") {
       setCreateOpen(true);
-      window.history.replaceState(null, "", "/contacts");
+      const params = new URLSearchParams(window.location.search);
+      params.delete("new");
+      window.history.replaceState(null, "", params.size ? `/contacts?${params}` : "/contacts");
     }
   }, []);
 
@@ -179,7 +188,7 @@ export function ContactsView({
   }
 
   async function deleteSelected() {
-    const ids = [...checked];
+    const ids = contacts.filter(contact => checked.has(contact.id)).map(contact => contact.id);
     if (!ids.length || deleteBusy) return;
     if (!window.confirm(`Supprimer définitivement ${ids.length} contact(s) sélectionné(s) ?`)) return;
     setDeleteBusy(true);
@@ -194,7 +203,7 @@ export function ContactsView({
   }
 
   async function moveSelected() {
-    const ids = [...checked];
+    const ids = contacts.filter(contact => checked.has(contact.id)).map(contact => contact.id);
     if (!ids.length || !moveListId || moveBusy) return;
     setMoveBusy(true);
     try {
@@ -230,52 +239,20 @@ export function ContactsView({
     }
   }, [commissionField]);
 
-  const institutions = useMemo(
-    () =>
-      [...new Set(contacts.map((c) => c.institution).filter(Boolean))].sort() as string[],
-    [contacts],
-  );
+  // Les résultats et les facettes sont calculés sur toute la base côté serveur.
+  const filtered = contacts;
 
-  const parties = useMemo(
-    () =>
-      [...new Set(contacts.map((c) => c.party).filter(Boolean))].sort() as string[],
-    [contacts],
-  );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return contacts.filter((c) => {
-      if (levelFilter && c.level !== levelFilter) return false;
-      if (stanceFilter && c.stance !== stanceFilter) return false;
-      if (partyFilter && c.party !== partyFilter) return false;
-      if (institutionFilter && c.institution !== institutionFilter) return false;
-      if (newsletterFilter) {
-        // « SYNCED » retient tout statut connu ; sinon la valeur doit être exacte.
-        if (
-          newsletterFilter === "SYNCED"
-            ? !c.newsletterStatus
-            : (c.newsletterStatus ?? "") !== newsletterFilter
-        )
-          return false;
-      }
-      if (themeQuery.trim()) {
-        const themes = (c.themes ?? "").toLowerCase();
-        if (!themes.includes(themeQuery.trim().toLowerCase())) return false;
-      }
-      if (!q) return true;
-      const hay = [
-        c.firstName, c.lastName, c.title, c.institution, c.party, c.region,
-        c.email, c.bio,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [
-    contacts, query, levelFilter, stanceFilter, partyFilter,
-    institutionFilter, themeQuery, newsletterFilter,
-  ]);
+  function applyFilters() {
+    const params = new URLSearchParams(window.location.search);
+    const values = { q: query, level: levelFilter, stance: stanceFilter, party: partyFilter, institution: institutionFilter, theme: themeQuery, newsletter: newsletterFilter };
+    for (const key of CONTACT_FILTER_KEYS) {
+      const value = values[key].trim();
+      if (value) params.set(key, value); else params.delete(key);
+    }
+    params.delete("page");
+    params.delete("contact");
+    startTransition(() => router.push(params.size ? `/contacts?${params}` : "/contacts", { scroll: false }));
+  }
 
   // ── Actions groupées de newsletter lorsque le module est actif ──
   const selectableIds = filtered.filter((c) => !newsletterEnabled || !!c.email).map((c) => c.id);
@@ -294,7 +271,7 @@ export function ContactsView({
     kind: "subscribe" | "unsubscribe" | "sync",
     ids?: string[],
   ) {
-    const targetIds = ids ?? [...checked];
+    const targetIds = ids ?? contacts.filter(contact => checked.has(contact.id)).map(contact => contact.id);
     if (!targetIds.length || nlBusy) return;
     if (
       kind !== "sync" &&
@@ -363,13 +340,14 @@ export function ContactsView({
       `actyl-contacts-${new Date().toISOString().slice(0, 10)}.${format}`,
       format === "csv" ? "text/csv" : "application/json",
     );
-    toast.success(`${rows.length} contacts exportés (${format.toUpperCase()})`);
+    toast.success(`${rows.length} contacts exportés (${format.toUpperCase()}, ${checked.size ? "sélection" : "page courante"})`);
   }
 
   return (
     <div className="flex min-h-[calc(100vh-89px)] min-w-0 flex-col overflow-hidden">
       {/* Barre d'outils */}
       <FilterBar>
+        <form onSubmit={(event) => { event.preventDefault(); applyFilters(); }} className="flex w-full min-w-0 flex-wrap items-center gap-2" aria-label="Filtres de l’annuaire">
         <SearchField
           id="contacts-search"
           value={query}
@@ -500,9 +478,14 @@ export function ContactsView({
             <option value="PENDING">En attente</option>
             <option value="UNSUBSCRIBED">Désinscrits</option>
             <option value="UNKNOWN">Hors liste</option>
-            <option value="SYNCED">Non synchronisés</option>
+            <option value="SYNCED">Statut connu</option>
           </FilterSelect>
         )}
+
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending ? <Loader2 className="animate-spin" /> : <Search />} Rechercher
+        </Button>
+        </form>
 
         {checked.size > 0 && (
           <span className="flex flex-wrap items-center gap-2 rounded-lg bg-accent-soft px-2 py-1 ring-1 ring-inset ring-accent-ring">
@@ -562,10 +545,10 @@ export function ContactsView({
 
         <span className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
           <Button variant="outline" size="sm" onClick={() => exportData("csv")}>
-            <Download /> CSV{checked.size ? ` (${checked.size})` : ""}
+            <Download /> CSV{checked.size ? ` (${checked.size})` : " · page"}
           </Button>
           <Button variant="outline" size="sm" onClick={() => exportData("json")}>
-            <Download /> JSON{checked.size ? ` (${checked.size})` : ""}
+            <Download /> JSON{checked.size ? ` (${checked.size})` : " · page"}
           </Button>
           {canEdit && (
             <Button size="sm" onClick={() => setCreateOpen(true)}>
