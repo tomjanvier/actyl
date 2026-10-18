@@ -1,3 +1,4 @@
+import { requestedPage } from "@/lib/crm-filters";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
@@ -24,7 +25,7 @@ export default async function SignaturesPage({
   const session = await requireSession();
   const { id } = await params;
   const { q, city, page: pageParam } = await searchParams;
-  const page = Math.max(1, Number(pageParam) || 1);
+  const requested = requestedPage(pageParam);
 
   const campaign = await db.campaign.findFirst({
     where: campaignAccessWhere(id, session.workspaceId),
@@ -51,32 +52,30 @@ export default async function SignaturesPage({
   if (!campaign) notFound();
   const access = resolveCampaignAccess(campaign, session.workspaceId);
 
-  const qTrim = q?.trim() ?? "";
-  const cityTrim = city?.trim() ?? "";
+  const qTrim = typeof q === "string" ? q.trim().slice(0, 300) : "";
+  const cityTrim = typeof city === "string" ? city.trim().slice(0, 300) : "";
   const where = campaign.petition
     ? {
         petitionId: campaign.petition.id,
         ...(cityTrim ? { city: { equals: cityTrim } } : {}),
-        ...(qTrim
-          ? {
-              OR: [
-                { name: { contains: qTrim } },
-                { email: { contains: qTrim } },
-                { city: { contains: qTrim } },
-              ],
-            }
-          : {}),
+        ...(qTrim ? { AND: qTrim.split(/\s+/).map(term => ({ OR: [
+          { name: { contains: term, mode: "insensitive" as const } },
+          { email: { contains: term, mode: "insensitive" as const } },
+          { city: { contains: term, mode: "insensitive" as const } },
+        ] })) } : {}),
       }
     : null;
 
-  const [signatures, filteredTotal, totalSignatures, cityRows] = where
+  const loadSignatures = (page: number) => where ? db.petitionSignature.findMany({
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    take: PAGE_SIZE,
+    skip: (page - 1) * PAGE_SIZE,
+    select: { id: true, name: true, email: true, city: true, createdAt: true },
+  }) : Promise.resolve([]);
+  const [requestedSignatures, filteredTotal, totalSignatures, cityRows] = where
     ? await Promise.all([
-        db.petitionSignature.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          take: PAGE_SIZE,
-          skip: (page - 1) * PAGE_SIZE,
-        }),
+        loadSignatures(requested),
         db.petitionSignature.count({ where }),
         db.petitionSignature.count({ where: { petitionId: where.petitionId } }),
         db.petitionSignature.groupBy({
@@ -88,6 +87,10 @@ export default async function SignaturesPage({
         }),
       ])
     : [[], 0, 0, []];
+
+  const pageCount = Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE));
+  const page = Math.min(requested, pageCount);
+  const signatures = page === requested ? requestedSignatures : await loadSignatures(page);
 
   return (
     <>
@@ -116,6 +119,8 @@ export default async function SignaturesPage({
         canShare={access.owner && session.role === "ADMIN"}
       />
       <SignaturesView
+        key={JSON.stringify([campaign.id, qTrim, cityTrim, page])}
+        filters={{ q: qTrim, city: cityTrim }}
         campaignId={campaign.id}
         campaignSlug={campaign.slug}
         workspaceSlug={campaign.workspace.slug}
@@ -140,7 +145,7 @@ export default async function SignaturesPage({
         cities={cityRows.map((r) => r.city).filter((c): c is string => !!c)}
         pagination={{
           page,
-          pageCount: Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE)),
+          pageCount,
           total: filteredTotal,
         }}
       />

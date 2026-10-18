@@ -6,6 +6,7 @@
  * dans l'espace de l'appelant au moyen de l'identifiant de campagne.
  */
 
+import { EMAIL_BATCH_LIMIT, EMAIL_BATCH_ERROR } from "@/lib/email-batch";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -14,7 +15,7 @@ import { dispatchEmail } from "@/lib/email";
 import { upsertContactByEmail } from "@/lib/ingest";
 import { toCSV } from "@/lib/utils";
 
-const MAX_BATCH = 500;
+const MAX_BATCH = EMAIL_BATCH_LIMIT;
 const MAX_EXPORT = 50_000;
 const MAX_SUBJECT = 200;
 const MAX_BODY = 8000;
@@ -43,18 +44,21 @@ function revalidateSignatures(campaignId: string) {
   revalidatePath(`/campaigns/${campaignId}/mobilization`);
 }
 
-/** Supprime les signatures choisies, ou toutes si ids est absent. */
+/** Supprime uniquement une sélection explicite de signatures. */
 export async function deleteSignaturesAction(input: {
   campaignId: string;
-  ids?: string[];
+  ids: string[];
 }): Promise<{ ok?: true; deleted?: number; error?: string }> {
   const ctx = await requirePetition(input.campaignId);
   if (!ctx.ok) return { error: ctx.error };
 
+  if (!Array.isArray(input.ids) || !input.ids.length || input.ids.length > MAX_BATCH || input.ids.some(id => typeof id !== "string" || !id))
+    return { error: "Sélectionnez entre 1 et 500 signatures à supprimer." };
+
   const result = await db.petitionSignature.deleteMany({
     where: {
       petitionId: ctx.petitionId,
-      ...(input.ids?.length ? { id: { in: input.ids } } : {}),
+      id: { in: input.ids },
     },
   });
   revalidateSignatures(input.campaignId);
@@ -74,10 +78,11 @@ export async function convertSignaturesToContactsAction(input: {
 > {
   const ctx = await requirePetition(input.campaignId);
   if (!ctx.ok) return { error: ctx.error };
-  if (!input.ids.length) return { error: "Aucune signature sélectionnée." };
+  if (!Array.isArray(input.ids) || !input.ids.length || input.ids.length > MAX_BATCH || input.ids.some(id => typeof id !== "string" || !id))
+    return { error: "Sélectionnez entre 1 et 500 signatures à convertir." };
 
   const signatures = await db.petitionSignature.findMany({
-    where: { petitionId: ctx.petitionId, id: { in: input.ids.slice(0, MAX_BATCH) } },
+    where: { petitionId: ctx.petitionId, id: { in: input.ids } },
     select: { name: true, email: true, city: true },
   });
 
@@ -94,6 +99,8 @@ export async function convertSignaturesToContactsAction(input: {
     if (res.created) created++;
     else updated++;
   }
+  revalidatePath("/contacts");
+  revalidateSignatures(input.campaignId);
   return { ok: true, created, updated };
 }
 
@@ -107,9 +114,11 @@ export async function exportSignaturesCsvAction(input: {
   const rows = await db.petitionSignature.findMany({
     where: { petitionId: ctx.petitionId },
     orderBy: { createdAt: "desc" },
-    take: MAX_EXPORT,
+    take: MAX_EXPORT + 1,
     select: { name: true, email: true, city: true, createdAt: true },
   });
+  if (rows.length > MAX_EXPORT)
+    return { error: "Cette pétition dépasse 50 000 signatures. L’export complet nécessite un traitement dédié ; aucun fichier partiel n’a été produit." };
   const csv =
     "\uFEFF" +
     toCSV(
@@ -129,11 +138,8 @@ export async function countPetitionSignersAction(input: {
 }): Promise<{ count?: number; error?: string }> {
   const ctx = await requirePetition(input.campaignId);
   if (!ctx.ok) return { error: ctx.error };
-  const signers = await db.petitionSignature.findMany({
-    where: { petitionId: ctx.petitionId },
-    select: { email: true },
-  });
-  return { count: new Set(signers.map((s) => s.email)).size };
+  const count = await db.petitionSignature.count({ where: { petitionId: ctx.petitionId } });
+  return { count };
 }
 
 /** Envoie une annonce à chaque signataire distinct de la pétition. */
@@ -156,17 +162,17 @@ export async function emailPetitionSignersAction(input: {
   const signatures = await db.petitionSignature.findMany({
     where: { petitionId: ctx.petitionId },
     select: { email: true },
+    take: EMAIL_BATCH_LIMIT + 1,
   });
   // Distinct emails (a signer can appear once, but stay defensive).
   const recipients = [...new Set(signatures.map((s) => s.email))];
+  if (recipients.length > EMAIL_BATCH_LIMIT) return { error: EMAIL_BATCH_ERROR };
   if (!recipients.length) return { error: "Aucun signataire à contacter." };
 
   const workspaceName = ctx.workspaceName;
-  // Limite chaque vague ; les pétitions plus grandes nécessitent plusieurs envois.
-  const batch = recipients.slice(0, MAX_BATCH);
 
   const results = await Promise.allSettled(
-    batch.map((email) =>
+    recipients.map((email) =>
       dispatchEmail({
         to: email,
         subject,
