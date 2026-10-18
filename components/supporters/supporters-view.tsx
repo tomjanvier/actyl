@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Download,
@@ -72,12 +72,14 @@ function parseTags(tags: string | null | undefined): string[] {
 
 export function SupportersView({
   supporters,
+  filters,
   total,
   engaged,
   allTags,
   sources,
   pagination,
 }: {
+  filters: Record<"q" | "source" | "tag", string>;
   supporters: SupporterRow[];
   total: number;
   engaged: number;
@@ -85,22 +87,24 @@ export function SupportersView({
   sources: string[];
   pagination: { page: number; pageCount: number; total: number };
 }) {
-  const [query, setQuery] = useState("");
-  const [sourceF, setSourceF] = useState("");
-  const [tagF, setTagF] = useState("");
+  const [query, setQuery] = useState(filters.q);
+  const [sourceF, setSourceF] = useState(filters.source);
+  const [tagF, setTagF] = useState(filters.tag);
   const [editing, setEditing] = useState<SupporterRow | null>(null);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const router = useRouter();
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return supporters.filter((s) => {
-      if (sourceF && s.source !== sourceF) return false;
-      if (tagF && !parseTags(s.tags).includes(tagF)) return false;
-      if (!q) return true;
-      return `${s.name} ${s.email} ${s.city ?? ""}`.toLowerCase().includes(q);
-    });
-  }, [supporters, query, sourceF, tagF]);
+  const [isPending, startTransition] = useTransition();
+  const filtered = supporters;
+
+  function applyFilters() {
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries({ q: query.trim(), source: sourceF, tag: tagF })) {
+      if (value) params.set(key, value); else params.delete(key);
+    }
+    params.delete("page");
+    startTransition(() => router.push(params.size ? `/supporters?${params}` : "/supporters", { scroll: false }));
+  }
 
   function exportCsv() {
     downloadFile(
@@ -144,6 +148,7 @@ export function SupportersView({
 
       {/* Toolbar */}
       <FilterBar>
+        <form onSubmit={(event) => { event.preventDefault(); applyFilters(); }} className="flex min-w-0 flex-wrap items-center gap-2" aria-label="Filtres des soutiens">
         <SearchField
           value={query}
           onValueChange={setQuery}
@@ -174,6 +179,10 @@ export function SupportersView({
             ))}
           </FilterSelect>
         )}
+        <Button type="submit" size="sm" disabled={isPending}>
+          {isPending && <Loader2 className="animate-spin" />} Rechercher
+        </Button>
+        </form>
         <Buttonish onClick={exportCsv} disabled={!filtered.length} />
         <Button size="sm" className="ml-auto sm:ml-0" onClick={() => setBroadcastOpen(true)}>
           <Send /> Emailing
@@ -181,7 +190,8 @@ export function SupportersView({
       </FilterBar>
 
       {/* Table */}
-      <div className="px-4 pb-10 sm:px-6">
+      <div className="px-4 pb-10 sm:px-6" aria-busy={isPending}>
+        <p className="py-3 text-[12px] text-faint" role="status">{isPending ? "Recherche en cours…" : `${pagination.total.toLocaleString("fr-FR")} soutien(s) correspondant(s)`}</p>
         <ul className="crm-surface overflow-hidden rounded-xl">
           {filtered.map((s) => {
             const meta = SOURCE_META[s.source ?? ""];
@@ -251,8 +261,9 @@ export function SupportersView({
           })}
           {filtered.length === 0 && (
             <li className="px-4 py-12 text-center text-[13px] text-mut">
-              Aucun soutien pour l&apos;instant — ils apparaîtront dès la première
-              signature ou interpellation.
+              {filters.q || filters.source || filters.tag
+                ? "Aucun soutien ne correspond à ces filtres."
+                : "Aucun soutien pour l’instant — ils apparaîtront dès la première signature ou interpellation."}
             </li>
           )}
         </ul>
@@ -516,7 +527,7 @@ function Buttonish({ onClick, disabled }: { onClick: () => void; disabled?: bool
       disabled={disabled}
       className="inline-flex h-9 items-center gap-2 rounded-lg border border-line px-3 text-[12.5px] font-medium text-mut transition-colors hover:border-accent-ring hover:text-accent-text disabled:opacity-40"
     >
-      <Download className="size-4" /> Exporter CSV
+      <Download className="size-4" /> CSV · page
     </button>
   );
 }

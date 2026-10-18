@@ -1,3 +1,4 @@
+import { contactFilters, contactSearchWhere, requestedPage, type ContactFilters } from "@/lib/crm-filters";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/constants";
@@ -23,7 +24,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{
+  searchParams: Promise<Partial<ContactFilters> & {
     commission?: string;
     category?: string;
     page?: string;
@@ -34,6 +35,8 @@ export default async function ContactsPage({
   }>;
 }) {
   const session = await requireSession();
+  const params = await searchParams;
+  const filters = contactFilters(params);
   const {
     category,
     commission,
@@ -42,7 +45,7 @@ export default async function ContactsPage({
     contact: initialContactId,
     unlisted,
     mandate,
-  } = await searchParams;
+  } = params;
   const [segments, newsletter, directoryLists, disabledReferencePacks, groups] = await Promise.all([
     getSegmentsConfig(session.workspaceId),
     getNewsletterConfig(session.workspaceId),
@@ -83,11 +86,10 @@ export default async function ContactsPage({
     category && enabledCategories.has(category) ? category : null;
 
   // La pagination serveur limite la réponse à cent contacts.
-  const requestedPage = Number(pageParam);
-  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage <= 10000 ? requestedPage : 1;
+  let requested = requestedPage(pageParam);
   const activeCommission = commission && commission.length <= 300 ? commission : "";
   const newsletterEnabled = newsletter.enabled;
-  const where = {
+  const baseWhere = {
     workspaceId: session.workspaceId,
     ...(activeCommission ? { customValues: { some: { field: { workspaceId: session.workspaceId, name: "commission" }, OR: [{ value: { contains: JSON.stringify(activeCommission) } }, { value: activeCommission }] } } } : {}),
     ...(activeCategory ? { category: activeCategory } : {}),
@@ -109,10 +111,27 @@ export default async function ContactsPage({
       : {}),
   };
 
-  const [contacts, total, fields] = await Promise.all([
-      db.contact.findMany({
+  const where = { ...baseWhere, ...contactSearchWhere(filters, newsletterEnabled) };
+  // Les liens des listes et des équipes doivent ouvrir la fiche, même hors page 1.
+  if (initialContactId) {
+    const target = await db.contact.findFirst({
+      where: { ...where, id: initialContactId },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    if (target) {
+      const preceding = await db.contact.count({ where: {
+        AND: [where, { OR: [
+          { lastName: { lt: target.lastName } },
+          { lastName: target.lastName, firstName: { lt: target.firstName } },
+          { lastName: target.lastName, firstName: target.firstName, id: { lt: target.id } },
+        ] }],
+      } });
+      requested = Math.floor(preceding / PAGE_SIZE) + 1;
+    }
+  }
+  const loadContacts = (page: number) => db.contact.findMany({
         where,
-        orderBy: [{ lastName: "asc" }],
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
         take: PAGE_SIZE,
         skip: (page - 1) * PAGE_SIZE,
         select: {
@@ -143,13 +162,23 @@ export default async function ContactsPage({
             select: { fieldId: true, value: true, field: { select: { name: true } } },
           },
         },
-      }),
+      });
+  const [requestedContacts, total, fields, facets] = await Promise.all([
+      loadContacts(requested),
       db.contact.count({ where }),
       db.customField.findMany({
         where: { workspaceId: session.workspaceId },
         orderBy: { position: "asc" },
       }),
+      db.contact.findMany({
+        where: baseWhere,
+        select: { party: true, institution: true },
+        distinct: ["party", "institution"],
+      }),
     ]);
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(requested, pageCount);
+  const contacts = page === requested ? requestedContacts : await loadContacts(page);
 
   const contactIds = contacts.map((contact) => contact.id);
   const groupIds = groups.map((group) => group.id);
@@ -222,8 +251,6 @@ export default async function ContactsPage({
     emailsReceived: emailCountMap.get(c.id) ?? 0,
   }));
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
   return (
     <>
       <PageHeader
@@ -248,6 +275,10 @@ export default async function ContactsPage({
         }
       />
       <ContactsView
+        key={JSON.stringify([filters, activeList?.id, activeCommission, onlyUnlisted, formerMandate, activeCategory, page])}
+        filters={filters}
+        parties={[...new Set(facets.flatMap(row => row.party ? [row.party] : []))].sort()}
+        institutions={[...new Set(facets.flatMap(row => row.institution ? [row.institution] : []))].sort()}
         activeCommission={activeCommission}
         contacts={serialized}
         fields={fields.map((f) => ({

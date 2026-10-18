@@ -28,6 +28,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint --max-warnings 0
       - run: pnpm typecheck
+      - run: pnpm exec tsx scripts/check-crm-search.mts
+      - run: node scripts/check-cache-guards.mjs
       - run: pnpm exec prisma validate
       - run: pnpm build:cf
       - run: pnpm exec wrangler deploy --dry-run --env production

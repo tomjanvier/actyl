@@ -98,3 +98,33 @@ Ces changements ne constituent pas une preuve de déploiement. Refaire les mesur
 Compilation `build:cf` validée dans une copie temporaire isolée, avec les dépendances clonées localement : `.open-next/worker.js` produit et correctif Prisma WASM appliqué. Next.js signale les avertissements préexistants de `jose` sur CompressionStream/DecompressionStream dans le runtime Edge ; ils n'empêchent pas cette compilation. Lint strict, TypeScript, gardes de cache et tests d'accès passent.
 
 Le dry-run Wrangler de production passe également : bundle Worker et bindings R2/DO reconnus, sans upload ni déploiement.
+
+## Recherche CRM et finitions de l’annuaire — 18 octobre 2026
+
+La recherche et les filtres des contacts et soutiens portent désormais sur toute
+la base de l’espace, avant pagination. Saisir les critères puis valider avec
+Entrée ou « Rechercher » ; l’URL conserve les critères pour les changements de
+page et le retour navigateur. Les facettes parti/institution proviennent de tout
+le périmètre de l’annuaire. Les lectures restent limitées à cent fiches et le tri
+ajoute des critères stables pour les homonymes. Une page hors limites revient
+à la dernière page existante, sans faux écran vide.
+
+Les liens de fiches depuis les listes et équipes calculent la bonne page du
+contact autorisé. La pagination retire ensuite ce lien ciblé. Les exports CSV et
+JSON indiquent explicitement « page » ; ils ne constituent pas un export complet
+de la base. Le statut newsletter « Statut connu » remplace l’ancien libellé
+incorrect « Non synchronisés ». Les critères des soutiens utilisent des requêtes
+paramétrées et comparent les tags entiers après suppression des espaces.
+
+Contrôles : `scripts/check-crm-search.mts` teste la validation de pagination et,
+avec `DATABASE_URL`, retrouve une fiche réelle hors première page et vérifie les
+filtres et l’isolation des espaces. Un jeu de lignes SQL transitoires vérifie les
+tags exacts, les mots multiples, les caractères spéciaux et l’absence de fuite
+entre espaces sans aucune écriture. La CI exécute les gardes CRM hors base et les
+gardes du cache public ; les contrôles avec données réelles restent locaux.
+
+Aperçu compilé local : recherche au clavier, critères conservés après navigation,
+page 9999 recalée avec résultats, état vide des soutiens et absence de débordement
+horizontal aux largeurs 390 et 1280 px. Session de test locale signée pour les
+lectures ; aucun email, modification de contact ni écriture de données métier.
+Ces vérifications ne prouvent ni un gain de Core Web Vitals ni un déploiement.

@@ -1,3 +1,6 @@
+import { supporterSearchWhere } from "@/lib/supporter-search";
+import { Prisma } from "@/generated/prisma/client";
+import { requestedPage } from "@/lib/crm-filters";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/page-header";
@@ -16,20 +19,29 @@ const PAGE_SIZE = 100;
 export default async function SupportersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; source?: string; tag?: string }>;
 }) {
   const session = await requireSession();
-  const { page: pageParam } = await searchParams;
-  const page = Math.max(1, Number(pageParam) || 1);
-  const where = { workspaceId: session.workspaceId };
+  const params = await searchParams;
+  const filters = { q: params.q, source: params.source, tag: params.tag };
+  for (const key of ["q", "source", "tag"] as const) {
+    filters[key] = typeof filters[key] === "string" ? filters[key].trim().slice(0, 300) : "";
+  }
+  const { q = "", source = "", tag = "" } = filters;
+  const requested = requestedPage(params.page);
+  const where = supporterSearchWhere(session.workspaceId, { q, source, tag });
+  const loadSupporters = (page: number) => db.$queryRaw<Array<{
+    id: string; name: string; email: string; city: string | null;
+    source: string | null; tags: string | null; touchCount: number; lastSeenAt: Date;
+  }>>(Prisma.sql`
+    SELECT "id", "name", "email", "city", "source", "tags", "touchCount", "lastSeenAt"
+    FROM "supporters" WHERE ${where}
+    ORDER BY "lastSeenAt" DESC, "id" ASC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}
+  `);
 
-  const [supporters, stats, tagRows, sourceRows] = await Promise.all([
-    db.supporter.findMany({
-      where,
-      orderBy: { lastSeenAt: "desc" },
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
-    }),
+  const [requestedSupporters, matched, stats, tagRows, sourceRows] = await Promise.all([
+    loadSupporters(requested),
+    db.$queryRaw<Array<{ total: number }>>(Prisma.sql`SELECT count(*)::int AS total FROM "supporters" WHERE ${where}`),
     db.$queryRaw<Array<{ total: number; engaged: number }>>`
       SELECT
         count(*)::int AS total,
@@ -54,6 +66,10 @@ export default async function SupportersPage({
     `,
   ]);
 
+  const filteredTotal = matched[0]?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE));
+  const page = Math.min(requested, pageCount);
+  const supporters = page === requested ? requestedSupporters : await loadSupporters(page);
   const total = stats[0]?.total ?? 0;
   const engaged = stats[0]?.engaged ?? 0;
   const allTags = tagRows.map((row) => row.tag);
@@ -67,6 +83,8 @@ export default async function SupportersPage({
         description={`${total.toLocaleString("fr-FR")} personnes engagées avec votre organisation — signatures, interpellations, RSVP.`}
       />
       <SupportersView
+        key={JSON.stringify([filters, page])}
+        filters={{ q, source, tag }}
         supporters={supporters.map((s) => ({
           id: s.id,
           name: s.name,
@@ -83,8 +101,8 @@ export default async function SupportersPage({
         sources={sources}
         pagination={{
           page,
-          pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
-          total,
+          pageCount,
+          total: filteredTotal,
         }}
       />
     </>
