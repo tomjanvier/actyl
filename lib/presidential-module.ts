@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { withDbTransaction } from "@/lib/db-transaction";
 
 const ELECTION = "Présidentielle 2027";
 
@@ -33,7 +34,7 @@ export async function ensurePresidentialModuleScope(
   });
   if (!list) return;
 
-  await db.$transaction(async (transaction) => {
+  await withDbTransaction(async (transaction) => {
     await transaction.campaignTeam.updateMany({
       where: { workspaceId, election: ELECTION },
       data: { listId: list.id },

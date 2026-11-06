@@ -113,10 +113,12 @@ export async function citizenSignAction(input: {
   });
   if (!petition) return { error: "Pétition introuvable ou non publiée." };
 
+  // Une signature existante n'est jamais réécrite : sinon quiconque connaît
+  // l'email d'un signataire pourrait modifier son nom affiché publiquement.
   await db.petitionSignature.upsert({
     where: { petitionId_email: { petitionId: petition.id, email } },
     create: { petitionId: petition.id, name, email, city: city || null },
-    update: { name, city: city || null },
+    update: {},
   });
 
   await upsertSupporter({

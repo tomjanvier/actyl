@@ -27,6 +27,16 @@ export async function createListAction(
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   if (name.length < 3) return { error: "Nom de liste trop court" };
+  if (name.length > 80) return { error: "Nom de liste trop long" };
+
+  const duplicate = await db.sharedList.findFirst({
+    where: {
+      workspaceId: session.workspaceId,
+      name: { equals: name, mode: "insensitive" },
+    },
+    select: { id: true },
+  });
+  if (duplicate) return { error: "Une liste porte déjà ce nom." };
 
   await db.sharedList.create({
     data: {
@@ -90,11 +100,18 @@ export async function addContactsToListAction(input: {
     where: { id: input.listId, workspaceId: session.workspaceId },
   });
   if (!list) throw new Error("Liste introuvable");
+
+  // Ne rattache que des contacts de l'espace actif : un identifiant fourni par
+  // le client ne doit jamais permettre de lire les données d'un autre espace.
+  const ids = [...new Set(input.contactIds)].filter(Boolean).slice(0, 500);
+  if (!ids.length) return { proposed: 0 };
+  const contacts = await db.contact.findMany({
+    where: { id: { in: ids }, workspaceId: session.workspaceId },
+    select: { id: true, firstName: true, lastName: true, email: true, title: true, institution: true, party: true, region: true, level: true },
+  });
+  if (!contacts.length) throw new Error("Aucun contact valide dans cet espace");
+
   if (list.sourcePack && !session.user.isSuperAdmin) {
-    const contacts = await db.contact.findMany({
-      where: { id: { in: input.contactIds }, workspaceId: session.workspaceId },
-      select: { id: true, firstName: true, lastName: true, email: true, title: true, institution: true, party: true, region: true, level: true },
-    });
     for (const contact of contacts) {
       await proposeListChange({ listId: input.listId, action: "ADD", contactId: contact.id, payload: contact });
     }
@@ -106,7 +123,7 @@ export async function addContactsToListAction(input: {
     throw new Error("Vous pouvez modifier uniquement vos propres listes");
   }
   await db.listItem.createMany({
-    data: input.contactIds.map((contactId) => ({ listId: input.listId, contactId })),
+    data: contacts.map((contact) => ({ listId: input.listId, contactId: contact.id })),
     skipDuplicates: true,
   });
   invalidatePublicDirectory();

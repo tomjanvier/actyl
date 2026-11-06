@@ -269,7 +269,7 @@ export async function citizenSendAction(input: {
       isPublished: true,
       status: { notIn: ["ARCHIVED", "LOST"] },
     },
-    select: { id: true, name: true, workspaceId: true },
+    select: { id: true, name: true, workspaceId: true, workspace: { select: { name: true } } },
   });
   if (!campaign)
     return { error: "Campagne introuvable." };
@@ -370,7 +370,7 @@ export async function citizenSendAction(input: {
         to: t.email!,
         subject,
         html: wrapEmailHtml(body, `${name} — citoyen·ne · ${city}`, trackingUrl, {
-          workspaceName: "PLAID·ACT",
+          workspaceName: campaign.workspace.name,
         }),
       });
       await db.sentEmail.update({
