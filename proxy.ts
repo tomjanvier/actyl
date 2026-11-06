@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 /**
- * Edge middleware: two jobs.
+ * Proxy (ex-middleware, Next 16): two jobs.
  *
  * 1. Protège chaque route du tableau de bord par un cookie de session valide.
  *    - La signature JWT est vérifiée, pas seulement la présence du cookie.
@@ -27,7 +27,7 @@ const PROTECTED_PREFIXES = [
   "/supporters",
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Autorise l'intégration des contenus publics et les exclut des moteurs de recherche.
