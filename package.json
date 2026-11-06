@@ -4,6 +4,7 @@
   "private": true,
   "description": "Open-source Advocacy CRM for NGOs & associations — lobbying campaigns, decision-maker tracking, supporter mobilization.",
   "license": "MIT",
+  "packageManager": "pnpm@10.34.9",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
@@ -14,7 +15,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "setup": "prisma db push && tsx prisma/seed.ts",
-    "build:cf": "prisma generate && opennextjs-cloudflare build && node scripts/patch-opennext-prisma-wasm.mjs",
+    "build:cf": "prisma generate && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion && node scripts/patch-opennext-prisma-wasm.mjs",
     "preview": "opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare deploy",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts"
@@ -35,7 +36,7 @@
     "@radix-ui/react-checkbox": "^1.1.4",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.6",
-    "@radix-ui/react-label": "^2.1.2",
+    "@radix-ui/react-label": "^1.1.2",
     "@radix-ui/react-popover": "^1.1.6",
     "@radix-ui/react-scroll-area": "^1.2.3",
     "@radix-ui/react-select": "^2.1.6",
