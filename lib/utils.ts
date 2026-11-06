@@ -84,9 +84,13 @@ export function pct(part: number, total: number): string {
 export function toCSV(rows: Record<string, unknown>[]): string {
   if (!rows.length) return "";
   const headers = Object.keys(rows[0]!);
+  const numberLike = /^-?\d+(?:[.,]\d+)?$/;
   const escape = (v: unknown) => {
-    const s = v === null || v === undefined ? "" : String(v);
-    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    const raw = v === null || v === undefined ? "" : String(v);
+    // Neutralise les formules interprétées par les tableurs, sans casser les nombres.
+    const s =
+      /^[=+\-@\t\r]/.test(raw) && !numberLike.test(raw) ? `'${raw}` : raw;
+    return /[",\n\r;]/.test(raw) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [
     headers.join(","),

@@ -25,6 +25,8 @@ const PROTECTED_PREFIXES = [
   "/tasks",
   "/events",
   "/supporters",
+  "/presidentielle",
+  "/campaign-teams",
 ];
 
 export async function middleware(request: NextRequest) {

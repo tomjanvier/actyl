@@ -578,24 +578,24 @@ export async function saveNewsletterSettingsAction(input: {
   const test = await testNewsletterConnection({ apiKey, ...(listId ? { listId } : {}) });
   if (!test.ok) return { error: test.error };
 
-  await db.$transaction([
-    db.appSetting.upsert({
+  await withDbTransaction(async (tx) => {
+    await tx.appSetting.upsert({
       where: { key: workspaceSettingKey(session.workspaceId, "newsletter_api_key") },
       create: { key: workspaceSettingKey(session.workspaceId, "newsletter_api_key"), value: apiKey },
       update: { value: apiKey },
-    }),
-    db.appSetting.upsert({
+    });
+    await tx.appSetting.upsert({
       where: { key: workspaceSettingKey(session.workspaceId, "newsletter_list_id") },
       create: { key: workspaceSettingKey(session.workspaceId, "newsletter_list_id"), value: listId },
       update: { value: listId },
-    }),
+    });
     // Une connexion validée permet d'activer immédiatement le module.
-    db.appSetting.upsert({
+    await tx.appSetting.upsert({
       where: { key: workspaceSettingKey(session.workspaceId, "newsletter_enabled") },
       create: { key: workspaceSettingKey(session.workspaceId, "newsletter_enabled"), value: "on" },
       update: { value: "on" },
-    }),
-  ]);
+    });
+  });
   revalidatePath("/admin");
   revalidatePath("/settings");
   revalidatePath("/contacts");

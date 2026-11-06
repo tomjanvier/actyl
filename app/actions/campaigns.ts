@@ -7,8 +7,9 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { withDbTransaction } from "@/lib/db-transaction";
 import { getSession } from "@/lib/auth";
-import { can } from "@/lib/constants";
+import { CAMPAIGN_STATUSES, PRIORITIES, can } from "@/lib/constants";
 import { slugify } from "@/lib/utils";
 import { getCampaignAccess, campaignAccessWhere, resolveCampaignAccess } from "@/lib/campaign-access";
 
@@ -73,6 +74,9 @@ export async function updateCampaignStatusAction(
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "campaign:edit")) throw new Error("Permission refusée");
+  if (!(CAMPAIGN_STATUSES as readonly string[]).includes(status)) {
+    throw new Error("Statut de campagne invalide");
+  }
   const access = await getCampaignAccess(campaignId, session.workspaceId);
   if (!access?.canContribute) throw new Error("Campagne en lecture seule");
   await db.campaign.update({ where: { id: campaignId }, data: { status } });
@@ -258,6 +262,9 @@ export async function moveCardAction(input: {
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
   if (!can(session.role, "card:move")) return { error: "Permission refusée" };
+  if (!Number.isInteger(input.position) || input.position < 0) {
+    return { error: "Position invalide" };
+  }
 
   const card = await db.kanbanCard.findFirst({
     where: {
@@ -287,7 +294,7 @@ export async function moveCardAction(input: {
     return { ok: true };
   }
 
-  await db.$transaction(async (tx) => {
+  await withDbTransaction(async (tx) => {
     await tx.kanbanCard.update({
       where: { id: input.cardId },
       data: { stageId: input.toStageId, position: input.position, lastTouchAt: new Date() },
@@ -327,6 +334,9 @@ export async function setCardPriorityAction(cardId: string, priority: string) {
   const session = await getSession();
   if (!session) throw new Error("Non authentifié");
   if (!can(session.role, "card:edit")) throw new Error("Permission refusée");
+  if (!(PRIORITIES as readonly string[]).includes(priority)) {
+    throw new Error("Priorité invalide");
+  }
   const card = await db.kanbanCard.findFirst({
     where: {
       id: cardId,
