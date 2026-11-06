@@ -97,6 +97,17 @@ function main() {
         console.log(`[prisma-wasm] ${handler} déjà patché, ignoré.`);
         continue;
       }
+      // Diagnostic temporaire (revalidation Next 16 / Turbopack) : contexte brut
+      // autour des occurrences, pour revalider l'ancre sans build local.
+      for (const needle of ["getQueryCompilerWasmModule", "wasm-base64", "query_compiler", "WebAssembly"]) {
+        let idx = src.indexOf(needle);
+        let n = 0;
+        while (idx !== -1 && n < 4) {
+          console.log(`[prisma-wasm][diag] ${needle} @${idx}: ${JSON.stringify(src.slice(Math.max(0, idx - 300), idx + 400))}`);
+          idx = src.indexOf(needle, idx + 1);
+          n += 1;
+        }
+      }
       throw new Error(
         `[prisma-wasm] Ancre du chargeur Prisma introuvable dans ${handler}.\n` +
           `La version Prisma/OpenNext a probablement changé : revalidation manuelle requise ` +
