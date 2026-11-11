@@ -13,6 +13,34 @@ export function invalidatePublicDirectory() {
   updateTag("public-directory");
 }
 
+const loadLandingDemoList = unstable_cache(
+  async (configuredId: string) => {
+    const selection = { id: true, name: true, description: true } as const;
+    if (configuredId) {
+      return db.sharedList.findFirst({
+        where: { id: configuredId, isPublished: true },
+        select: selection,
+      });
+    }
+
+    return (await db.sharedList.findFirst({
+      where: { isPublished: true, sourcePack: "deputes", items: { some: {} } },
+      orderBy: { createdAt: "asc" },
+      select: selection,
+    })) ?? db.sharedList.findFirst({
+      where: { isPublished: true, items: { some: {} } },
+      orderBy: { createdAt: "desc" },
+      select: selection,
+    });
+  },
+  ["landing-demo-list-v1"],
+  { revalidate: 60, tags: ["public-directory"] },
+);
+
+export function getLandingDemoList(configuredId = "") {
+  return loadLandingDemoList(configuredId);
+}
+
 // Publication is checked afresh before every cached payload is served.
 export function getPublishedList(id: string) {
   return db.sharedList.findFirst({ where: { id, isPublished: true }, select: { id: true, name: true, description: true } });
