@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import {
   createSession,
   destroySession,
+  getSession,
   hashPassword,
   setWorkspaceCookie,
   verifyPassword,
