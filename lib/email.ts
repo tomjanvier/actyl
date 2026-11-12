@@ -30,6 +30,17 @@ export function extractVariables(text: string): string[] {
   return [...found];
 }
 
+export function invitationEmailHtml(input: { name: string; workspace: string; acceptUrl: string }) {
+  const base = wrapEmailHtml(
+    `Vous avez été invité·e à rejoindre ${input.workspace} sur Actyl. Cliquez sur le bouton ci-dessous pour activer votre accès. Cette invitation expire dans 7 jours.`,
+    `Invitation envoyée par ${input.workspace}`,
+    null,
+    { greeting: `Bonjour ${input.name},`, workspaceName: input.workspace },
+  );
+  const safeUrl = escapeHtml(input.acceptUrl);
+  return base.replace("</body>", `<table role="presentation" align="center"><tr><td style="padding:0 20px 28px"><a href="${safeUrl}" style="display:inline-block;padding:13px 22px;border-radius:9px;background:#d95a4d;color:#fff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:700">Accepter l’invitation</a></td></tr></table></body>`);
+}
+
 function publicBaseUrl(): string | null {
   const value = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
   if (!value) return null;

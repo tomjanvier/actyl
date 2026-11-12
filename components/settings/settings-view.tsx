@@ -63,6 +63,7 @@ export function SettingsView({
   canImportContacts,
   currentUserId,
   currentUser,
+  jobTitles,
   fields,
   groups,
   members,
@@ -85,6 +86,7 @@ export function SettingsView({
   canImportContacts: boolean;
   currentUserId: string;
   currentUser: { id: string; name: string; email: string; jobTitle: string | null };
+  jobTitles: string[];
   fields: Array<{
     id: string;
     label: string;
@@ -467,7 +469,7 @@ export function SettingsView({
 
         {/* ── Profil ── */}
         <TabsContent value="profil" className="mt-5 outline-none">
-          <ProfileForm user={currentUser} />
+          <ProfileForm user={currentUser} jobTitles={jobTitles} canManageJobTitles={isAdmin || isSuperAdmin} />
         </TabsContent>
 
         {isSuperAdmin && (

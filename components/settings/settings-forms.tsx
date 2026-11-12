@@ -10,6 +10,8 @@ import {
   createCustomFieldAction,
   createGroupAction,
   inviteMemberAction,
+  saveJobTitleAction,
+  deleteJobTitleAction,
   updateProfileAction,
   createWorkspaceAction,
   saveLandingPageSettingsAction,
@@ -28,7 +30,7 @@ export function LandingSettingsForm({
   settings: LandingSettings;
 }) {
   const [state, action, pending] = useActionState<
-    { error?: string; ok?: boolean } | undefined,
+    { error?: string; ok?: boolean; message?: string } | undefined,
     FormData
   >(saveLandingPageSettingsAction, undefined);
 
@@ -333,12 +335,12 @@ export function CreateGroupForm({
 
 export function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
   const [state, action, pending] = useActionState<
-    { error?: string; ok?: boolean } | undefined,
+    { error?: string; ok?: boolean; message?: string } | undefined,
     FormData
   >(inviteMemberAction, undefined);
   useEffect(() => {
     if (state?.ok) {
-      toast.success("Membre invité dans l'espace");
+      toast.success(state.message ?? "Invitation envoyée par email");
       onInvited();
     }
     if (state?.error) toast.error(state.error);
@@ -362,10 +364,6 @@ export function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
           <Input name="name" required />
         </div>
         <div>
-          <Label className="mb-1 block">Mot de passe provisoire *</Label>
-          <Input name="password" minLength={8} required placeholder="8 caractères min." />
-        </div>
-        <div>
           <Label className="mb-1 block">Rôle</Label>
           <select
             name="role"
@@ -381,10 +379,10 @@ export function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
       </div>
       <Button type="submit" size="sm" disabled={pending} className="mt-3 w-full">
         {pending ? <Loader2 className="animate-spin" /> : <UserPlus />}
-        Ajouter au workspace
+        Envoyer l’invitation
       </Button>
       <p className="mt-2 text-center text-[11px] text-faint">
-        Transmettez les identifiants manuellement (pas d&apos;email automatique en démo).
+        Le lien expire après 7 jours. L’envoi réel nécessite la configuration email.
       </p>
     </form>
   );
@@ -394,8 +392,12 @@ export function InviteMemberForm({ onInvited }: { onInvited: () => void }) {
 
 export function ProfileForm({
   user,
+  jobTitles,
+  canManageJobTitles,
 }: {
   user: { id: string; name: string; email: string; jobTitle: string | null };
+  jobTitles: string[];
+  canManageJobTitles: boolean;
 }) {
   const [state, action, pending] = useActionState<
     { error?: string; ok?: boolean } | undefined,
@@ -427,7 +429,7 @@ export function ProfileForm({
         </div>
         <div>
           <Label htmlFor="profile-job-title" className="mb-1 block">Fonction</Label>
-          <Input id="profile-job-title" name="jobTitle" defaultValue={user.jobTitle ?? ""} placeholder="Chargée de plaidoyer…" autoComplete="organization-title" />
+          <select id="profile-job-title" name="jobTitle" defaultValue={user.jobTitle ?? ""} autoComplete="organization-title" className="h-9 w-full rounded-lg border border-line bg-elev px-2.5 text-[12.5px] text-fg"><option value="">Sélectionner un métier</option>{user.jobTitle && !jobTitles.includes(user.jobTitle) && <option value={user.jobTitle}>{user.jobTitle} · ancien</option>}{jobTitles.map((job) => <option key={job} value={job}>{job}</option>)}</select>
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="profile-email" className="mb-1 block">Adresse e-mail</Label>
@@ -452,8 +454,24 @@ export function ProfileForm({
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Enregistrement…" : "Enregistrer"}
       </Button>
+      {canManageJobTitles && <JobTitlesManager jobTitles={jobTitles} />}
     </form>
   );
+}
+
+function JobTitlesManager({ jobTitles }: { jobTitles: string[] }) {
+  const [name, setName] = useState("");
+  const router = useRouter();
+  async function add() {
+    const data = new FormData(); data.set("name", name);
+    const result = await saveJobTitleAction(data);
+    if (result.error) toast.error(result.error); else { setName(""); toast.success("Métier ajouté"); router.refresh(); }
+  }
+  async function remove(title: string) {
+    const result = await deleteJobTitleAction(title);
+    if (result.error) toast.error(result.error); else { toast.success("Métier supprimé"); router.refresh(); }
+  }
+  return <section className="mt-6 border-t border-line pt-4"><h3 className="text-sm font-semibold text-fg">Catalogue des métiers</h3><p className="mt-1 text-xs text-mut">Catalogue partagé entre les espaces. Les métiers déjà attribués aux profils restent enregistrés si une entrée est supprimée.</p><div className="mt-3 flex gap-2"><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ajouter un métier" maxLength={80} /><Button type="button" size="sm" onClick={() => void add()}>Ajouter</Button></div><ul className="mt-3 flex flex-wrap gap-2">{jobTitles.map((title) => <li key={title} className="flex items-center gap-2 rounded-full border border-line px-3 py-1 text-xs text-fg">{title}<button type="button" aria-label={`Supprimer ${title}`} onClick={() => void remove(title)} className="text-faint hover:text-red-600">×</button></li>)}</ul></section>;
 }
 
 export const GROUP_DOT: Record<string, string> = {

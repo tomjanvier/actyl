@@ -14,6 +14,7 @@ import { slugify } from "@/lib/utils";
 import { getSignupMode } from "@/lib/signup-mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { createHash } from "node:crypto";
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Nom trop court"),
@@ -189,6 +190,32 @@ function safeNext(next: FormDataEntryValue | null): string {
 export async function signOutAction() {
   await destroySession();
   redirect("/sign-in");
+}
+
+export async function acceptWorkspaceInvitationAction(_prev: unknown, formData: FormData): Promise<{ error?: string }> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const invitation = await db.workspaceInvitation.findUnique({ where: { tokenHash } });
+  if (!invitation || invitation.expiresAt <= new Date()) return { error: "Cette invitation est invalide ou expirée." };
+  let user = await db.user.findUnique({ where: { email: invitation.email } });
+  if (user) {
+    const session = await getSession();
+    if (session?.user.id !== user.id) return { error: "Connectez-vous avec l’adresse invitée, puis rouvrez ce lien." };
+    await db.membership.upsert({ where: { userId_workspaceId: { userId: user.id, workspaceId: invitation.workspaceId } }, create: { userId: user.id, workspaceId: invitation.workspaceId, role: invitation.role }, update: {} });
+  } else {
+    if (password.length < 8) return { error: "Choisissez un mot de passe d’au moins 8 caractères." };
+    user = await db.user.create({ data: {
+      email: invitation.email,
+      name: invitation.name,
+      passwordHash: await hashPassword(password),
+      memberships: { create: { workspaceId: invitation.workspaceId, role: invitation.role } },
+    } });
+  }
+  await db.workspaceInvitation.delete({ where: { id: invitation.id } });
+  await createSession(user.id);
+  await setWorkspaceCookie(invitation.workspaceId);
+  redirect("/contacts");
 }
 
 export async function switchWorkspaceAction(workspaceId: string) {
