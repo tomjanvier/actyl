@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { createHash, randomBytes } from "node:crypto";
 import { accountRequestContributions } from "@/lib/account-request-contributions";
@@ -288,7 +289,10 @@ export async function inviteMemberAction(
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const name = String(formData.get("name") ?? "").trim();
   const role = String(formData.get("role") ?? "MEMBER") as Role;
-  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
+  const requestHeaders = await headers();
+  const requestHost = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const trustedPreviewHost = requestHost && (requestHost === "actyl.org" || requestHost.endsWith(".workers.dev")) ? `https://${requestHost}` : null;
+  const configuredUrl = trustedPreviewHost || process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
   let origin: string;
   try { origin = new URL(configuredUrl ?? "").origin; } catch { return { error: "URL de l’application non configurée (APP_URL)." }; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
