@@ -27,6 +27,7 @@ model Workspace {
   createdAt DateTime @default(now())
 
   memberships  Membership[]
+  invitations WorkspaceInvitation[]
   groups       Group[]
   contacts     Contact[]
   campaigns    Campaign[]
@@ -73,6 +74,27 @@ model User {
   politicalPositions PoliticalPosition[]
   oidcCodes       OidcAuthorizationCode[]
   oidcTokens      OidcAccessToken[]
+}
+
+model JobTitle {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  @@map("job_titles")
+}
+
+model WorkspaceInvitation {
+  id          String   @id @default(cuid())
+  email       String
+  name        String
+  role        String
+  tokenHash   String   @unique
+  workspaceId String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@index([workspaceId, email])
+  @@map("workspace_invitations")
 }
 
 model OidcClient {

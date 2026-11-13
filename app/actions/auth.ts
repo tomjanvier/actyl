@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import {
   createSession,
   destroySession,
+  getSession,
   hashPassword,
   setWorkspaceCookie,
   verifyPassword,
@@ -14,6 +15,7 @@ import { slugify } from "@/lib/utils";
 import { getSignupMode } from "@/lib/signup-mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { createHash } from "node:crypto";
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Nom trop court"),
@@ -54,7 +56,10 @@ export async function signUpAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
   }
-  const captcha = await verifyTurnstileToken(String(formData.get("cf-turnstile-response") ?? ""));
+  const captcha = await verifyTurnstileToken(
+    String(formData.get("cf-turnstile-response") ?? ""),
+    { allowPreviewSignupBypass: true },
+  );
   if (!captcha.ok) return { error: captcha.error };
   const {
     name,
@@ -117,33 +122,52 @@ export async function signUpAction(
     slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
-  const user = await db.user.create({
-    data: {
-      email: email.toLowerCase(),
-      name,
-      passwordHash: await hashPassword(password),
-      memberships: {
-        create: {
-          role: "ADMIN",
-          workspace: {
-            create: {
-              name: workspaceName,
-              slug,
-              website: website || null,
-              phone: phone || null,
-              monthlyContributionInterest,
-              monthlyContributionAmount:
-                monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
-            },
-          },
-        },
+  const passwordHash = await hashPassword(password);
+  let workspaceId = "";
+  let userId = "";
+  try {
+    const workspace = await db.workspace.create({
+      data: {
+        name: workspaceName,
+        slug,
+        website: website || null,
+        phone: phone || null,
+        monthlyContributionInterest,
+        monthlyContributionAmount:
+          monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
       },
-    },
-    include: { memberships: true },
-  });
+    });
+    workspaceId = workspace.id;
 
-  await createSession(user.id);
-  await setWorkspaceCookie(user.memberships[0]!.workspaceId);
+    const user = await db.user.create({
+      data: { email: email.toLowerCase(), name, passwordHash },
+    });
+    userId = user.id;
+
+    await db.membership.create({
+      data: { userId: user.id, workspaceId: workspace.id, role: "ADMIN" },
+    });
+  } catch (error) {
+    // Neon HTTP does not support transactions. Remove any partial signup rows.
+    if (userId) {
+      try {
+        await db.user.deleteMany({ where: { id: userId } });
+      } catch (cleanupError) {
+        console.error("[signUpAction] user cleanup failed", cleanupError);
+      }
+    }
+    if (workspaceId) {
+      try {
+        await db.workspace.deleteMany({ where: { id: workspaceId } });
+      } catch (cleanupError) {
+        console.error("[signUpAction] workspace cleanup failed", cleanupError);
+      }
+    }
+    throw error;
+  }
+
+  await createSession(userId);
+  await setWorkspaceCookie(workspaceId);
   redirect("/contacts");
 }
 
@@ -160,18 +184,24 @@ export async function signInAction(
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "Email et mot de passe requis." };
 
+  let signInStage = "user_lookup";
   try {
-    const user = await db.user.findUnique({
-      where: { email },
-      include: { memberships: { orderBy: { createdAt: "asc" }, take: 1 } },
-    });
+    const user = await db.user.findUnique({ where: { email } });
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return { error: "Identifiants incorrects." };
     }
+    signInStage = "membership_lookup";
+    const membership = await db.membership.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "asc" },
+      select: { workspaceId: true },
+    });
+    signInStage = "session_cookie";
     await createSession(user.id);
-    if (user.memberships[0]) await setWorkspaceCookie(user.memberships[0].workspaceId);
+    if (membership) await setWorkspaceCookie(membership.workspaceId);
   } catch (e) {
-    console.error("[signInAction]", e);
+    const detail = e instanceof Error ? e.name + ": " + e.message : String(e);
+    console.error("[signInAction]", signInStage, detail.slice(0, 500));
     return { error: "Service temporairement indisponible, veuillez réessayer." };
   }
   redirect(safeNext(formData.get("next")));
@@ -189,6 +219,32 @@ function safeNext(next: FormDataEntryValue | null): string {
 export async function signOutAction() {
   await destroySession();
   redirect("/sign-in");
+}
+
+export async function acceptWorkspaceInvitationAction(_prev: unknown, formData: FormData): Promise<{ error?: string }> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const invitation = await db.workspaceInvitation.findUnique({ where: { tokenHash } });
+  if (!invitation || invitation.expiresAt <= new Date()) return { error: "Cette invitation est invalide ou expirée." };
+  let user = await db.user.findUnique({ where: { email: invitation.email } });
+  if (user) {
+    const session = await getSession();
+    if (session?.user.id !== user.id) return { error: "Connectez-vous avec l’adresse invitée, puis rouvrez ce lien." };
+    await db.membership.upsert({ where: { userId_workspaceId: { userId: user.id, workspaceId: invitation.workspaceId } }, create: { userId: user.id, workspaceId: invitation.workspaceId, role: invitation.role }, update: {} });
+  } else {
+    if (password.length < 8) return { error: "Choisissez un mot de passe d’au moins 8 caractères." };
+    user = await db.user.create({ data: {
+      email: invitation.email,
+      name: invitation.name,
+      passwordHash: await hashPassword(password),
+      memberships: { create: { workspaceId: invitation.workspaceId, role: invitation.role } },
+    } });
+  }
+  await db.workspaceInvitation.delete({ where: { id: invitation.id } });
+  await createSession(user.id);
+  await setWorkspaceCookie(invitation.workspaceId);
+  redirect("/contacts");
 }
 
 export async function switchWorkspaceAction(workspaceId: string) {

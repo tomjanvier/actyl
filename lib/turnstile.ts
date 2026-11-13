@@ -3,7 +3,19 @@ import "server-only";
 type VerificationResult = { ok: true } | { ok: false; error: string };
 
 /** Vérifie un jeton Turnstile côté serveur avant toute écriture publique. */
-export async function verifyTurnstileToken(token?: string): Promise<VerificationResult> {
+export async function verifyTurnstileToken(
+  token?: string,
+  options: { allowPreviewSignupBypass?: boolean } = {},
+): Promise<VerificationResult> {
+  // The Preview-only flag is declared in wrangler.jsonc's `previews.vars`.
+  // Keep the bypass opt-in at the signup call site; public forms still verify Turnstile.
+  if (
+    options.allowPreviewSignupBypass &&
+    process.env.ACTYL_PREVIEW_DISABLE_SIGNUP_TURNSTILE === "true"
+  ) {
+    return { ok: true };
+  }
+
   const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
   if (!secret) {
     return process.env.NODE_ENV === "production"

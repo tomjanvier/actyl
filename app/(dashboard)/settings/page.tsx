@@ -36,6 +36,7 @@ export default async function SettingsPage({
     workspaces,
     landingSettings,
     oidcClients,
+    jobTitles,
   ] =
     await Promise.all([
       db.customField.findMany({
@@ -123,6 +124,7 @@ export default async function SettingsPage({
           },
         })
       : Promise.resolve([]),
+      db.jobTitle.findMany({ orderBy: { name: "asc" }, select: { name: true } }),
   ]);
 
   return (
@@ -155,6 +157,7 @@ export default async function SettingsPage({
           email: session.user.email,
           jobTitle: session.user.jobTitle,
         }}
+        jobTitles={jobTitles.map((job) => job.name)}
         fields={fields.map((f) => ({
           id: f.id,
           label: f.label,

@@ -84,11 +84,30 @@ export type SessionContext = {
 
 // Request-scoped only: never share membership or user data between visitors.
 export const getUserMemberships = cache(async (userId: string) => {
-  return db.membership.findMany({
+  const memberships = await db.membership.findMany({
     where: { userId },
-    include: { user: { select: { id: true, email: true, name: true, jobTitle: true, isSuperAdmin: true } }, workspace: { select: { id: true, name: true, slug: true, logoEmoji: true } } },
+    select: { id: true, userId: true, workspaceId: true, role: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
+
+  // Neon HTTP cannot wrap relation includes in a transaction; load each side
+  // with independent queries so session reads work on Workers.
+  const resolved = await Promise.all(
+    memberships.map(async (membership) => {
+      const [user, workspace] = await Promise.all([
+        db.user.findUnique({
+          where: { id: membership.userId },
+          select: { id: true, email: true, name: true, jobTitle: true, isSuperAdmin: true },
+        }),
+        db.workspace.findUnique({
+          where: { id: membership.workspaceId },
+          select: { id: true, name: true, slug: true, logoEmoji: true },
+        }),
+      ]);
+      return user && workspace ? { ...membership, user, workspace } : null;
+    }),
+  );
+  return resolved.filter((membership) => membership !== null);
 });
 
 async function readSession(): Promise<SessionContext | null> {

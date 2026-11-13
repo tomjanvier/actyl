@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function LandingPage() {
   const settings = await getLandingSettings();
   const primaryButton = (
-    <Button asChild size="lg" className="w-full sm:w-auto"><Link href={settings.primaryHref}>
+    <Button asChild size="lg" className="w-full sm:w-auto"><Link href={settings.primaryHref} prefetch={false}>
       {settings.primaryCta}
       <ArrowRight />
     </Link></Button>
@@ -37,8 +37,8 @@ export default async function LandingPage() {
         </Link>
         <nav className="flex items-center gap-3">
           <ThemeToggle />
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link href="/sign-in">Connexion</Link></Button>
-          <Button asChild size="sm"><Link href="/sign-up">S’inscrire<ArrowRight /></Link></Button>
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link href="/sign-in" prefetch={false}>Connexion</Link></Button>
+          <Button asChild size="sm"><Link href="/sign-up" prefetch={false}>S’inscrire<ArrowRight /></Link></Button>
         </nav>
       </header>
 
@@ -59,7 +59,7 @@ export default async function LandingPage() {
           </p>
           <div className="mt-8 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
             {primaryButton}
-            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"><Link href="/sign-in">Se connecter</Link></Button>
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto"><Link href="/sign-in" prefetch={false}>Se connecter</Link></Button>
           </div>
         </section>
 

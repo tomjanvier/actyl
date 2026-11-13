@@ -1,7 +1,9 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
+import { createHash, randomBytes } from "node:crypto";
 import { accountRequestContributions } from "@/lib/account-request-contributions";
 import { withDbTransaction } from "@/lib/db-transaction";
 import { db } from "@/lib/db";
@@ -10,6 +12,7 @@ import { can, ROLES, type Role } from "@/lib/constants";
 import { SEGMENT_SETTING_KEYS } from "@/lib/flags";
 import { workspaceSettingKey } from "@/lib/workspace-settings";
 import { slugify } from "@/lib/utils";
+import { dispatchEmail, invitationEmailHtml } from "@/lib/email";
 
 const workspaceSchema = z.object({
   name: z.string().trim().min(2, "Nom de l’espace requis").max(120),
@@ -64,7 +67,7 @@ export async function saveLandingPageSettingsAction(
       where: { key: `landing_${key}` }, create: { key: `landing_${key}`, value }, update: { value },
     });
   });
-  revalidateTag("landing-settings");
+  updateTag("landing-settings");
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/settings");
@@ -278,36 +281,61 @@ export async function updateMemberRoleAction(
 export async function inviteMemberAction(
   _prev: unknown,
   formData: FormData,
-): Promise<{ error?: string; ok?: boolean }> {
+): Promise<{ error?: string; ok?: boolean; message?: string }> {
   const session = await getSession();
   if (!session) return { error: "Non authentifié" };
   if (session.role !== "ADMIN") return { error: "Réservé aux administrateurs" };
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const name = String(formData.get("name") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
   const role = String(formData.get("role") ?? "MEMBER") as Role;
+  const requestHeaders = await headers();
+  const requestHost = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const trustedPreviewHost = requestHost && (requestHost === "actyl.org" || requestHost.endsWith(".workers.dev")) ? `https://${requestHost}` : null;
+  const configuredUrl = trustedPreviewHost || process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
+  let origin: string;
+  try { origin = new URL(configuredUrl ?? "").origin; } catch { return { error: "URL de l’application non configurée (APP_URL)." }; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return { error: "Email invalide." };
   if (name.length < 2) return { error: "Nom requis." };
-  if (password.length < 8) return { error: "Mot de passe : 8 caractères minimum." };
   if (!ROLES.includes(role)) return { error: "Rôle invalide." };
-
-  let user = await db.user.findUnique({ where: { email } });
-  if (!user) {
-    user = await db.user.create({
-      data: { email, name, passwordHash: await hashPassword(password) },
-    });
+  const existingUser = await db.user.findUnique({ where: { email }, select: { id: true } });
+  if (existingUser && await db.membership.findUnique({ where: { userId_workspaceId: { userId: existingUser.id, workspaceId: session.workspaceId } } }))
+    return { error: "Cette personne fait déjà partie de l’espace." };
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const invitation = await db.workspaceInvitation.create({ data: {
+    email, name, role, tokenHash, workspaceId: session.workspaceId,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  }, include: { workspace: { select: { name: true } } } });
+  const result = await dispatchEmail({
+    to: email,
+    subject: `Invitation à rejoindre ${invitation.workspace.name} sur Actyl`,
+    html: invitationEmailHtml({ name, workspace: invitation.workspace.name, acceptUrl: `${origin}/invite/${token}` }),
+  });
+  if (!result.ok || result.simulated) {
+    await db.workspaceInvitation.delete({ where: { id: invitation.id } });
+    return { error: result.ok ? "L’envoi des emails n’est pas configuré." : `Échec de l’envoi : ${result.error}` };
   }
-  const existingMembership = await db.membership.findUnique({
-    where: { userId_workspaceId: { userId: user.id, workspaceId: session.workspaceId } },
-  });
-  if (existingMembership) return { error: "Cette personne fait déjà partie de l'espace." };
-
-  await db.membership.create({
-    data: { userId: user.id, workspaceId: session.workspaceId, role },
-  });
   revalidatePath("/admin");
+  revalidatePath("/settings");
+  return { ok: true, message: "Invitation envoyée. Elle expire dans 7 jours." };
+}
+
+export async function saveJobTitleAction(formData: FormData): Promise<{ error?: string; ok?: boolean }> {
+  const session = await getSession();
+  if (!session || (session.role !== "ADMIN" && !session.user.isSuperAdmin)) return { error: "Réservé aux administrateurs" };
+  const name = String(formData.get("name") ?? "").trim();
+  if (name.length < 2 || name.length > 80) return { error: "Le métier doit contenir entre 2 et 80 caractères." };
+  await db.jobTitle.upsert({ where: { name }, create: { name }, update: {} });
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function deleteJobTitleAction(name: string): Promise<{ error?: string; ok?: boolean }> {
+  const session = await getSession();
+  if (!session || (session.role !== "ADMIN" && !session.user.isSuperAdmin)) return { error: "Réservé aux administrateurs" };
+  await db.jobTitle.deleteMany({ where: { name } });
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -341,6 +369,7 @@ export async function updateProfileAction(
   const currentPassword = String(formData.get("currentPassword") ?? "");
   const newPassword = String(formData.get("newPassword") ?? "");
   if (name.length < 2) return { error: "Nom trop court" };
+  if (jobTitle.length > 80) return { error: "Le métier ne peut dépasser 80 caractères." };
   if (!z.string().email().safeParse(email).success) return { error: "Adresse e-mail invalide." };
 
   const emailChanged = email !== session.user.email.toLowerCase();
