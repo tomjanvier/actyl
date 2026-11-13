@@ -185,15 +185,17 @@ export async function signInAction(
   if (!email || !password) return { error: "Email et mot de passe requis." };
 
   try {
-    const user = await db.user.findUnique({
-      where: { email },
-      include: { memberships: { orderBy: { createdAt: "asc" }, take: 1 } },
-    });
+    const user = await db.user.findUnique({ where: { email } });
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return { error: "Identifiants incorrects." };
     }
+    const membership = await db.membership.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "asc" },
+      select: { workspaceId: true },
+    });
     await createSession(user.id);
-    if (user.memberships[0]) await setWorkspaceCookie(user.memberships[0].workspaceId);
+    if (membership) await setWorkspaceCookie(membership.workspaceId);
   } catch (e) {
     console.error("[signInAction]", e);
     return { error: "Service temporairement indisponible, veuillez réessayer." };
