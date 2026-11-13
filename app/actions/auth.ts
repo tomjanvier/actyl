@@ -15,6 +15,7 @@ import { slugify } from "@/lib/utils";
 import { getSignupMode } from "@/lib/signup-mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { withDbTransaction } from "@/lib/db-transaction";
 import { createHash } from "node:crypto";
 
 const signUpSchema = z.object({
@@ -122,30 +123,33 @@ export async function signUpAction(
     slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
-  const user = await db.user.create({
-    data: {
-      email: email.toLowerCase(),
-      name,
-      passwordHash: await hashPassword(password),
-      memberships: {
-        create: {
-          role: "ADMIN",
-          workspace: {
-            create: {
-              name: workspaceName,
-              slug,
-              website: website || null,
-              phone: phone || null,
-              monthlyContributionInterest,
-              monthlyContributionAmount:
-                monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
+  const passwordHash = await hashPassword(password);
+  const user = await withDbTransaction((tx) =>
+    tx.user.create({
+      data: {
+        email: email.toLowerCase(),
+        name,
+        passwordHash,
+        memberships: {
+          create: {
+            role: "ADMIN",
+            workspace: {
+              create: {
+                name: workspaceName,
+                slug,
+                website: website || null,
+                phone: phone || null,
+                monthlyContributionInterest,
+                monthlyContributionAmount:
+                  monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
+              },
             },
           },
         },
       },
-    },
-    include: { memberships: true },
-  });
+      include: { memberships: true },
+    }),
+  );
 
   await createSession(user.id);
   await setWorkspaceCookie(user.memberships[0]!.workspaceId);
