@@ -15,7 +15,6 @@ import { slugify } from "@/lib/utils";
 import { getSignupMode } from "@/lib/signup-mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
-import { withDbTransaction } from "@/lib/db-transaction";
 import { createHash } from "node:crypto";
 
 const signUpSchema = z.object({
@@ -124,35 +123,51 @@ export async function signUpAction(
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await withDbTransaction((tx) =>
-    tx.user.create({
+  let workspaceId = "";
+  let userId = "";
+  try {
+    const workspace = await db.workspace.create({
       data: {
-        email: email.toLowerCase(),
-        name,
-        passwordHash,
-        memberships: {
-          create: {
-            role: "ADMIN",
-            workspace: {
-              create: {
-                name: workspaceName,
-                slug,
-                website: website || null,
-                phone: phone || null,
-                monthlyContributionInterest,
-                monthlyContributionAmount:
-                  monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
-              },
-            },
-          },
-        },
+        name: workspaceName,
+        slug,
+        website: website || null,
+        phone: phone || null,
+        monthlyContributionInterest,
+        monthlyContributionAmount:
+          monthlyContributionInterest === "YES" ? monthlyContributionAmount! : null,
       },
-      include: { memberships: true },
-    }),
-  );
+    });
+    workspaceId = workspace.id;
 
-  await createSession(user.id);
-  await setWorkspaceCookie(user.memberships[0]!.workspaceId);
+    const user = await db.user.create({
+      data: { email: email.toLowerCase(), name, passwordHash },
+    });
+    userId = user.id;
+
+    await db.membership.create({
+      data: { userId: user.id, workspaceId: workspace.id, role: "ADMIN" },
+    });
+  } catch (error) {
+    // Neon HTTP does not support transactions. Remove any partial signup rows.
+    if (userId) {
+      try {
+        await db.user.deleteMany({ where: { id: userId } });
+      } catch (cleanupError) {
+        console.error("[signUpAction] user cleanup failed", cleanupError);
+      }
+    }
+    if (workspaceId) {
+      try {
+        await db.workspace.deleteMany({ where: { id: workspaceId } });
+      } catch (cleanupError) {
+        console.error("[signUpAction] workspace cleanup failed", cleanupError);
+      }
+    }
+    throw error;
+  }
+
+  await createSession(userId);
+  await setWorkspaceCookie(workspaceId);
   redirect("/contacts");
 }
 
