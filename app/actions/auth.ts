@@ -184,16 +184,19 @@ export async function signInAction(
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "Email et mot de passe requis." };
 
+  let signInStage = "user_lookup";
   try {
     const user = await db.user.findUnique({ where: { email } });
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return { error: "Identifiants incorrects." };
     }
+    signInStage = "membership_lookup";
     const membership = await db.membership.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "asc" },
       select: { workspaceId: true },
     });
+    signInStage = "session_cookie";
     await createSession(user.id);
     if (membership) await setWorkspaceCookie(membership.workspaceId);
   } catch (e) {
