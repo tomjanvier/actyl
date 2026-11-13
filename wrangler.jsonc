@@ -42,7 +42,8 @@
     ] },
     "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare" }],
     "vars": {
-      "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe"
+      "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
+      "ACTYL_PREVIEW_DISABLE_SIGNUP_TURNSTILE": "true"
     }
   },
 

@@ -56,7 +56,10 @@ export async function signUpAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
   }
-  const captcha = await verifyTurnstileToken(String(formData.get("cf-turnstile-response") ?? ""));
+  const captcha = await verifyTurnstileToken(
+    String(formData.get("cf-turnstile-response") ?? ""),
+    { allowPreviewSignupBypass: true },
+  );
   if (!captcha.ok) return { error: captcha.error };
   const {
     name,

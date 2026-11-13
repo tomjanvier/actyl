@@ -14,7 +14,13 @@ const CONTRIBUTION_CHOICES = [
   ["DISCUSS", "À discuter"],
 ] as const;
 
-export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
+export function SignUpForm({
+  mode,
+  disableTurnstile,
+}: {
+  mode: "OPEN" | "APPROVAL";
+  disableTurnstile: boolean;
+}) {
   const [contributionInterest, setContributionInterest] = useState("");
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     signUpAction,
@@ -143,7 +149,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
             {state.error}
           </p>
         )}
-        <TurnstileWidget />
+        {!disableTurnstile && <TurnstileWidget />}
         <Button type="submit" disabled={pending} className="mt-1 w-full">
           {pending
             ? "Envoi…"
