@@ -89,7 +89,7 @@ export function AdminView({
           {pendingProposals} propositions de mise à jour des référentiels
           attendent une décision.{" "}
           <Link
-            href="/lists"
+            href="/admin/propositions"
             className="text-accent-text underline underline-offset-4"
           >
             Examiner les propositions
@@ -110,6 +110,12 @@ export function AdminView({
         </Button>
         <Button asChild variant="outline">
           <Link href="/settings?tab=api">Intégrations</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/admin/support">Signalements</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/admin/propositions">Propositions de fiches</Link>
         </Button>
       </nav>
       <section
