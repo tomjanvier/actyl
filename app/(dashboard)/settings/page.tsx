@@ -26,6 +26,7 @@ export default async function SettingsPage({
     fields,
     groups,
     memberships,
+    invitations,
     apiTokens,
     segments,
     newsletter,
@@ -65,6 +66,13 @@ export default async function SettingsPage({
           groups: { include: { group: { select: { name: true } } } },
         },
       }),
+      session.role === "ADMIN"
+        ? db.workspaceInvitation.findMany({
+            where: { workspaceId: session.workspaceId },
+            orderBy: { createdAt: "desc" },
+            select: { id: true, email: true, name: true, role: true, createdAt: true, expiresAt: true },
+          })
+        : Promise.resolve([]),
       db.apiToken.findMany({
         where: { workspaceId: session.workspaceId },
         orderBy: { createdAt: "desc" },
@@ -173,6 +181,7 @@ export default async function SettingsPage({
           campaignCount: g._count.campaigns,
           members: g.members.map((m) => ({
             groupMemberId: m.id,
+            membershipId: m.membershipId,
             name: m.membership.user.name,
             email: m.membership.user.email,
           })),
@@ -189,6 +198,11 @@ export default async function SettingsPage({
             | "MEMBER"
             | "OBSERVER",
           groups: m.groups.map((gm) => gm.group.name),
+        }))}
+        invitations={invitations.map((invitation) => ({
+          ...invitation,
+          createdAt: invitation.createdAt.toISOString(),
+          expiresAt: invitation.expiresAt.toISOString(),
         }))}
         roleMeta={ROLE_META}
         canManageGroups={can(session.role, "campaign:create")}

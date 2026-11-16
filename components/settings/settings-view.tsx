@@ -12,6 +12,8 @@ import {
   Download,
   Plug,
   Building2,
+  Mail,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -22,6 +24,8 @@ import {
   updateMemberRoleAction,
   removeMemberAction,
   removeGroupMemberAction,
+  addGroupMemberAction,
+  cancelWorkspaceInvitationAction,
 } from "@/app/actions/settings";
 import { CUSTOM_FIELD_TYPE_LABELS, type CustomFieldType } from "@/lib/constants";
 import { EntityAvatar } from "@/components/ui/badge";
@@ -67,6 +71,7 @@ export function SettingsView({
   fields,
   groups,
   members,
+  invitations,
   roleMeta,
   canManageGroups,
   signupMode,
@@ -100,7 +105,7 @@ export function SettingsView({
     description: string | null;
     color: string;
     campaignCount: number;
-    members: Array<{ groupMemberId: string; name: string; email: string }>;
+    members: Array<{ groupMemberId: string; membershipId: string; name: string; email: string }>;
   }>;
   members: Array<{
     membershipId: string;
@@ -110,6 +115,14 @@ export function SettingsView({
     jobTitle: string | null;
     role: Role;
     groups: string[];
+  }>;
+  invitations: Array<{
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    createdAt: string;
+    expiresAt: string;
   }>;
   roleMeta: RoleMeta;
   canManageGroups: boolean;
@@ -317,6 +330,28 @@ export function SettingsView({
                       <li className="text-[12px] text-faint">Aucun membre.</li>
                     )}
                   </ul>
+                  {isAdmin && members.some((member) => !g.members.some((groupMember) => groupMember.membershipId === member.membershipId)) && (
+                    <label className="mt-3 block">
+                      <span className="sr-only">Ajouter un membre à {g.name}</span>
+                      <select
+                        defaultValue=""
+                        aria-label={`Ajouter un membre à ${g.name}`}
+                        onChange={(event) => {
+                          const membershipId = event.currentTarget.value;
+                          if (!membershipId) return;
+                          void addGroupMemberAction(g.id, membershipId)
+                            .then(() => { toast.success("Membre ajouté à l’équipe"); refresh(); })
+                            .catch((error: Error) => toast.error(error.message));
+                        }}
+                        className="h-8 w-full rounded-lg border border-line bg-elev px-2 text-[12px] text-mut outline-none focus-visible:ring-2 focus-visible:ring-accent [&>option]:bg-raised"
+                      >
+                        <option value="">+ Ajouter un membre…</option>
+                        {members.filter((member) => !g.members.some((groupMember) => groupMember.membershipId === member.membershipId)).map((member) => (
+                          <option key={member.membershipId} value={member.membershipId}>{member.name} · {member.email}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <footer className="mt-3 border-t border-line pt-2 text-[11px] text-faint">
                     {g.campaignCount} campagne{g.campaignCount > 1 ? "s" : ""} liée
                     {g.campaignCount > 1 ? "s" : ""}
@@ -344,6 +379,42 @@ export function SettingsView({
           />
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
             <div className="crm-surface overflow-hidden rounded-xl">
+              {isAdmin && (
+                <section aria-label="Invitations en attente" className="border-b border-line bg-elev/40">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <h3 className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
+                      <Mail className="size-3.5" /> Invitations en attente
+                    </h3>
+                    <span className="rounded-full bg-card px-2 py-0.5 text-[11px] tabular-nums text-mut">{invitations.length}</span>
+                  </div>
+                  {invitations.length ? invitations.map((invitation) => {
+                    const expired = new Date(invitation.expiresAt).getTime() <= Date.now();
+                    return (
+                      <div key={invitation.id} className="flex items-center gap-3 border-t border-line/70 px-4 py-2.5">
+                        <span className={cn("size-2 shrink-0 rounded-full", expired ? "bg-amber-500" : "bg-sky-500")} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[12.5px] font-medium text-fg">{invitation.name} <span className="font-normal text-mut">· {invitation.email}</span></p>
+                          <p className="text-[11px] text-faint">
+                            {roleMeta[invitation.role as Role]?.label ?? invitation.role} · {expired ? "Lien expiré" : `Expire le ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(invitation.expiresAt))}`}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={`Annuler l’invitation de ${invitation.name}`}
+                          title="Annuler l’invitation"
+                          onClick={() => {
+                            if (!confirm(`Annuler l’invitation de ${invitation.name} (${invitation.email}) ?`)) return;
+                            void cancelWorkspaceInvitationAction(invitation.id).then(() => { toast.success("Invitation annulée"); refresh(); }).catch((error: Error) => toast.error(error.message));
+                          }}
+                          className="rounded-md p-1.5 text-faint hover:bg-hover hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </div>
+                    );
+                  }) : <p className="border-t border-line/70 px-4 py-3 text-[12px] text-faint">Aucune invitation en attente.</p>}
+                </section>
+              )}
               {members.map((m) => (
                 <div
                   key={m.membershipId}

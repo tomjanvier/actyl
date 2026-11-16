@@ -21,6 +21,7 @@ import {
   Search,
   X,
   UsersRound,
+  MessageSquareText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { switchWorkspaceAction, signOutAction } from "@/app/actions/auth";
@@ -117,10 +118,13 @@ export function Sidebar({
     base.push(
       { href: "/lists", label: "Listes partagées", icon: ListChecks },
       { href: "/settings", label: "Paramètres", icon: Settings },
+      ...(workspace.role === "ADMIN" || isSuperAdmin
+        ? [{ href: "/admin/support", label: "Signalements", icon: MessageSquareText }]
+        : []),
       ...(isSuperAdmin ? [{ href: "/admin", label: "Super administration", icon: Settings }] : []),
     );
     return base;
-  }, [presidentialEnabled, isSuperAdmin]);
+  }, [presidentialEnabled, isSuperAdmin, workspace.role]);
 
   // Restaure la largeur et le repli mémorisés, une seule fois au montage.
   useEffect(() => {

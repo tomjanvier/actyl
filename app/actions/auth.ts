@@ -200,7 +200,7 @@ export async function signInAction(
     await createSession(user.id);
     if (membership) await setWorkspaceCookie(membership.workspaceId);
   } catch (e) {
-    const detail = e instanceof Error ? e.name + ": " + e.message : String(e);
+    const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     console.error("[signInAction]", signInStage, detail.slice(0, 500));
     return { error: "Service temporairement indisponible, veuillez réessayer." };
   }

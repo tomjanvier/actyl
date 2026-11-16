@@ -1,7 +1,7 @@
 import { contactFilters, contactSearchWhere, requestedPage, type ContactFilters } from "@/lib/crm-filters";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
-import { can } from "@/lib/constants";
+import { can, CONTACT_CATEGORY_LABELS, type ContactCategory } from "@/lib/constants";
 import { getSegmentsConfig } from "@/lib/flags";
 import { getNewsletterConfig } from "@/lib/newsletter";
 import { PageHeader } from "@/components/layout/page-header";
@@ -12,14 +12,6 @@ import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 export const metadata = { title: "Contacts" };
 
 const PAGE_SIZE = 100;
-
-const CATEGORY_LABELS: Record<string, string> = {
-  DECISION_MAKER: "Décideur·e·ses",
-  MEMBER: "Adhérent·e·s",
-  VOLUNTEER: "Bénévoles",
-  DONOR: "Donateur·ice·s",
-  SUPPORTER: "Soutiens",
-};
 
 export default async function ContactsPage({
   searchParams,
@@ -76,6 +68,7 @@ export default async function ContactsPage({
   const formerMandate = mandate === "former";
   const enabledCategories = new Set([
     "DECISION_MAKER",
+    "NGO_PROFESSIONAL",
     ...(segments.members ? ["MEMBER"] : []),
     ...(segments.volunteers ? ["VOLUNTEER"] : []),
     ...(segments.donors ? ["DONOR"] : []),
@@ -144,6 +137,7 @@ export default async function ContactsPage({
           institution: true,
           party: true,
           region: true,
+          category: true,
           level: true,
           stance: true,
           influenceScore: true,
@@ -259,7 +253,7 @@ export default async function ContactsPage({
           activeList
             ? activeList.name
             : activeCategory
-            ? CATEGORY_LABELS[activeCategory]!
+            ? CONTACT_CATEGORY_LABELS[activeCategory as ContactCategory]
             : enabledCategories.size > 1
               ? "Répertoire"
               : "Annuaire des décideurs"
@@ -268,9 +262,9 @@ export default async function ContactsPage({
           activeList
             ? `${total.toLocaleString("fr-FR")} contact(s) dans cette liste partagée. Ouvrez une fiche pour la modifier ou proposer une correction.`
             : activeCategory
-            ? `Segment ${CATEGORY_LABELS[activeCategory]!.toLowerCase()} — ${total.toLocaleString("fr-FR")} fiche(s). Vos notes et évaluations personnelles restent privées.`
+            ? `Segment ${CONTACT_CATEGORY_LABELS[activeCategory as ContactCategory].toLowerCase()} — ${total.toLocaleString("fr-FR")} fiche(s). Vos notes et évaluations personnelles restent privées.`
             : enabledCategories.size > 1
-              ? `Toute votre base (${total.toLocaleString("fr-FR")} fiches) — décideurs, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées.`
+              ? `Toute votre base (${total.toLocaleString("fr-FR")} fiches) — décideurs, ONG et société civile, adhérent·e·s, bénévoles, donateur·ice·s et soutiens. Vos notes et évaluations personnelles restent privées.`
               : `Base centralisée et partagée (${total.toLocaleString("fr-FR")} fiches) : parlementaires, exécutifs, secteur privé, presse. Vos notes et évaluations personnelles restent privées.`
         }
       />

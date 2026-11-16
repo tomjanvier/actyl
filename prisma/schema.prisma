@@ -43,6 +43,7 @@ model Workspace {
   supporters   Supporter[]
   campaignTeams CampaignTeam[]
   politicalPositions PoliticalPosition[]
+  feedbackReports FeedbackReport[]
 
   @@map("workspaces")
 }
@@ -74,6 +75,7 @@ model User {
   politicalPositions PoliticalPosition[]
   oidcCodes       OidcAuthorizationCode[]
   oidcTokens      OidcAccessToken[]
+  feedbackReports FeedbackReport[]
 }
 
 model JobTitle {
@@ -885,4 +887,32 @@ model Supporter {
   @@index([workspaceId, source])
   @@index([lastSeenAt])
   @@map("supporters")
+}
+
+/// Signalement transmis depuis l'interface Actyl.
+model FeedbackReport {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  userId            String?
+  category          String   // BUG | QUESTION | IDEA | OTHER
+  title             String
+  description       String
+  expected          String?
+  observed          String?
+  steps             String?
+  pagePath          String?
+  status            String   @default("OPEN")
+  githubSyncState   String   @default("NOT_ELIGIBLE") // CREATED | PENDING | FAILED | NOT_ELIGIBLE
+  githubSyncNote    String?
+  githubIssueNumber Int?
+  githubIssueUrl    String?
+  contentHash       String
+  createdAt         DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, contentHash])
+  @@index([workspaceId, status, createdAt])
+  @@map("feedback_reports")
 }

@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, fullName, timeAgo } from "@/lib/utils";
-import { LEVELS, LEVEL_META, STANCES, STANCE_META } from "@/lib/constants";
+import { CONTACT_CATEGORY_LABELS, CONTACT_CATEGORY_VALUES, LEVELS, LEVEL_META, STANCES, STANCE_META } from "@/lib/constants";
 import type { CandidateProfile, ContactRow, CustomFieldLite, MyNote, OrgNote } from "@/components/contacts/types";
 import {
   updateContactAction,
@@ -375,10 +375,20 @@ function EditForm({
     <form action={action} className="grid grid-cols-1 gap-x-3 gap-y-3.5 sm:grid-cols-2">
       <Field label="Prénom"><Input name="firstName" defaultValue={contact.firstName} required /></Field>
       <Field label="Nom"><Input name="lastName" defaultValue={contact.lastName} required /></Field>
+      <Field label="Type de contact">
+        <Select name="category" defaultValue={contact.category}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CONTACT_CATEGORY_VALUES.map((category) => (
+              <SelectItem key={category} value={category}>{CONTACT_CATEGORY_LABELS[category]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
       <Field label="Email"><Input name="email" type="email" defaultValue={contact.email ?? ""} /></Field>
       <Field label="Téléphone"><Input name="phone" defaultValue={contact.phone ?? ""} /></Field>
-      <Field label="Fonction"><Input name="title" defaultValue={contact.title ?? ""} /></Field>
-      <Field label="Institution"><Input name="institution" defaultValue={contact.institution ?? ""} /></Field>
+      <Field label="Fonction / poste"><Input name="title" defaultValue={contact.title ?? ""} /></Field>
+      <Field label="Organisation / institution"><Input name="institution" defaultValue={contact.institution ?? ""} /></Field>
       <Field label="Parti / Affiliation"><Input name="party" defaultValue={contact.party ?? ""} /></Field>
       <Field label="Région / Circonscription"><Input name="region" defaultValue={contact.region ?? ""} /></Field>
       <Field label="Niveau">

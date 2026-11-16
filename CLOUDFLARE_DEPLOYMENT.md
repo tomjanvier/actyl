@@ -35,6 +35,7 @@ Worker : **`actyl-cloudflare`** · preview : **`actyl-cloudflare-preview`**.
 | `CRON_SECRET` | privée | secret |
 | `TURNSTILE_SECRET_KEY` | privée | secret |
 | `RESEND_API_KEY` | privée (vide = simulation tracée en base) | secret |
+| `GITHUB_ISSUES_TOKEN` (jeton finement limité à `tomjanvier/actyl`, permission Issues: read/write) | privée, serveur | secret de l’environnement preview uniquement tant que le flux est en test |
 | `EMAIL_FROM` | privée | secret (ou `vars` si non sensible — ici en secret) |
 | `ACT_SSO_ISSUER` (ex. `https://act.plaidact.org`) | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
 | `ACT_SSO_CLIENT_ID` | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
@@ -82,6 +83,7 @@ wrangler secret put AUTH_SECRET --env preview
 wrangler secret put CRON_SECRET --env preview
 wrangler secret put TURNSTILE_SECRET_KEY --env preview
 wrangler secret put RESEND_API_KEY --env preview   # optionnel (vide = simulé)
+wrangler secret put GITHUB_ISSUES_TOKEN --env preview  # après création d’un jeton limité au dépôt
 wrangler secret put EMAIL_FROM --env preview
 wrangler secret put ACT_SSO_WORKSPACE_SLUG --env preview
 

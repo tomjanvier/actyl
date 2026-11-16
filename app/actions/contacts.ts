@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { can } from "@/lib/constants";
+import { can, CONTACT_CATEGORY_VALUES } from "@/lib/constants";
 import { proposeListChange } from "@/app/actions/list-proposals";
 
 const contactSchema = z.object({
@@ -29,6 +29,7 @@ const contactSchema = z.object({
     "PRIVATE_SECTOR", "MEDIA", "CIVIL_SOCIETY",
   ]),
   stance: z.enum(["ALLY", "FAVORABLE", "UNDECIDED", "TARGET", "OPPOSED", "UNKNOWN"]),
+  category: z.enum(CONTACT_CATEGORY_VALUES).optional(),
   influenceScore: z.coerce.number().int().min(1).max(5).default(3),
   bio: z.string().max(4000).optional().or(z.literal("")),
   themes: z.string().max(300).optional().or(z.literal("")),
@@ -52,9 +53,7 @@ export async function createContactAction(
   const colorPool = ["indigo", "emerald", "amber", "rose", "violet", "sky", "teal", "orange", "fuchsia", "slate"];
 
   // Segment facultatif validé dans la liste fermée des valeurs acceptées.
-  const CATEGORY_VALUES = ["DECISION_MAKER", "MEMBER", "VOLUNTEER", "DONOR", "SUPPORTER"];
-  const rawCategory = String(formData.get("category") ?? "");
-  const category = CATEGORY_VALUES.includes(rawCategory) ? rawCategory : "DECISION_MAKER";
+  const category = d.category ?? "DECISION_MAKER";
 
   await db.contact.create({
     data: {
@@ -138,6 +137,7 @@ export async function updateContactAction(
       bio: d.bio || null,
       themes: d.themes || null,
       photoUrl: d.photoUrl || null,
+      ...(d.category ? { category: d.category } : {}),
     },
   });
   invalidatePublicDirectory();

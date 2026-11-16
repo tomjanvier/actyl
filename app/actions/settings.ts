@@ -256,6 +256,23 @@ export async function removeGroupMemberAction(groupMemberId: string) {
   revalidatePath("/settings");
 }
 
+export async function addGroupMemberAction(groupId: string, membershipId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  const [group, membership] = await Promise.all([
+    db.group.findFirst({ where: { id: groupId, workspaceId: session.workspaceId }, select: { id: true } }),
+    db.membership.findFirst({ where: { id: membershipId, workspaceId: session.workspaceId }, select: { id: true } }),
+  ]);
+  if (!group || !membership) throw new Error("Équipe ou membre introuvable dans cet espace.");
+  await db.groupMember.upsert({
+    where: { groupId_membershipId: { groupId, membershipId } },
+    create: { groupId, membershipId },
+    update: {},
+  });
+  revalidatePath("/settings");
+}
+
 // ── Membres et rôles ─────────────────────────────────────────────────────────
 
 export async function updateMemberRoleAction(
@@ -272,6 +289,10 @@ export async function updateMemberRoleAction(
   if (!membership) return { error: "Membre introuvable" };
   if (membership.userId === session.user.id && role !== "ADMIN")
     return { error: "Vous ne pouvez pas retirer votre propre rôle admin." };
+  if (membership.role === "ADMIN" && role !== "ADMIN") {
+    const admins = await db.membership.count({ where: { workspaceId: session.workspaceId, role: "ADMIN" } });
+    if (admins <= 1) return { error: "L’espace doit conserver au moins un administrateur." };
+  }
   await db.membership.update({ where: { id: membershipId }, data: { role } });
   revalidatePath("/admin");
   revalidatePath("/settings");
@@ -302,6 +323,8 @@ export async function inviteMemberAction(
   const existingUser = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (existingUser && await db.membership.findUnique({ where: { userId_workspaceId: { userId: existingUser.id, workspaceId: session.workspaceId } } }))
     return { error: "Cette personne fait déjà partie de l’espace." };
+  if (await db.workspaceInvitation.findFirst({ where: { workspaceId: session.workspaceId, email, expiresAt: { gt: new Date() } }, select: { id: true } }))
+    return { error: "Une invitation est déjà en attente pour cette adresse." };
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const invitation = await db.workspaceInvitation.create({ data: {
@@ -350,8 +373,20 @@ export async function removeMemberAction(membershipId: string) {
   if (!membership) throw new Error("Membre introuvable");
   if (membership.userId === session.user.id)
     throw new Error("Vous ne pouvez pas vous retirer vous-même.");
+  if (membership.role === "ADMIN") {
+    const admins = await db.membership.count({ where: { workspaceId: session.workspaceId, role: "ADMIN" } });
+    if (admins <= 1) throw new Error("L’espace doit conserver au moins un administrateur.");
+  }
   await db.membership.delete({ where: { id: membershipId } });
   revalidatePath("/admin");
+  revalidatePath("/settings");
+}
+
+export async function cancelWorkspaceInvitationAction(invitationId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Non authentifié");
+  if (session.role !== "ADMIN") throw new Error("Réservé aux administrateurs");
+  await db.workspaceInvitation.deleteMany({ where: { id: invitationId, workspaceId: session.workspaceId } });
   revalidatePath("/settings");
 }
 

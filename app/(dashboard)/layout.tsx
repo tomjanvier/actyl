@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/controls";
 import { Sidebar } from "@/components/layout/sidebar";
 import { getDisabledReferencePacks } from "@/lib/reference-pack-settings";
 import { getListShortcutIds } from "@/lib/list-shortcuts";
+import { FeedbackWidget } from "@/components/feedback/feedback-widget";
 import type { ReferencePackKey } from "@/lib/datasets/reference-packs";
 
 export default async function DashboardLayout({
@@ -89,9 +90,11 @@ export default async function DashboardLayout({
                   ...(segments.volunteers ? [{ key: "VOLUNTEER", label: "Bénévoles", count: counts.VOLUNTEER ?? 0 }] : []),
                   ...(segments.donors ? [{ key: "DONOR", label: "Donateur·ice·s", count: counts.DONOR ?? 0 }] : []),
                   ...(segments.supporters ? [{ key: "SUPPORTER", label: "Soutiens", count: counts.SUPPORTER ?? 0 }] : []),
+                  { key: "NGO_PROFESSIONAL", label: "ONG & société civile", count: counts.NGO_PROFESSIONAL ?? 0 },
                 ]}
         />
         <main className="min-w-0 flex-1">{children}</main>
+        <FeedbackWidget />
       </div>
     </TooltipProvider>
   );

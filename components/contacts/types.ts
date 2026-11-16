@@ -16,6 +16,7 @@ export type ContactRow = {
   institution: string | null;
   party: string | null;
   region: string | null;
+  category: string;
   level: string;
   stance: string;
   influenceScore: number;
