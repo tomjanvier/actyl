@@ -33,22 +33,27 @@ export function FeedbackWidget() {
     data.set("pagePath", pathname.split("/").map((segment) => segment.length > 24 ? ":id" : segment).join("/"));
     setError(null);
     startTransition(async () => {
-      const response = await submitFeedbackReport(data);
-      if (!response.ok) {
-        setError(response.error ?? "Le signalement n’a pas pu être envoyé.");
-        return;
+      try {
+        const response = await submitFeedbackReport(data);
+        if (!response.ok) {
+          setError(response.error ?? "Le signalement n’a pas pu être envoyé.");
+          return;
+        }
+        setResult({
+          reference: response.reference ?? "reçu",
+          githubCreated: response.githubCreated,
+          githubPending: response.githubPending,
+        });
+        form.reset();
+        setCategory("BUG");
+      } catch {
+        setError("L’envoi a échoué. Vérifie ta connexion et réessaie.");
       }
-      setResult({
-        reference: response.reference ?? "reçu",
-        githubCreated: response.githubCreated,
-        githubPending: response.githubPending,
-      });
-      form.reset();
-      setCategory("BUG");
     });
   }
 
   function close(next: boolean) {
+    if (!next && pending) return;
     setOpen(next);
     if (!next) {
       setError(null);
@@ -60,12 +65,12 @@ export function FeedbackWidget() {
     <>
       <Button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { setError(null); setOpen(true); }}
         className="fixed bottom-4 right-4 z-40 h-11 rounded-full px-4 shadow-lg shadow-black/15 sm:bottom-6 sm:right-6"
         aria-label="Signaler un problème ou envoyer un retour"
       >
         <MessageSquarePlus aria-hidden="true" />
-        <span>Un souci ?</span>
+        <span className="hidden sm:inline">Un souci ?</span>
       </Button>
 
       <Dialog open={open} onOpenChange={close}>
@@ -78,7 +83,7 @@ export function FeedbackWidget() {
                 <DialogDescription>Référence {result.reference}</DialogDescription>
               </DialogHeader>
               {result.githubPending ? (
-                <p className="mx-auto mt-3 max-w-sm text-sm text-faint">Ton ticket est enregistré. La liaison GitHub n’est pas encore disponible, il sera conservé pour traitement.</p>
+                <p className="mx-auto mt-3 max-w-sm text-sm text-faint">Ton signalement est enregistré. La création de l’issue GitHub est en attente ; l’équipe pourra la relancer depuis les signalements.</p>
               ) : result.githubCreated ? (
                 <p className="mx-auto mt-3 max-w-sm text-sm text-faint">Ton bug a été transmis au suivi technique sous une référence interne.</p>
               ) : (
@@ -93,6 +98,7 @@ export function FeedbackWidget() {
                 <DialogDescription>Décris le problème ou ton idée. N’ajoute pas de mot de passe ni de données personnelles de contacts.</DialogDescription>
               </DialogHeader>
               <form onSubmit={submit} className="space-y-4">
+                <fieldset disabled={pending} className="space-y-4 disabled:opacity-80">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {categories.map(({ value, label, icon: Icon }) => (
                     <button
@@ -114,12 +120,12 @@ export function FeedbackWidget() {
                 </label>
                 <label className="block space-y-1.5 text-xs font-medium text-mut">
                   {category === "BUG" ? "Que se passe-t-il ?" : "Ton message"}
-                  <Textarea name="description" required minLength={20} maxLength={3000} rows={4} placeholder="Décris le contexte et ce que tu essayais de faire…" />
+                  <Textarea name="description" required minLength={category === "BUG" ? 30 : 20} maxLength={3000} rows={4} placeholder="Décris le contexte et ce que tu essayais de faire…" />
                 </label>
 
                 {category === "BUG" && (
                   <div className="space-y-3 rounded-lg border border-line bg-elev/50 p-3">
-                    <p className="text-xs text-faint">Ces détails permettent de créer automatiquement une issue exploitable.</p>
+                    <p className="text-xs text-faint">Pour ouvrir automatiquement une issue GitHub, indique au moins 30 caractères et renseigne ces trois détails.</p>
                     <label className="block space-y-1.5 text-xs font-medium text-mut">
                       Résultat attendu
                       <Textarea name="expected" required minLength={10} maxLength={1500} rows={2} placeholder="Ce que tu pensais voir" />
@@ -140,6 +146,7 @@ export function FeedbackWidget() {
                 <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
                   <label>Site web<input name="website" tabIndex={-1} autoComplete="off" /></label>
                 </div>
+                </fieldset>
                 {error && <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</p>}
                 <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
                   <p className="max-w-xs text-[11px] leading-relaxed text-faint">La page concernée est jointe au rapport. Aucune capture ni coordonnée de contact n’est collectée.</p>

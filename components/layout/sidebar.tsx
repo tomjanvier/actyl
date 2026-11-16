@@ -482,7 +482,7 @@ export function Sidebar({
                 {[
                   { href: "/admin", label: "Vue d’ensemble", icon: Settings },
                   { href: "/admin/support", label: "Signalements", icon: MessageSquareText },
-                  { href: "/admin/propositions", label: "Propositions de fiches", icon: ClipboardList },
+                  { href: "/admin/propositions", label: "À valider", icon: ClipboardList },
                 ].map((item) => {
                   const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
                   return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} onClick={() => setMobileOpen(false)} className={cn("flex min-h-8 items-center gap-2 rounded-md px-2 text-[12px] transition-colors", active ? "bg-elev font-medium text-fg" : "text-faint hover:bg-elev hover:text-mut")}><item.icon className="size-3.5 shrink-0" />{item.label}</Link>;

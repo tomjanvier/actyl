@@ -113,6 +113,7 @@ export async function submitFeedbackReport(formData: FormData): Promise<{
     },
     select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true },
   });
+  revalidatePath("/admin/support");
 
   if (!actionable) return { ok: true, reference: report.id.slice(-8).toUpperCase() };
 

@@ -60,6 +60,7 @@ export async function createFeedbackIssue(
         },
         body: JSON.stringify({ title: `[Actyl] ${report.title}`.slice(0, 256), body }),
         cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
       },
     );
 
