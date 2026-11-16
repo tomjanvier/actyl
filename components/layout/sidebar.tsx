@@ -265,7 +265,7 @@ export function Sidebar({
       <Button
         variant="outline"
         size="icon-sm"
-        className="fixed left-3 top-3 z-40 md:hidden"
+        className="fixed left-4 top-4 z-40 md:hidden"
         aria-label="Ouvrir le menu"
         onClick={() => setMobileOpen(true)}
       >
@@ -289,7 +289,7 @@ export function Sidebar({
     >
       <div
         className={cn(
-          "flex h-14 shrink-0 items-center border-b border-line px-3",
+          "flex h-14 shrink-0 items-center justify-between border-b border-line px-3",
           rail && "justify-center px-0",
         )}
       >
@@ -300,18 +300,18 @@ export function Sidebar({
             priority
           />
         </Link>
+        <Button variant="ghost" size="icon-sm" className="md:hidden" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu">
+          <X />
+        </Button>
       </div>
 
       {/* Sélecteur d’espace de travail. */}
-      <div className={cn("flex items-center gap-2 px-3 pb-2 pt-4", rail && "justify-center px-0")}>
-        <Button variant="ghost" size="icon-sm" className="ml-auto md:hidden" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu">
-          <X />
-        </Button>
+      <div className={cn("flex items-center gap-2 px-3 pb-2 pt-3", rail && "justify-center px-0")}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className={cn(
-                "group flex min-w-0 items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-elev",
+                "group flex w-full min-w-0 items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-elev",
                 rail && "p-0",
               )}
             >
