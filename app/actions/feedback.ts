@@ -130,7 +130,12 @@ export async function submitFeedbackReport(formData: FormData): Promise<{
 
   if (!actionable) return { ok: true, reference: report.id.slice(-8).toUpperCase() };
 
-  const issue = await createFeedbackIssue(report);
+  const issue = await createFeedbackIssue({
+    ...report,
+    userName: session.user.name,
+    userEmail: session.user.email,
+    deviceInfo: values.deviceInfo || null,
+  });
   await db.feedbackReport.update({
     where: { id: report.id },
     data: {
@@ -178,7 +183,7 @@ export async function retryFeedbackIssueAction(reportId: string): Promise<{ ok?:
       category: "BUG",
       githubIssueUrl: null,
     },
-    select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true },
+    select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true, deviceInfo: true, user: { select: { name: true, email: true } } },
   });
   if (!report || !isActionableBug({
     category: "BUG",
@@ -188,7 +193,11 @@ export async function retryFeedbackIssueAction(reportId: string): Promise<{ ok?:
     steps: report.steps,
   })) return { error: "Ce ticket n’est pas éligible à la création d’une issue." };
 
-  const issue = await createFeedbackIssue(report);
+  const issue = await createFeedbackIssue({
+    ...report,
+    userName: report.user?.name ?? "Compte supprimé",
+    userEmail: report.user?.email ?? "adresse indisponible",
+  });
   await db.feedbackReport.update({
     where: { id: report.id },
     data: {
@@ -207,11 +216,15 @@ export async function createFeedbackIssueAction(reportId: string): Promise<{ ok?
   if (session.role !== "ADMIN" && !session.user.isSuperAdmin) return { error: "Permission refusée." };
   const report = await db.feedbackReport.findFirst({
     where: { id: reportId, ...(session.user.isSuperAdmin ? {} : { workspaceId: session.workspaceId }), category: "BUG", githubIssueUrl: null },
-    select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true },
+    select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true, deviceInfo: true, user: { select: { name: true, email: true } } },
   });
   if (!report) return { error: "Ce ticket est introuvable ou possède déjà une issue." };
   await db.feedbackReport.update({ where: { id: report.id }, data: { githubSyncState: "PENDING", githubSyncNote: null } });
-  const issue = await createFeedbackIssue(report);
+  const issue = await createFeedbackIssue({
+    ...report,
+    userName: report.user?.name ?? "Compte supprimé",
+    userEmail: report.user?.email ?? "adresse indisponible",
+  });
   await db.feedbackReport.update({
     where: { id: report.id },
     data: { githubSyncState: issue.state, githubSyncNote: issue.state === "CREATED" ? null : issue.note,

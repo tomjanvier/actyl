@@ -8,6 +8,9 @@ type ReportForIssue = {
   observed: string | null;
   steps: string | null;
   pagePath: string | null;
+  userName: string;
+  userEmail: string;
+  deviceInfo: string | null;
 };
 
 export type GitHubIssueResult =
@@ -28,7 +31,9 @@ export async function createFeedbackIssue(
   const body = [
     `Signalement Actyl (référence \`${report.id}\`)`,
     "",
+    `**Compte Actyl** : ${report.userName} <${report.userEmail}>`,
     `**Page** : ${report.pagePath ?? "non précisée"}`,
+    ...(report.deviceInfo ? ["", "### Appareil et navigateur", report.deviceInfo] : []),
     "",
     "### Problème constaté",
     report.description,
@@ -43,7 +48,7 @@ export async function createFeedbackIssue(
     report.steps ?? "Non précisées",
     "",
     "---",
-    "Rapport transmis depuis le formulaire de support Actyl. Aucune adresse e-mail ni donnée de contact n'est incluse.",
+    "Rapport transmis depuis le formulaire de support Actyl. L’identité du compte et les informations techniques de l’appareil sont incluses pour faciliter le diagnostic.",
   ].join("\n");
 
   try {
