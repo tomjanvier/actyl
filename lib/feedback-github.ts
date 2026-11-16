@@ -19,7 +19,7 @@ export async function createFeedbackIssue(
   report: ReportForIssue,
 ): Promise<GitHubIssueResult> {
   const token = process.env.GITHUB_ISSUES_TOKEN;
-  const repository = process.env.GITHUB_ISSUES_REPOSITORY ?? "tomjanvier/actyl";
+  const repository = process.env.GITHUB_ISSUES_REPOSITORY ?? "tomjanvier/resolvehq-actyl";
   const [owner, repo] = repository.split("/");
   if (!token || !owner || !repo || repository.split("/").length !== 2) {
     return { state: "PENDING", note: "GitHub issue integration is not configured." };

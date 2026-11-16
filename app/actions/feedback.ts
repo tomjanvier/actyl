@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { createFeedbackIssue } from "@/lib/feedback-github";
+import { createResolveHQTicket } from "@/lib/feedback-resolvehq";
 import { dispatchEmail, wrapEmailHtml } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 
@@ -118,6 +119,15 @@ export async function submitFeedbackReport(formData: FormData): Promise<{
   });
   revalidatePath("/admin/support");
 
+  const resolvehq = await createResolveHQTicket({
+    ...report, category: values.category, deviceInfo: values.deviceInfo || null,
+    userName: session.user.name, userEmail: session.user.email,
+  });
+  await db.feedbackReport.update({
+    where: { id: report.id },
+    data: { resolvehqSyncState: resolvehq.state, resolvehqSyncNote: resolvehq.state === "CREATED" ? null : resolvehq.note, ...(resolvehq.state === "CREATED" ? { resolvehqTicketId: resolvehq.id, resolvehqTicketUrl: resolvehq.url } : {}) },
+  });
+
   if (!actionable) return { ok: true, reference: report.id.slice(-8).toUpperCase() };
 
   const issue = await createFeedbackIssue(report);
@@ -209,6 +219,21 @@ export async function createFeedbackIssueAction(reportId: string): Promise<{ ok?
   });
   revalidatePath("/admin/support");
   return issue.state === "CREATED" ? { ok: true } : { error: issue.note };
+}
+
+export async function syncResolveHQTicketAction(reportId: string): Promise<{ ok?: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session) return { error: "Non authentifié." };
+  if (session.role !== "ADMIN" && !session.user.isSuperAdmin) return { error: "Permission refusée." };
+  const report = await db.feedbackReport.findFirst({
+    where: { id: reportId, ...(session.user.isSuperAdmin ? {} : { workspaceId: session.workspaceId }), resolvehqTicketId: null },
+    select: { id: true, category: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true, deviceInfo: true, user: { select: { name: true, email: true } } },
+  });
+  if (!report?.user?.email) return { error: "Signalement introuvable ou adresse e-mail manquante." };
+  const result = await createResolveHQTicket({ ...report, userName: report.user.name, userEmail: report.user.email });
+  await db.feedbackReport.update({ where: { id: report.id }, data: { resolvehqSyncState: result.state, resolvehqSyncNote: result.state === "CREATED" ? null : result.note, ...(result.state === "CREATED" ? { resolvehqTicketId: result.id, resolvehqTicketUrl: result.url } : {}) } });
+  revalidatePath("/admin/support");
+  return result.state === "CREATED" ? { ok: true } : { error: result.note };
 }
 
 export async function replyFeedbackReportAction(reportId: string, message: string): Promise<{ ok?: boolean; error?: string }> {

@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ExternalLink, LoaderCircle, Mail, Plus } from "lucide-react";
-import { createFeedbackIssueAction, replyFeedbackReportAction, resolveFeedbackReportAction } from "@/app/actions/feedback";
+import { Check, ExternalLink, LoaderCircle, Mail, Plus, Ticket } from "lucide-react";
+import { createFeedbackIssueAction, replyFeedbackReportAction, resolveFeedbackReportAction, syncResolveHQTicketAction } from "@/app/actions/feedback";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -22,6 +22,9 @@ type Report = {
   githubSyncState: string;
   githubSyncNote: string | null;
   githubIssueUrl: string | null;
+  resolvehqTicketUrl: string | null;
+  resolvehqSyncState: string;
+  resolvehqSyncNote: string | null;
   lastReplyAt: string | null;
   lastReplyMessage: string | null;
   createdAt: string;
@@ -62,6 +65,16 @@ export function FeedbackInbox({ reports }: { reports: Report[] }) {
     });
   }
 
+  function syncResolveHQ(id: string) {
+    setPendingId(id);
+    startTransition(async () => {
+      const result = await syncResolveHQTicketAction(id);
+      setPendingId(null);
+      if (result.ok) { router.refresh(); toast.success("Ticket transmis à ResolveHQ."); }
+      else toast.error(result.error ?? "Impossible de transmettre le ticket.");
+    });
+  }
+
   function sendReply(id: string) {
     setPendingId(id);
     startTransition(async () => {
@@ -96,6 +109,16 @@ export function FeedbackInbox({ reports }: { reports: Report[] }) {
               <p className="mt-2 text-xs text-faint">Page : {report.pagePath ?? "non précisée"}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {report.resolvehqTicketUrl ? (
+                <a href={report.resolvehqTicketUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-xs text-mut hover:bg-elev">
+                  ResolveHQ <ExternalLink className="size-3.5" />
+                </a>
+              ) : (
+                <Button size="sm" variant="outline" disabled={isPending && pendingId === report.id} onClick={() => syncResolveHQ(report.id)}>
+                  {isPending && pendingId === report.id ? <LoaderCircle className="animate-spin" /> : <Ticket />}
+                  {report.resolvehqSyncState === "FAILED" ? "Réessayer ResolveHQ" : "Transmettre"}
+                </Button>
+              )}
               {report.githubIssueUrl && (
                 <a href={report.githubIssueUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-xs text-mut hover:bg-elev">
                   Issue <ExternalLink className="size-3.5" />
@@ -122,6 +145,7 @@ export function FeedbackInbox({ reports }: { reports: Report[] }) {
               {report.observed && <div><h3 className="text-[11px] font-semibold uppercase tracking-wide text-faint">Observé</h3><p className="mt-1 whitespace-pre-wrap text-mut">{report.observed}</p></div>}
               {report.steps && <div className="sm:col-span-2"><h3 className="text-[11px] font-semibold uppercase tracking-wide text-faint">Étapes pour reproduire</h3><p className="mt-1 whitespace-pre-wrap text-mut">{report.steps}</p></div>}
               {!report.githubIssueUrl && report.githubSyncNote && <p className="sm:col-span-2 text-xs text-faint">GitHub : {report.githubSyncNote}</p>}
+              {!report.resolvehqTicketUrl && report.resolvehqSyncNote && <p className="sm:col-span-2 text-xs text-faint">ResolveHQ : {report.resolvehqSyncNote}</p>}
               <div className="sm:col-span-2 rounded-lg bg-elev/60 p-3">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wide text-faint">Auteur et appareil</h3>
                 <p className="mt-1 text-xs text-mut">{report.user?.name ?? "Compte supprimé"}{report.user?.email ? ` · ${report.user.email}` : ""} · Réf. {report.id.slice(-8).toUpperCase()}</p>

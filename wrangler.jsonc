@@ -43,7 +43,9 @@
     "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare" }],
     "vars": {
       "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
-      "ACTYL_PREVIEW_DISABLE_SIGNUP_TURNSTILE": "true"
+      "ACTYL_PREVIEW_DISABLE_SIGNUP_TURNSTILE": "true",
+      "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+      "RESOLVEHQ_API_URL": "https://help.plaidact.org"
     }
   },
 
@@ -56,6 +58,10 @@
     { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
   ] },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare-preview" }],
+      "vars": {
+        "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+        "RESOLVEHQ_API_URL": "https://help.plaidact.org"
+      }
     },
     "production": {
       "name": "actyl-cloudflare",
