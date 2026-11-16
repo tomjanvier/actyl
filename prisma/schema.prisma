@@ -901,11 +901,15 @@ model FeedbackReport {
   observed          String?
   steps             String?
   pagePath          String?
+  deviceInfo        String?
   status            String   @default("OPEN")
   githubSyncState   String   @default("NOT_ELIGIBLE") // CREATED | PENDING | FAILED | NOT_ELIGIBLE
   githubSyncNote    String?
   githubIssueNumber Int?
   githubIssueUrl    String?
+  lastReplyAt       DateTime?
+  lastReplyById     String?
+  lastReplyMessage  String?
   contentHash       String
   createdAt         DateTime @default(now())
 

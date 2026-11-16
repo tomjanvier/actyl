@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { createFeedbackIssue } from "@/lib/feedback-github";
+import { dispatchEmail, wrapEmailHtml } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 
 const reportSchema = z.object({
@@ -14,6 +15,7 @@ const reportSchema = z.object({
   observed: z.string().trim().max(1500).optional().or(z.literal("")),
   steps: z.string().trim().max(2000).optional().or(z.literal("")),
   pagePath: z.string().trim().max(180).optional().or(z.literal("")),
+  deviceInfo: z.string().max(1200).optional().or(z.literal("")),
   website: z.string().max(0).optional(),
 });
 
@@ -107,6 +109,7 @@ export async function submitFeedbackReport(formData: FormData): Promise<{
       observed,
       steps,
       pagePath,
+      deviceInfo: values.deviceInfo || null,
       contentHash,
       githubSyncState: actionable ? "PENDING" : "NOT_ELIGIBLE",
       githubSyncNote: actionable ? null : "Requires a complete, reproducible bug report.",
@@ -186,4 +189,50 @@ export async function retryFeedbackIssueAction(reportId: string): Promise<{ ok?:
   });
   revalidatePath("/admin/support");
   return issue.state === "CREATED" ? { ok: true } : { error: issue.note };
+}
+
+export async function createFeedbackIssueAction(reportId: string): Promise<{ ok?: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session) return { error: "Non authentifié." };
+  if (session.role !== "ADMIN" && !session.user.isSuperAdmin) return { error: "Permission refusée." };
+  const report = await db.feedbackReport.findFirst({
+    where: { id: reportId, ...(session.user.isSuperAdmin ? {} : { workspaceId: session.workspaceId }), category: "BUG", githubIssueUrl: null },
+    select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true },
+  });
+  if (!report) return { error: "Ce ticket est introuvable ou possède déjà une issue." };
+  await db.feedbackReport.update({ where: { id: report.id }, data: { githubSyncState: "PENDING", githubSyncNote: null } });
+  const issue = await createFeedbackIssue(report);
+  await db.feedbackReport.update({
+    where: { id: report.id },
+    data: { githubSyncState: issue.state, githubSyncNote: issue.state === "CREATED" ? null : issue.note,
+      ...(issue.state === "CREATED" ? { githubIssueNumber: issue.number, githubIssueUrl: issue.url } : {}) },
+  });
+  revalidatePath("/admin/support");
+  return issue.state === "CREATED" ? { ok: true } : { error: issue.note };
+}
+
+export async function replyFeedbackReportAction(reportId: string, message: string): Promise<{ ok?: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session) return { error: "Non authentifié." };
+  if (session.role !== "ADMIN" && !session.user.isSuperAdmin) return { error: "Permission refusée." };
+  const body = message.trim();
+  if (body.length < 3 || body.length > 4000) return { error: "La réponse doit contenir entre 3 et 4 000 caractères." };
+  if (!process.env.RESEND_API_KEY?.trim()) return { error: "L’envoi des e-mails n’est pas configuré (RESEND_API_KEY manquant)." };
+  const report = await db.feedbackReport.findFirst({
+    where: { id: reportId, ...(session.user.isSuperAdmin ? {} : { workspaceId: session.workspaceId }) },
+    select: { id: true, title: true, user: { select: { email: true, name: true } }, workspace: { select: { name: true } } },
+  });
+  if (!report?.user?.email) return { error: "Aucune adresse e-mail n’est associée au compte auteur." };
+  const result = await dispatchEmail({
+    to: report.user.email,
+    subject: `Réponse à ton signalement Actyl : ${report.title.slice(0, 100)}`,
+    html: wrapEmailHtml(body, `${session.user.name} · équipe Actyl`, null, {
+      greeting: `Bonjour ${report.user.name}, voici une réponse à ton signalement « ${report.title} ».`,
+      workspaceName: report.workspace.name,
+    }),
+  });
+  if (!result.ok || result.simulated) return { error: result.ok ? "L’e-mail n’a pas été envoyé : mode simulé." : `Échec de l’envoi : ${result.error}` };
+  await db.feedbackReport.update({ where: { id: report.id }, data: { lastReplyAt: new Date(), lastReplyById: session.user.id, lastReplyMessage: body } });
+  revalidatePath("/admin/support");
+  return { ok: true };
 }

@@ -31,6 +31,14 @@ export function FeedbackWidget() {
     const data = new FormData(form);
     const pathname = window.location.pathname;
     data.set("pagePath", pathname.split("/").map((segment) => segment.length > 24 ? ":id" : segment).join("/"));
+    data.set("deviceInfo", JSON.stringify({
+      userAgent: navigator.userAgent.slice(0, 500),
+      platform: (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform ?? "inconnu",
+      language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      screen: `${window.screen.width}×${window.screen.height}`,
+      viewport: `${window.innerWidth}×${window.innerHeight}`,
+    }));
     setError(null);
     startTransition(async () => {
       try {

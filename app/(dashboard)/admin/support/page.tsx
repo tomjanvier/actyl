@@ -23,12 +23,15 @@ export default async function FeedbackSupportPage() {
       observed: true,
       steps: true,
       pagePath: true,
+      deviceInfo: true,
       status: true,
       githubSyncState: true,
       githubSyncNote: true,
       githubIssueUrl: true,
+      lastReplyAt: true,
+      lastReplyMessage: true,
       createdAt: true,
-      user: { select: { name: true } },
+      user: { select: { name: true, email: true } },
       workspace: { select: { name: true } },
     },
   });
@@ -43,6 +46,7 @@ export default async function FeedbackSupportPage() {
       <FeedbackInbox reports={reports.map((report) => ({
         ...report,
         createdAt: report.createdAt.toISOString(),
+        lastReplyAt: report.lastReplyAt?.toISOString() ?? null,
       }))} />
     </>
   );
