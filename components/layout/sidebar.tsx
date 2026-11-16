@@ -122,7 +122,7 @@ export function Sidebar({
       { href: "/settings", label: "Paramètres", icon: Settings },
     );
     return base;
-  }, [presidentialEnabled, isSuperAdmin, workspace.role]);
+  }, [presidentialEnabled]);
 
   // Restaure la largeur et le repli mémorisés, une seule fois au montage.
   useEffect(() => {
