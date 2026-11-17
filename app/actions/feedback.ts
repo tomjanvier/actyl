@@ -12,9 +12,6 @@ const reportSchema = z.object({
   category: z.enum(["BUG", "QUESTION", "IDEA", "OTHER"]),
   title: z.string().trim().min(8, "Donne un titre un peu plus précis.").max(140),
   description: z.string().trim().min(20, "Décris le problème en quelques mots.").max(3000),
-  expected: z.string().trim().max(1500).optional().or(z.literal("")),
-  observed: z.string().trim().max(1500).optional().or(z.literal("")),
-  steps: z.string().trim().max(2000).optional().or(z.literal("")),
   pagePath: z.string().trim().max(180).optional().or(z.literal("")),
   deviceInfo: z.string().max(1200).optional().or(z.literal("")),
   website: z.string().max(0).optional(),
@@ -31,26 +28,10 @@ function safePagePath(value: string | undefined) {
   return path.split("/").map((segment) => segment.length > 24 ? ":id" : segment).join("/").slice(0, 180);
 }
 
-function isActionableBug(report: {
-  category: string;
-  description: string;
-  expected: string | null;
-  observed: string | null;
-  steps: string | null;
-}) {
-  return report.category === "BUG" &&
-    report.description.length >= 30 &&
-    (report.expected?.length ?? 0) >= 10 &&
-    (report.observed?.length ?? 0) >= 10 &&
-    (report.steps?.length ?? 0) >= 20;
-}
-
 export async function submitFeedbackReport(formData: FormData): Promise<{
   error?: string;
   ok?: boolean;
   reference?: string;
-  githubCreated?: boolean;
-  githubPending?: boolean;
 }> {
   const session = await getSession();
   if (!session) return { error: "Reconnecte-toi pour envoyer un signalement." };
@@ -66,39 +47,21 @@ export async function submitFeedbackReport(formData: FormData): Promise<{
   if (recentCount >= 5) return { error: "Tu as envoyé plusieurs signalements récemment. Réessaie dans un moment." };
 
   const values = parsed.data;
-  const expected = values.expected?.trim() || null;
-  const observed = values.observed?.trim() || null;
-  const steps = values.steps?.trim() || null;
   const pagePath = safePagePath(values.pagePath);
   const contentHash = await hashReport([
     values.category,
     values.title.toLocaleLowerCase("fr"),
     values.description.toLocaleLowerCase("fr"),
-    expected?.toLocaleLowerCase("fr") ?? "",
-    observed?.toLocaleLowerCase("fr") ?? "",
-    steps?.toLocaleLowerCase("fr") ?? "",
   ].join("\n"));
 
   const duplicate = await db.feedbackReport.findUnique({
     where: { workspaceId_contentHash: { workspaceId: session.workspaceId, contentHash } },
-    select: { id: true, githubIssueUrl: true, githubSyncState: true },
+    select: { id: true },
   });
   if (duplicate) {
-    return {
-      ok: true,
-      reference: duplicate.id.slice(-8).toUpperCase(),
-      githubCreated: duplicate.githubSyncState === "CREATED",
-      githubPending: duplicate.githubSyncState === "PENDING" || duplicate.githubSyncState === "FAILED",
-    };
+    return { ok: true, reference: duplicate.id.slice(-8).toUpperCase() };
   }
 
-  const actionable = isActionableBug({
-    category: values.category,
-    description: values.description,
-    expected,
-    observed,
-    steps,
-  });
   const report = await db.feedbackReport.create({
     data: {
       workspaceId: session.workspaceId,
@@ -106,14 +69,14 @@ export async function submitFeedbackReport(formData: FormData): Promise<{
       category: values.category,
       title: values.title,
       description: values.description,
-      expected,
-      observed,
-      steps,
+      expected: null,
+      observed: null,
+      steps: null,
       pagePath,
       deviceInfo: values.deviceInfo || null,
       contentHash,
-      githubSyncState: actionable ? "PENDING" : "NOT_ELIGIBLE",
-      githubSyncNote: actionable ? null : "Requires a complete, reproducible bug report.",
+      githubSyncState: "NOT_ELIGIBLE",
+      githubSyncNote: null,
     },
     select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true },
   });
@@ -123,36 +86,18 @@ export async function submitFeedbackReport(formData: FormData): Promise<{
     ...report, category: values.category, deviceInfo: values.deviceInfo || null,
     userName: session.user.name, userEmail: session.user.email,
   });
-  await db.feedbackReport.update({
-    where: { id: report.id },
-    data: { resolvehqSyncState: resolvehq.state, resolvehqSyncNote: resolvehq.state === "CREATED" ? null : resolvehq.note, ...(resolvehq.state === "CREATED" ? { resolvehqTicketId: resolvehq.id, resolvehqTicketUrl: resolvehq.url } : {}) },
-  });
+  try {
+    await db.feedbackReport.update({
+      where: { id: report.id },
+      data: { resolvehqSyncState: resolvehq.state, resolvehqSyncNote: resolvehq.state === "CREATED" ? null : resolvehq.note, ...(resolvehq.state === "CREATED" ? { resolvehqTicketId: resolvehq.id, resolvehqTicketUrl: resolvehq.url } : {}) },
+    });
+  } catch (error) {
+    // The report is already persisted; a ResolveHQ sync-state write must not
+    // make the user think the original report failed or trigger a duplicate.
+    console.error("[feedback] ResolveHQ status could not be saved", error instanceof Error ? error.name : "unknown");
+  }
 
-  if (!actionable) return { ok: true, reference: report.id.slice(-8).toUpperCase() };
-
-  const issue = await createFeedbackIssue({
-    ...report,
-    userName: session.user.name,
-    userEmail: session.user.email,
-    deviceInfo: values.deviceInfo || null,
-  });
-  await db.feedbackReport.update({
-    where: { id: report.id },
-    data: {
-      githubSyncState: issue.state,
-      githubSyncNote: issue.state === "CREATED" ? null : issue.note,
-      ...(issue.state === "CREATED"
-        ? { githubIssueNumber: issue.number, githubIssueUrl: issue.url }
-        : {}),
-    },
-  });
-
-  return {
-    ok: true,
-    reference: report.id.slice(-8).toUpperCase(),
-    githubCreated: issue.state === "CREATED",
-    githubPending: issue.state !== "CREATED",
-  };
+  return { ok: true, reference: report.id.slice(-8).toUpperCase() };
 }
 
 export async function resolveFeedbackReportAction(reportId: string): Promise<{ ok?: boolean; error?: string }> {
@@ -185,13 +130,7 @@ export async function retryFeedbackIssueAction(reportId: string): Promise<{ ok?:
     },
     select: { id: true, title: true, description: true, expected: true, observed: true, steps: true, pagePath: true, deviceInfo: true, user: { select: { name: true, email: true } } },
   });
-  if (!report || !isActionableBug({
-    category: "BUG",
-    description: report.description,
-    expected: report.expected,
-    observed: report.observed,
-    steps: report.steps,
-  })) return { error: "Ce ticket n’est pas éligible à la création d’une issue." };
+  if (!report) return { error: "Ce ticket est introuvable ou possède déjà une issue." };
 
   const issue = await createFeedbackIssue({
     ...report,

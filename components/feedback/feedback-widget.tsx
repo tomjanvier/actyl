@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from "react";
 import type { FormEvent } from "react";
-import { Bug, CheckCircle2, ChevronDown, Lightbulb, LoaderCircle, MessageCircleQuestion, MessageSquarePlus } from "lucide-react";
+import { Bug, CheckCircle2, Lightbulb, LoaderCircle, MessageCircleQuestion, MessageSquarePlus } from "lucide-react";
 import { submitFeedbackReport } from "@/app/actions/feedback";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input, Textarea } from "@/components/ui/input";
 
 type Category = "BUG" | "QUESTION" | "IDEA" | "OTHER";
-type Result = { reference: string; githubCreated?: boolean; githubPending?: boolean };
+type Result = { reference: string };
 
 const categories: Array<{ value: Category; label: string; icon: typeof Bug }> = [
   { value: "BUG", label: "Signaler un bug", icon: Bug },
@@ -21,7 +21,6 @@ const categories: Array<{ value: Category; label: string; icon: typeof Bug }> = 
 export function FeedbackWidget() {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<Category>("BUG");
-  const [githubDetailsOpen, setGithubDetailsOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -50,14 +49,11 @@ export function FeedbackWidget() {
         }
         setResult({
           reference: response.reference ?? "reçu",
-          githubCreated: response.githubCreated,
-          githubPending: response.githubPending,
         });
         form.reset();
         setCategory("BUG");
-        setGithubDetailsOpen(false);
       } catch {
-        setError("L’envoi a échoué. Vérifie ta connexion et réessaie.");
+        setError("Un problème temporaire a empêché l’envoi. Réessaie dans un instant.");
       }
     });
   }
@@ -68,7 +64,6 @@ export function FeedbackWidget() {
     if (!next) {
       setError(null);
       setResult(null);
-      setGithubDetailsOpen(false);
     }
   }
 
@@ -93,13 +88,7 @@ export function FeedbackWidget() {
                 <DialogTitle>Merci pour ton signalement</DialogTitle>
                 <DialogDescription>Référence {result.reference}</DialogDescription>
               </DialogHeader>
-              {result.githubPending ? (
-                <p className="mx-auto mt-3 max-w-sm text-sm text-faint">Ton signalement est enregistré. La création de l’issue GitHub est en attente ; l’équipe pourra la relancer depuis les signalements.</p>
-              ) : result.githubCreated ? (
-                <p className="mx-auto mt-3 max-w-sm text-sm text-faint">Ton bug a été transmis au suivi technique sous une référence interne.</p>
-              ) : (
-                <p className="mx-auto mt-3 max-w-sm text-sm text-faint">Ton retour est enregistré dans les signalements de l’espace.</p>
-              )}
+              <p className="mx-auto mt-3 max-w-sm text-sm text-faint">Ton retour est enregistré. L’équipe va l’examiner et te recontactera si besoin.</p>
               <Button className="mt-5" onClick={() => close(false)}>Terminer</Button>
             </div>
           ) : (
@@ -109,7 +98,7 @@ export function FeedbackWidget() {
                 <DialogDescription className="text-xs sm:text-[13px]">Décris le souci sans mot de passe ni données personnelles de contacts.</DialogDescription>
               </DialogHeader>
               <form onSubmit={submit} className="space-y-3 sm:space-y-4">
-                <fieldset disabled={pending} className={`space-y-3 disabled:opacity-80 sm:space-y-4 ${githubDetailsOpen ? "pb-16 sm:pb-0" : ""}`}>
+                <fieldset disabled={pending} className="space-y-3 disabled:opacity-80 sm:space-y-4">
                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
                   {categories.map(({ value, label, icon: Icon }) => (
                     <button
@@ -134,34 +123,6 @@ export function FeedbackWidget() {
                   <Textarea name="description" required minLength={category === "BUG" ? 30 : 20} maxLength={3000} rows={3} placeholder="Décris le contexte et ce que tu essayais de faire…" />
                 </label>
 
-                {category === "BUG" && (
-                  <details
-                    open={githubDetailsOpen}
-                    onToggle={(event) => setGithubDetailsOpen(event.currentTarget.open)}
-                    className="rounded-lg border border-line bg-elev/50 px-3 py-2"
-                  >
-                    <summary className="flex min-h-8 cursor-pointer list-none items-center justify-between gap-2 text-xs font-medium text-fg [&::-webkit-details-marker]:hidden">
-                      <span>Ajouter les détails pour une issue GitHub</span>
-                      <ChevronDown className="size-4 shrink-0 text-faint transition-transform open:rotate-180" aria-hidden="true" />
-                    </summary>
-                    <div className="mt-2 space-y-2.5">
-                      <p className="text-[11px] leading-relaxed text-faint">Ces trois précisions permettent de créer automatiquement une issue ; sinon, ton signalement reste enregistré dans l’aide.</p>
-                      <label className="block space-y-1 text-xs font-medium text-mut">
-                        Résultat attendu
-                        <Textarea name="expected" required={githubDetailsOpen} minLength={10} maxLength={1500} rows={2} placeholder="Ce que tu pensais voir" />
-                      </label>
-                      <label className="block space-y-1 text-xs font-medium text-mut">
-                        Résultat observé
-                        <Textarea name="observed" required={githubDetailsOpen} minLength={10} maxLength={1500} rows={2} placeholder="Ce qui s’est réellement passé" />
-                      </label>
-                      <label className="block space-y-1 text-xs font-medium text-mut">
-                        Étapes pour reproduire
-                        <Textarea name="steps" required={githubDetailsOpen} minLength={20} maxLength={2000} rows={2} placeholder="1. Ouvre… 2. Clique sur… 3. Constate…" />
-                      </label>
-                    </div>
-                  </details>
-                )}
-
                 <input type="hidden" name="category" value={category} />
                 <input type="hidden" name="pagePath" value="" />
                 <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
@@ -170,7 +131,7 @@ export function FeedbackWidget() {
                 </fieldset>
                 {error && <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{error}</p>}
                 <div className="sticky bottom-0 z-10 flex flex-col-reverse items-stretch gap-2 border-t border-line bg-raised py-3 sm:static sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pt-3 sm:pb-0">
-                  <p className="max-w-xs text-[10px] leading-relaxed text-faint sm:text-[11px]">La page est jointe au rapport. Aucune capture ni donnée de contact n’est collectée.</p>
+                  <p className="max-w-xs text-[10px] leading-relaxed text-faint sm:text-[11px]">La page et quelques informations techniques sont jointes au rapport pour aider au diagnostic.</p>
                   <Button type="submit" disabled={pending} className="w-full sm:w-auto">
                     {pending && <LoaderCircle className="animate-spin" />}
                     {pending ? "Envoi…" : "Envoyer"}
