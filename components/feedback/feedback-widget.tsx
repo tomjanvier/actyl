@@ -116,11 +116,11 @@ export function FeedbackWidget() {
 
                 <label className="block space-y-1 text-xs font-medium text-mut">
                   Titre
-                  <Input name="title" required minLength={8} maxLength={140} placeholder="Ex. Le filtre par rôle ne répond plus" />
+                  <Input name="title" required minLength={8} maxLength={140} placeholder="Ex. Le filtre par rôle ne répond plus" className="placeholder:text-[13px] sm:placeholder:text-[13px]" />
                 </label>
                 <label className="block space-y-1 text-xs font-medium text-mut">
                   {category === "BUG" ? "Que se passe-t-il ?" : "Ton message"}
-                  <Textarea name="description" required minLength={category === "BUG" ? 30 : 20} maxLength={3000} rows={3} placeholder="Décris le contexte et ce que tu essayais de faire…" />
+                  <Textarea name="description" required minLength={category === "BUG" ? 30 : 20} maxLength={3000} rows={3} placeholder="Décris le contexte et ce que tu essayais de faire…" className="placeholder:text-[13px] sm:placeholder:text-[13px]" />
                 </label>
 
                 <input type="hidden" name="category" value={category} />

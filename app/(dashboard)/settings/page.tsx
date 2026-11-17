@@ -14,6 +14,13 @@ import { ArrowUpRight } from "lucide-react";
 
 export const metadata = { title: "Paramètres" };
 
+function isMissingInvitationTable(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const code = "code" in error ? String(error.code) : "";
+  return code === "P2021" ||
+    (/workspace_invitations/i.test(error.message) && /does not exist|n'existe pas/i.test(error.message));
+}
+
 export default async function SettingsPage({
   searchParams,
 }: {
@@ -21,6 +28,17 @@ export default async function SettingsPage({
 }) {
   const session = await requireSession();
   const { tab } = await searchParams;
+  const invitationsQuery = session.role === "ADMIN"
+    ? db.workspaceInvitation.findMany({
+        where: { workspaceId: session.workspaceId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, email: true, name: true, role: true, createdAt: true, expiresAt: true },
+      }).catch((error: unknown) => {
+        if (!isMissingInvitationTable(error)) throw error;
+        console.error("[settings] Invitation table is unavailable for this database.");
+        return null;
+      })
+    : Promise.resolve([]);
 
   const [
     fields,
@@ -66,13 +84,7 @@ export default async function SettingsPage({
           groups: { include: { group: { select: { name: true } } } },
         },
       }),
-      session.role === "ADMIN"
-        ? db.workspaceInvitation.findMany({
-            where: { workspaceId: session.workspaceId },
-            orderBy: { createdAt: "desc" },
-            select: { id: true, email: true, name: true, role: true, createdAt: true, expiresAt: true },
-          })
-        : Promise.resolve([]),
+      invitationsQuery,
       db.apiToken.findMany({
         where: { workspaceId: session.workspaceId },
         orderBy: { createdAt: "desc" },
@@ -152,6 +164,11 @@ export default async function SettingsPage({
           </Link>
         }
       />
+      {invitations === null && (
+        <p role="status" className="mx-4 mt-4 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[13px] leading-relaxed text-fg sm:mx-7">
+          La gestion des invitations est temporairement indisponible. Les autres paramètres restent accessibles.
+        </p>
+      )}
       <SettingsView
         initialTab={tab ?? null}
         role={session.role}
@@ -199,7 +216,7 @@ export default async function SettingsPage({
             | "OBSERVER",
           groups: m.groups.map((gm) => gm.group.name),
         }))}
-        invitations={invitations.map((invitation) => ({
+        invitations={(invitations ?? []).map((invitation) => ({
           ...invitation,
           createdAt: invitation.createdAt.toISOString(),
           expiresAt: invitation.expiresAt.toISOString(),

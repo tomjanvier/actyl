@@ -20,8 +20,8 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        // pt-16 clears the fixed menu button on small screens.
-        "flex flex-wrap items-end justify-between gap-3 border-b border-line bg-raised px-4 pb-5 pt-16 sm:px-7 md:pt-6",
+        // Keep the heading aligned with the mobile menu button's 44px hit area.
+        "flex flex-wrap items-end justify-between gap-3 border-b border-line bg-raised px-4 pb-5 pt-14 sm:px-7 md:pt-6",
         className,
       )}
     >

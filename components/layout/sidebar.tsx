@@ -265,7 +265,7 @@ export function Sidebar({
       <Button
         variant="outline"
         size="icon-sm"
-        className="fixed left-4 top-4 z-40 md:hidden"
+        className="fixed left-4 top-3 z-40 md:hidden"
         aria-label="Ouvrir le menu"
         onClick={() => setMobileOpen(true)}
       >
