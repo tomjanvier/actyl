@@ -3,7 +3,7 @@
   // Worker de production pour Actyl (Next.js via @opennextjs/cloudflare).
   // Les secrets ne sont JAMAIS stockés ici : `wrangler secret put` + `.dev.vars` en local.
   "name": "actyl-cloudflare",
-  "main": ".open-next/worker.js",
+  "main": "custom-worker.mjs",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "placement": { "mode": "smart" },
@@ -84,6 +84,7 @@
         "GITHUB_APP_ID": "5798522",
         "GITHUB_APP_INSTALLATION_ID": "182888011"
       },
+      "triggers": { "crons": ["*/15 * * * *", "0 4 * * 1"] },
       "routes": [
         {
           "pattern": "actyl.org",

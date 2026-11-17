@@ -914,6 +914,9 @@ model FeedbackReport {
   resolvehqTicketUrl String?
   resolvehqSyncState String @default("NOT_CONFIGURED") // CREATED | FAILED | NOT_CONFIGURED
   resolvehqSyncNote String?
+  resolvehqRetryCount Int @default(0)
+  resolvehqLastAttemptAt DateTime?
+  resolvehqNextRetryAt DateTime?
   contentHash       String
   createdAt         DateTime @default(now())
 
@@ -922,5 +925,6 @@ model FeedbackReport {
 
   @@unique([workspaceId, contentHash])
   @@index([workspaceId, status, createdAt])
+  @@index([resolvehqSyncState, resolvehqNextRetryAt])
   @@map("feedback_reports")
 }
