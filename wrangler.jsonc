@@ -45,6 +45,8 @@
       "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
       "ACTYL_PREVIEW_DISABLE_SIGNUP_TURNSTILE": "true",
       "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+      "GITHUB_APP_ID": "5798522",
+      "GITHUB_APP_INSTALLATION_ID": "182888011",
       "RESOLVEHQ_API_URL": "https://help.plaidact.org"
     }
   },
@@ -60,6 +62,8 @@
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare-preview" }],
       "vars": {
         "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+        "GITHUB_APP_ID": "5798522",
+        "GITHUB_APP_INSTALLATION_ID": "182888011",
         "RESOLVEHQ_API_URL": "https://help.plaidact.org"
       }
     },
@@ -75,7 +79,10 @@
         "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
         // Origine publique : base de la redirect_uri SSO
         // (`https://actyl.org/api/auth/act/callback`, à enregistrer côté Act).
-        "NEXT_PUBLIC_APP_URL": "https://actyl.org"
+        "NEXT_PUBLIC_APP_URL": "https://actyl.org",
+        "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+        "GITHUB_APP_ID": "5798522",
+        "GITHUB_APP_INSTALLATION_ID": "182888011"
       },
       "routes": [
         {
