@@ -27,6 +27,7 @@ model Workspace {
   createdAt DateTime @default(now())
 
   memberships  Membership[]
+  invitations WorkspaceInvitation[]
   groups       Group[]
   contacts     Contact[]
   campaigns    Campaign[]
@@ -42,6 +43,7 @@ model Workspace {
   supporters   Supporter[]
   campaignTeams CampaignTeam[]
   politicalPositions PoliticalPosition[]
+  feedbackReports FeedbackReport[]
 
   @@map("workspaces")
 }
@@ -73,6 +75,28 @@ model User {
   politicalPositions PoliticalPosition[]
   oidcCodes       OidcAuthorizationCode[]
   oidcTokens      OidcAccessToken[]
+  feedbackReports FeedbackReport[]
+}
+
+model JobTitle {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  @@map("job_titles")
+}
+
+model WorkspaceInvitation {
+  id          String   @id @default(cuid())
+  email       String
+  name        String
+  role        String
+  tokenHash   String   @unique
+  workspaceId String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@index([workspaceId, email])
+  @@map("workspace_invitations")
 }
 
 model OidcClient {
@@ -863,4 +887,44 @@ model Supporter {
   @@index([workspaceId, source])
   @@index([lastSeenAt])
   @@map("supporters")
+}
+
+/// Signalement transmis depuis l'interface Actyl.
+model FeedbackReport {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  userId            String?
+  category          String   // BUG | QUESTION | IDEA | OTHER
+  title             String
+  description       String
+  expected          String?
+  observed          String?
+  steps             String?
+  pagePath          String?
+  deviceInfo        String?
+  status            String   @default("OPEN")
+  githubSyncState   String   @default("NOT_ELIGIBLE") // CREATED | PENDING | FAILED | NOT_ELIGIBLE
+  githubSyncNote    String?
+  githubIssueNumber Int?
+  githubIssueUrl    String?
+  lastReplyAt       DateTime?
+  lastReplyById     String?
+  lastReplyMessage  String?
+  resolvehqTicketId String?
+  resolvehqTicketUrl String?
+  resolvehqSyncState String @default("NOT_CONFIGURED") // CREATED | FAILED | NOT_CONFIGURED
+  resolvehqSyncNote String?
+  resolvehqRetryCount Int @default(0)
+  resolvehqLastAttemptAt DateTime?
+  resolvehqNextRetryAt DateTime?
+  contentHash       String
+  createdAt         DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, contentHash])
+  @@index([workspaceId, status, createdAt])
+  @@index([resolvehqSyncState, resolvehqNextRetryAt])
+  @@map("feedback_reports")
 }

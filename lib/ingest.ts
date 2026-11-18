@@ -132,6 +132,7 @@ export async function upsertContactByEmail(input: {
 }
 
 function categoryRank(category: string): number {
+  if (category === "NGO_PROFESSIONAL") return 5;
   const order = ["SUPPORTER", "MEMBER", "VOLUNTEER", "DONOR", "DECISION_MAKER"];
   return order.indexOf(category);
 }

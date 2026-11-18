@@ -13,6 +13,7 @@ import {
   RefreshCw,
   X,
   Loader2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -141,6 +142,7 @@ export function ContactsView({
   const commissionFilter = activeCommission;
   const [themeQuery, setThemeQuery] = useState<string>(filters.theme);
   const [newsletterFilter, setNewsletterFilter] = useState<string>(filters.newsletter);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [moveBusy, setMoveBusy] = useState(false);
@@ -304,6 +306,18 @@ export function ContactsView({
   }
 
   const selected = contacts.find((c) => c.id === selectedId) ?? null;
+  const activeFilterCount = [
+    activeListId,
+    onlyUnlisted,
+    formerMandate,
+    levelFilter,
+    stanceFilter,
+    partyFilter,
+    institutionFilter,
+    commissionFilter,
+    themeQuery,
+    newsletterFilter,
+  ].filter(Boolean).length;
 
   function exportData(format: "csv" | "json") {
     const rows = (checked.size ? filtered.filter((c) => checked.has(c.id)) : filtered).map((c) => ({
@@ -348,15 +362,34 @@ export function ContactsView({
       {/* Barre d'outils */}
       <FilterBar>
         <form onSubmit={(event) => { event.preventDefault(); applyFilters(); }} className="flex w-full min-w-0 flex-wrap items-center gap-2" aria-label="Filtres de l’annuaire">
+        <div className="flex w-full min-w-0 items-center gap-2">
         <SearchField
           id="contacts-search"
           value={query}
           onValueChange={setQuery}
           placeholder="Rechercher un décideur…"
           hint="/"
-          width="w-full sm:w-80"
+          width="min-w-0 flex-1 sm:w-80 sm:flex-none"
         />
+        <Button type="submit" size="sm" disabled={isPending} className="md:hidden" aria-label="Rechercher dans le répertoire">
+          {isPending ? <Loader2 className="animate-spin" /> : <Search />}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="md:hidden"
+          aria-expanded={mobileFiltersOpen}
+          aria-controls="contacts-extra-filters"
+          onClick={() => setMobileFiltersOpen((open) => !open)}
+        >
+          <SlidersHorizontal />
+          Filtres{activeFilterCount > 0 && <span className="tabular-nums">{activeFilterCount}</span>}
+        </Button>
+        </div>
 
+        <div id="contacts-extra-filters" className={cn("w-full md:contents", !mobileFiltersOpen && "hidden")}>
+        <div className="grid w-full grid-cols-2 gap-2 md:contents">
         {lists.length > 0 && (
           <FilterSelect
             value={activeListId}
@@ -463,7 +496,7 @@ export function ContactsView({
           onValueChange={setThemeQuery}
           placeholder="Thématique…"
           label="Filtrer par thématique"
-          width="w-36"
+          width="w-full md:w-36"
         />
 
         {newsletterEnabled && (
@@ -481,10 +514,12 @@ export function ContactsView({
             <option value="SYNCED">Statut connu</option>
           </FilterSelect>
         )}
+        </div>
 
-        <Button type="submit" size="sm" disabled={isPending}>
+        <Button type="submit" size="sm" disabled={isPending} className="hidden md:inline-flex">
           {isPending ? <Loader2 className="animate-spin" /> : <Search />} Rechercher
         </Button>
+        </div>
         </form>
 
         {checked.size > 0 && (

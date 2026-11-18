@@ -37,12 +37,14 @@ const WASM_B64_MODULE =
 const WASM_FILENAME = "prisma-query-compiler.wasm";
 const IMPORT_NAME = "__PRISMA_COMPILER_WASM__";
 
+// Revalidée le 07/11 (Next 16 / OpenNext 1.20.16) : nouvelle forme « chargeur de
+// chunks » (ex. a2.A(90290)) en plus de l'ancienne forme webpack Promise.
 // Ancre stable à travers les builds : le chargeur généré par Prisma.
 // Plusieurs occurrences possibles (variantes du compilateur) : toutes patchées.
 // Le flag `g` est essentiel : `String.replace` sans `g` ne remplace que la
 // première occurrence et laisse un chargeur runtime actif (vérifié le 14/09).
 const LOADER_RE =
-  /getQueryCompilerWasmModule:async\(\)=>\{let\{wasm:\w+\}=await Promise\.resolve\(\)\.then\(\w+\.bind\(\w+,\d+\)\);return await \w+\(\w+\)\}/g;
+  /getQueryCompilerWasmModule:async\(\)=>\{let\{wasm:\w+\}=await (?:\w+\.A\(\d+\)|Promise\.resolve\(\)\.then\(\w+\.bind\(\w+,\d+\)\));return await \w+\(\w+\)\}/g;
 
 function extractWasmBytes() {
   // node_modules racine (symlink pnpm) + résolution ESM standard.

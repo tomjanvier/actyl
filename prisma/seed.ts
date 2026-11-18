@@ -15,6 +15,9 @@ function daysAgo(n: number): Date {
 }
 
 async function main() {
+  await Promise.all(["Député·e", "Sénateur·ice"].map((name) =>
+    db.jobTitle.upsert({ where: { name }, create: { name }, update: {} }),
+  ));
   console.log("🌱 Seeding Actyl…");
 
   // Remise à zéro dans un ordre compatible avec les clés étrangères.

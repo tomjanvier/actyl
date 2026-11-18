@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/controls";
 import { TurnstileWidget } from "@/components/security/turnstile-widget";
+import { MessageCircleQuestion } from "lucide-react";
 
 const CONTRIBUTION_CHOICES = [
   ["YES", "Oui"],
@@ -14,7 +15,13 @@ const CONTRIBUTION_CHOICES = [
   ["DISCUSS", "À discuter"],
 ] as const;
 
-export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
+export function SignUpForm({
+  mode,
+  disableTurnstile,
+}: {
+  mode: "OPEN" | "APPROVAL";
+  disableTurnstile: boolean;
+}) {
   const [contributionInterest, setContributionInterest] = useState("");
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     signUpAction,
@@ -68,7 +75,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
           <Label htmlFor="name">Votre nom</Label>
           <Input id="name" name="name" placeholder="Camille Dupont" required />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="website">Site web de l&apos;association</Label>
             <Input id="website" name="website" type="url" placeholder="https://…" />
@@ -143,7 +150,7 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
             {state.error}
           </p>
         )}
-        <TurnstileWidget />
+        {!disableTurnstile && <TurnstileWidget action="signup" />}
         <Button type="submit" disabled={pending} className="mt-1 w-full">
           {pending
             ? "Envoi…"
@@ -152,6 +159,16 @@ export function SignUpForm({ mode }: { mode: "OPEN" | "APPROVAL" }) {
               : "Créer mon espace"}
         </Button>
       </form>
+      <div className="mt-4 rounded-lg border border-line bg-elev/50 p-3">
+        <p className="text-[12px] leading-relaxed text-mut">Une question ou un blocage pendant l’inscription ?</p>
+        <a
+          href="mailto:help@plaidact.org?subject=Aide%20%C3%A0%20l%E2%80%99inscription%20Actyl"
+          className="mt-1 inline-flex min-h-10 items-center gap-2 text-[13px] font-medium text-accent-text underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-ring"
+        >
+          <MessageCircleQuestion className="size-4" aria-hidden="true" />
+          Contacter l’équipe d’aide
+        </a>
+      </div>
       <p className="mt-5 text-center text-[13px] text-faint">
         Déjà un compte ?{" "}
         <Link href="/sign-in" className="text-accent-text hover:text-accent-text">

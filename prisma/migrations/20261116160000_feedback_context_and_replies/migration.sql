@@ -1,0 +1,5 @@
+ALTER TABLE "feedback_reports"
+  ADD COLUMN IF NOT EXISTS "deviceInfo" TEXT,
+  ADD COLUMN IF NOT EXISTS "lastReplyAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "lastReplyById" TEXT,
+  ADD COLUMN IF NOT EXISTS "lastReplyMessage" TEXT;

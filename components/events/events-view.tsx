@@ -233,14 +233,14 @@ function CreateEventForm({ onCreated }: { onCreated: () => void }) {
       </h3>
       <Label className="mb-1 block">Titre *</Label>
       <Input name="title" placeholder="Réunion publique — quartier Nord" required className="mb-3" />
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <div>
+      <div className="mb-3 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 min-[480px]:gap-2">
+        <div className="min-w-0">
           <Label className="mb-1 block">Début *</Label>
-          <Input name="startsAt" type="datetime-local" required />
+          <Input name="startsAt" type="datetime-local" required className="min-w-0" />
         </div>
-        <div>
+        <div className="min-w-0">
           <Label className="mb-1 block">Durée (h)</Label>
-          <Input name="durationHours" type="number" step="0.5" min="0.5" defaultValue="2" />
+          <Input name="durationHours" type="number" step="0.5" min="0.5" defaultValue="2" className="min-w-0" />
         </div>
       </div>
       <Label className="mb-1 block">Lieu</Label>

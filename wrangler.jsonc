@@ -3,9 +3,10 @@
   // Worker de production pour Actyl (Next.js via @opennextjs/cloudflare).
   // Les secrets ne sont JAMAIS stockés ici : `wrangler secret put` + `.dev.vars` en local.
   "name": "actyl-cloudflare",
-  "main": ".open-next/worker.js",
+  "main": "custom-worker.mjs",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "cache": { "enabled": true, "cross_version_cache": false },
   "placement": { "mode": "smart" },
   "migrations": [{ "tag": "actyl-cache-v1", "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"] }],
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache" }],
@@ -34,11 +35,8 @@
   "vars": {},
   // Garde-fous de consommation : à activer sur plan Paid.
   // "limits": { "cpu_ms": 50 },
-  // Previews Workers (branches hors production) : les previews n'héritent de rien
-  // de la production — cf. https://developers.cloudflare.com/workers/previews/
-  // Ressources de recette : bucket de staging ; la liaison de service pointe sur la
-  // production (le Worker de recette actyl-cloudflare-preview n'existe pas).
   "previews": {
+    "cache": { "enabled": true, "cross_version_cache": false },
     "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache-preview" }],
     "durable_objects": { "bindings": [
       { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
@@ -46,21 +44,35 @@
     ] },
     "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare" }],
     "vars": {
-      "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe"
+      "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
+      "ACTYL_PREVIEW_DISABLE_SIGNUP_TURNSTILE": "true",
+      "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+      "GITHUB_APP_ID": "5798522",
+      "GITHUB_APP_INSTALLATION_ID": "182888011",
+      "RESOLVEHQ_API_URL": "https://help.plaidact.org"
     }
   },
+
   "env": {
     "preview": {
       "name": "actyl-cloudflare-preview",
+      "cache": { "enabled": true, "cross_version_cache": false },
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache-preview" }],
   "durable_objects": { "bindings": [
     { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
     { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
   ] },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "actyl-cloudflare-preview" }],
+      "vars": {
+        "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+        "GITHUB_APP_ID": "5798522",
+        "GITHUB_APP_INSTALLATION_ID": "182888011",
+        "RESOLVEHQ_API_URL": "https://help.plaidact.org"
+      }
     },
     "production": {
       "name": "actyl-cloudflare",
+      "cache": { "enabled": true, "cross_version_cache": false },
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache" }],
   "durable_objects": { "bindings": [
     { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
@@ -71,8 +83,12 @@
         "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAEmDTGdNQb85dFhe",
         // Origine publique : base de la redirect_uri SSO
         // (`https://actyl.org/api/auth/act/callback`, à enregistrer côté Act).
-        "NEXT_PUBLIC_APP_URL": "https://actyl.org"
+        "NEXT_PUBLIC_APP_URL": "https://actyl.org",
+        "GITHUB_ISSUES_REPOSITORY": "tomjanvier/resolvehq-actyl",
+        "GITHUB_APP_ID": "5798522",
+        "GITHUB_APP_INSTALLATION_ID": "182888011"
       },
+      "triggers": { "crons": ["*/15 * * * *", "0 4 * * 1"] },
       "routes": [
         {
           "pattern": "actyl.org",

@@ -255,7 +255,9 @@ export async function citizenSendAction(input: {
   if (!city) return { error: "Votre ville est requise." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email))
     return { error: "Adresse email invalide." };
-  const captcha = await verifyTurnstileToken(input.turnstileToken);
+  const captcha = await verifyTurnstileToken(input.turnstileToken, {
+    expectedAction: "citizen-email",
+  });
   if (!captcha.ok) return { error: captcha.error };
 
   // Limite les textes libres stockés en base et envoyés par email.

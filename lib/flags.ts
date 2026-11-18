@@ -57,6 +57,7 @@ export const CONTACT_CATEGORIES = [
   { key: "VOLUNTEER", label: "Bénévoles", icon: "heart-handshake" },
   { key: "DONOR", label: "Donateur·ice·s", icon: "gift" },
   { key: "SUPPORTER", label: "Soutiens", icon: "megaphone" },
+  { key: "NGO_PROFESSIONAL", label: "ONG & société civile", icon: "building-2" },
 ] as const;
 
 export type ContactCategory = (typeof CONTACT_CATEGORIES)[number]["key"];

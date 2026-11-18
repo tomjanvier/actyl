@@ -4,7 +4,7 @@ import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createContactAction } from "@/app/actions/contacts";
-import { LEVELS, LEVEL_META, STANCES, STANCE_META } from "@/lib/constants";
+import { CONTACT_CATEGORY_LABELS, CONTACT_CATEGORY_VALUES, LEVELS, LEVEL_META, STANCES, STANCE_META } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
@@ -24,14 +24,6 @@ import {
 } from "@/components/ui/select";
 
 type ActionRes = { error?: string; ok?: boolean };
-
-const CATEGORIES = [
-  { key: "DECISION_MAKER", label: "Décideur·euse" },
-  { key: "MEMBER", label: "Adhérent·e" },
-  { key: "VOLUNTEER", label: "Bénévole" },
-  { key: "DONOR", label: "Donateur·ice" },
-  { key: "SUPPORTER", label: "Soutien" },
-] as const;
 
 export function CreateContactDialog({
   open,
@@ -75,11 +67,14 @@ export function CreateContactDialog({
               <Select name="category" defaultValue="DECISION_MAKER">
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+                  {CONTACT_CATEGORY_VALUES.map((category) => (
+                    <SelectItem key={category} value={category}>{CONTACT_CATEGORY_LABELS[category]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] leading-relaxed text-faint">
+                Pour une personne d’ONG ou d’association, choisissez « ONG & société civile », puis indiquez son poste et son organisation.
+              </p>
             </div>
           )}
           <div className="flex flex-col gap-1.5">
@@ -99,12 +94,12 @@ export function CreateContactDialog({
             <Input name="phone" placeholder="+33 6 …" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Fonction</Label>
-            <Input name="title" placeholder="Députée, Maire, Ministre…" />
+            <Label>Fonction / poste</Label>
+            <Input name="title" placeholder="Chargée de plaidoyer, directrice…" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Institution</Label>
-            <Input name="institution" placeholder="Assemblée nationale…" />
+            <Label>Organisation / institution</Label>
+            <Input name="institution" placeholder="Nom de l’ONG, association ou institution…" />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Parti / Affiliation</Label>
@@ -115,7 +110,7 @@ export function CreateContactDialog({
             <Input name="region" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Niveau</Label>
+            <Label>Niveau / secteur</Label>
             <Select name="level" defaultValue="NATIONAL">
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -139,6 +134,10 @@ export function CreateContactDialog({
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label>Bio / contexte</Label>
             <Textarea name="bio" rows={2} placeholder="Commissions, dossiers suivis, sensibilités…" />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label>Thématiques d&apos;expertise</Label>
+            <Input name="themes" placeholder="Climat, droits humains, santé…" />
           </div>
           <div className="flex justify-end gap-2 sm:col-span-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>

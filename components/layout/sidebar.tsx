@@ -21,6 +21,9 @@ import {
   Search,
   X,
   UsersRound,
+  MessageSquareText,
+  ChevronDown,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { switchWorkspaceAction, signOutAction } from "@/app/actions/auth";
@@ -117,10 +120,9 @@ export function Sidebar({
     base.push(
       { href: "/lists", label: "Listes partagées", icon: ListChecks },
       { href: "/settings", label: "Paramètres", icon: Settings },
-      ...(isSuperAdmin ? [{ href: "/admin", label: "Super administration", icon: Settings }] : []),
     );
     return base;
-  }, [presidentialEnabled, isSuperAdmin]);
+  }, [presidentialEnabled]);
 
   // Restaure la largeur et le repli mémorisés, une seule fois au montage.
   useEffect(() => {
@@ -263,7 +265,7 @@ export function Sidebar({
       <Button
         variant="outline"
         size="icon-sm"
-        className="fixed left-3 top-3 z-40 md:hidden"
+        className="fixed left-4 top-3 z-40 md:hidden"
         aria-label="Ouvrir le menu"
         onClick={() => setMobileOpen(true)}
       >
@@ -287,7 +289,7 @@ export function Sidebar({
     >
       <div
         className={cn(
-          "flex h-14 shrink-0 items-center border-b border-line px-3",
+          "flex h-14 shrink-0 items-center justify-between border-b border-line px-3",
           rail && "justify-center px-0",
         )}
       >
@@ -298,18 +300,18 @@ export function Sidebar({
             priority
           />
         </Link>
+        <Button variant="ghost" size="icon-sm" className="md:hidden" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu">
+          <X />
+        </Button>
       </div>
 
       {/* Sélecteur d’espace de travail. */}
-      <div className={cn("flex items-center gap-2 px-3 pb-2 pt-4", rail && "justify-center px-0")}>
-        <Button variant="ghost" size="icon-sm" className="ml-auto md:hidden" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu">
-          <X />
-        </Button>
+      <div className={cn("flex items-center gap-2 px-3 pb-2 pt-3", rail && "justify-center px-0")}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className={cn(
-                "group flex min-w-0 items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-elev",
+                "group flex w-full min-w-0 items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-elev",
                 rail && "p-0",
               )}
             >
@@ -442,6 +444,53 @@ export function Sidebar({
             </div>
           );
         })}
+        {(workspace.role === "ADMIN" || isSuperAdmin) && !isSuperAdmin && (
+          <Link
+            href="/admin/support"
+            aria-current={pathname.startsWith("/admin/support") ? "page" : undefined}
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors md:min-h-8",
+              rail && "w-9 justify-center px-0",
+              pathname.startsWith("/admin/support")
+                ? "bg-accent-soft font-semibold text-fg ring-1 ring-inset ring-accent-ring/40"
+                : "text-faint hover:bg-elev hover:text-mut",
+            )}
+          >
+            <MessageSquareText className="size-4 shrink-0" />
+            {!rail && "Signalements"}
+          </Link>
+        )}
+        {isSuperAdmin && (
+          rail ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/admin" aria-label="Super administration" className={cn("flex h-9 w-9 items-center justify-center rounded-lg text-faint hover:bg-elev hover:text-mut", pathname.startsWith("/admin") && "bg-accent-soft text-accent-text")} onClick={() => setMobileOpen(false)}>
+                  <Settings className="size-4" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">Super administration</TooltipContent>
+            </Tooltip>
+          ) : (
+            <details className="group" open={pathname.startsWith("/admin")}>
+              <summary className={cn("flex min-h-8 cursor-pointer list-none items-center gap-2.5 rounded-lg px-2.5 text-[13px] text-faint transition-colors hover:bg-elev hover:text-mut [&::-webkit-details-marker]:hidden", pathname.startsWith("/admin") && "font-medium text-fg")}>
+                <Settings className="size-4 shrink-0" />
+                <span className="flex-1">Super administration</span>
+                <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mb-1 ml-[26px] mt-0.5 flex flex-col border-l border-line pl-2">
+                {[
+                  { href: "/admin", label: "Vue d’ensemble", icon: Settings },
+                  { href: "/admin/support", label: "Signalements", icon: MessageSquareText },
+                  { href: "/admin/propositions", label: "À valider", icon: ClipboardList },
+                ].map((item) => {
+                  const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+                  return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} onClick={() => setMobileOpen(false)} className={cn("flex min-h-8 items-center gap-2 rounded-md px-2 text-[12px] transition-colors", active ? "bg-elev font-medium text-fg" : "text-faint hover:bg-elev hover:text-mut")}><item.icon className="size-3.5 shrink-0" />{item.label}</Link>;
+                })}
+              </div>
+            </details>
+          )
+        )}
       </nav>
 
 

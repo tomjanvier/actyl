@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// Note: X-Frame-Options / frame-ancestors are set per-path in middleware.ts
+// Note: X-Frame-Options / frame-ancestors are set per-path in proxy.ts
 // so that /embed/* routes stay iframe-friendly while everything else is DENY.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -13,7 +13,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  eslint: { ignoreDuringBuilds: true },
   poweredByHeader: false,
   async headers() {
     return [

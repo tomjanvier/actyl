@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 /**
- * Edge middleware: two jobs.
+ * Proxy (ex-middleware, Next 16): two jobs.
  *
  * 1. Protège chaque route du tableau de bord par un cookie de session valide.
  *    - La signature JWT est vérifiée, pas seulement la présence du cookie.
@@ -29,7 +29,13 @@ const PROTECTED_PREFIXES = [
   "/campaign-teams",
 ];
 
-export async function middleware(request: NextRequest) {
+function noStore(response: NextResponse): NextResponse {
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("Pragma", "no-cache");
+  return response;
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Autorise l'intégration des contenus publics et les exclut des moteurs de recherche.
@@ -45,22 +51,6 @@ export async function middleware(request: NextRequest) {
   );
 
   const response = NextResponse.next();
-
-  // Les pages publiques ne contiennent aucune donnée de session. Autoriser
-  // Cloudflare à conserver leur HTML réduit le TTFB sans exposer le tableau
-  // de bord ni les données privées. Les réglages de landing sont invalidés
-  // côté application et restent au maximum une minute dans le cache edge.
-  const isPublicHtml =
-    pathname === "/" ||
-    pathname.startsWith("/association/") ||
-    pathname.startsWith("/p/") ||
-    pathname.startsWith("/e/");
-  if (isPublicHtml && request.method === "GET") {
-    response.headers.set(
-      "Cache-Control",
-      "public, s-maxage=60, stale-while-revalidate=300",
-    );
-  }
 
   if (needsAuth) {
     const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -80,12 +70,17 @@ export async function middleware(request: NextRequest) {
     if (!isValid) {
       const url = new URL("/sign-in", request.url);
       url.searchParams.set("next", pathname);
-      return NextResponse.redirect(url);
+      return noStore(NextResponse.redirect(url));
     }
 
     response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("Cache-Control", "private, no-store");
-    return response;
+    return noStore(response);
+  }
+
+  // API and OAuth responses can carry account data, tokens, or cron status.
+  // Keep them out of edge/browser caches even when a route returns an error.
+  if (pathname === "/api" || pathname.startsWith("/api/") || pathname.startsWith("/oauth/")) {
+    noStore(response);
   }
 
   // Interdit aussi l'intégration des autres pages publiques de l'application.

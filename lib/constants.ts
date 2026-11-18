@@ -3,6 +3,24 @@
 export const ROLES = ["ADMIN", "CAMPAIGNER", "MEMBER", "OBSERVER"] as const;
 export type Role = (typeof ROLES)[number];
 
+export const CONTACT_CATEGORY_VALUES = [
+  "DECISION_MAKER",
+  "MEMBER",
+  "VOLUNTEER",
+  "DONOR",
+  "SUPPORTER",
+  "NGO_PROFESSIONAL",
+] as const;
+export type ContactCategory = (typeof CONTACT_CATEGORY_VALUES)[number];
+export const CONTACT_CATEGORY_LABELS: Record<ContactCategory, string> = {
+  DECISION_MAKER: "Décideur·euse",
+  MEMBER: "Adhérent·e",
+  VOLUNTEER: "Bénévole",
+  DONOR: "Donateur·ice",
+  SUPPORTER: "Soutien",
+  NGO_PROFESSIONAL: "ONG & société civile",
+};
+
 export const ROLE_META: Record<
   Role,
   { label: string; description: string; badge: string }

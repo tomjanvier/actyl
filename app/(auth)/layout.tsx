@@ -7,8 +7,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <Link href="/" aria-label="Accueil Actyl" className="mb-8">
+    <div className="flex min-h-screen flex-col items-center justify-start px-4 py-8 sm:justify-center sm:py-12">
+      <Link href="/" aria-label="Accueil Actyl" className="mb-6 sm:mb-8">
         <ActylLogo className="h-10 w-[158px]" priority />
       </Link>
       {children}

@@ -35,6 +35,13 @@ Worker : **`actyl-cloudflare`** · preview : **`actyl-cloudflare-preview`**.
 | `CRON_SECRET` | privée | secret |
 | `TURNSTILE_SECRET_KEY` | privée | secret |
 | `RESEND_API_KEY` | privée (vide = simulation tracée en base) | secret |
+| `RESOLVEHQ_API_URL` | serveur | `wrangler.jsonc` → `vars` (URL publique du service) |
+| `RESOLVEHQ_API_KEY` | privée, serveur | secret Worker |
+| `RESOLVEHQ_INBOX_ID` (facultative) | serveur | `wrangler.jsonc` → `vars`; omise ou vide, l’inbox par défaut est utilisée |
+| `GITHUB_APP_ID` | non sensible, serveur | `wrangler.jsonc` → `vars` |
+| `GITHUB_APP_INSTALLATION_ID` | non sensible, serveur | `wrangler.jsonc` → `vars` |
+| `GITHUB_APP_PRIVATE_KEY` (clé RSA de l’app TomOpenBot) | privée, serveur | secret Worker ; clé conservée hors Git |
+| `GITHUB_ISSUES_REPOSITORY` | non sensible, serveur | `wrangler.jsonc` → `vars` (`tomjanvier/resolvehq-actyl`) |
 | `EMAIL_FROM` | privée | secret (ou `vars` si non sensible — ici en secret) |
 | `ACT_SSO_ISSUER` (ex. `https://act.plaidact.org`) | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
 | `ACT_SSO_CLIENT_ID` | non sensible, serveur | secret (ou `vars`) — bouton masqué si absent |
@@ -82,6 +89,7 @@ wrangler secret put AUTH_SECRET --env preview
 wrangler secret put CRON_SECRET --env preview
 wrangler secret put TURNSTILE_SECRET_KEY --env preview
 wrangler secret put RESEND_API_KEY --env preview   # optionnel (vide = simulé)
+wrangler secret put GITHUB_APP_PRIVATE_KEY --env preview  # clé PEM de TomOpenBot
 wrangler secret put EMAIL_FROM --env preview
 wrangler secret put ACT_SSO_WORKSPACE_SLUG --env preview
 
@@ -99,6 +107,7 @@ wrangler secret put AUTH_SECRET --env production
 wrangler secret put CRON_SECRET --env production
 wrangler secret put TURNSTILE_SECRET_KEY --env production
 wrangler secret put RESEND_API_KEY --env production
+wrangler secret put GITHUB_APP_PRIVATE_KEY --env production
 wrangler secret put EMAIL_FROM --env production
 wrangler secret put ACT_SSO_WORKSPACE_SLUG --env production
 
