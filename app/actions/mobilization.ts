@@ -91,7 +91,9 @@ export async function citizenSignAction(input: {
   if (name.length < 2) return { error: "Votre nom est requis." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return { error: "Adresse email invalide." };
-  const captcha = await verifyTurnstileToken(input.turnstileToken);
+  const captcha = await verifyTurnstileToken(input.turnstileToken, {
+    expectedAction: "petition-signature",
+  });
   if (!captcha.ok) return { error: captcha.error };
 
   // Anti-abuse: 10 signatures per minute per IP

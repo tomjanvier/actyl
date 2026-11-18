@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createResolveHQTicket } from "@/lib/feedback-resolvehq";
-
-const MAX_REPORTS_PER_RUN = 5;
-const CLAIM_DURATION_MS = 15 * 60 * 1000;
-const RETRY_DELAYS_MS = [15 * 60_000, 60 * 60_000, 6 * 60 * 60_000, 24 * 60 * 60_000];
-
-function retryDelayMs(failedAttempts: number) {
-  const index = Math.min(Math.max(failedAttempts - 1, 0), RETRY_DELAYS_MS.length - 1);
-  return RETRY_DELAYS_MS[index] ?? 24 * 60 * 60_000;
-}
+import {
+  FEEDBACK_RETRY_CLAIM_DURATION_MS,
+  MAX_FEEDBACK_REPORTS_PER_RUN,
+  feedbackRetryDelayMs,
+} from "@/lib/feedback-retry-policy";
 
 export async function GET(request: Request) {
   const expected = process.env.CRON_SECRET;
@@ -26,7 +22,7 @@ export async function GET(request: Request) {
         OR: [{ resolvehqNextRetryAt: null }, { resolvehqNextRetryAt: { lte: now } }],
       },
       orderBy: { createdAt: "asc" },
-      take: MAX_REPORTS_PER_RUN,
+      take: MAX_FEEDBACK_REPORTS_PER_RUN,
       select: {
         id: true,
         category: true,
@@ -55,14 +51,14 @@ export async function GET(request: Request) {
           resolvehqSyncState: report.resolvehqSyncState,
           resolvehqNextRetryAt: report.resolvehqNextRetryAt,
         },
-        data: { resolvehqLastAttemptAt: now, resolvehqNextRetryAt: new Date(now.getTime() + CLAIM_DURATION_MS) },
+        data: { resolvehqLastAttemptAt: now, resolvehqNextRetryAt: new Date(now.getTime() + FEEDBACK_RETRY_CLAIM_DURATION_MS) },
       });
       if (claim.count !== 1) continue;
       claimed += 1;
 
       if (!report.user?.email) {
         const retryCount = report.resolvehqRetryCount + 1;
-        const delay = retryDelayMs(retryCount);
+        const delay = feedbackRetryDelayMs(retryCount);
         await db.feedbackReport.updateMany({
           where: { id: report.id, resolvehqTicketId: null },
           data: {
@@ -106,7 +102,7 @@ export async function GET(request: Request) {
       }
 
       const retryCount = report.resolvehqRetryCount + 1;
-      const delay = retryDelayMs(retryCount);
+      const delay = feedbackRetryDelayMs(retryCount);
       await db.feedbackReport.updateMany({
         where: { id: report.id, resolvehqTicketId: null },
         data: {

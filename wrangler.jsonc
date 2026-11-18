@@ -6,6 +6,7 @@
   "main": "custom-worker.mjs",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "cache": { "enabled": true, "cross_version_cache": false },
   "placement": { "mode": "smart" },
   "migrations": [{ "tag": "actyl-cache-v1", "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"] }],
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache" }],
@@ -35,6 +36,7 @@
   // Garde-fous de consommation : à activer sur plan Paid.
   // "limits": { "cpu_ms": 50 },
   "previews": {
+    "cache": { "enabled": true, "cross_version_cache": false },
     "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache-preview" }],
     "durable_objects": { "bindings": [
       { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
@@ -54,6 +56,7 @@
   "env": {
     "preview": {
       "name": "actyl-cloudflare-preview",
+      "cache": { "enabled": true, "cross_version_cache": false },
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache-preview" }],
   "durable_objects": { "bindings": [
     { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
@@ -69,6 +72,7 @@
     },
     "production": {
       "name": "actyl-cloudflare",
+      "cache": { "enabled": true, "cross_version_cache": false },
   "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "actyl-next-cache" }],
   "durable_objects": { "bindings": [
     { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },

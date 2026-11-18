@@ -35,6 +35,9 @@ Worker : **`actyl-cloudflare`** · preview : **`actyl-cloudflare-preview`**.
 | `CRON_SECRET` | privée | secret |
 | `TURNSTILE_SECRET_KEY` | privée | secret |
 | `RESEND_API_KEY` | privée (vide = simulation tracée en base) | secret |
+| `RESOLVEHQ_API_URL` | serveur | `wrangler.jsonc` → `vars` (URL publique du service) |
+| `RESOLVEHQ_API_KEY` | privée, serveur | secret Worker |
+| `RESOLVEHQ_INBOX_ID` (facultative) | serveur | `wrangler.jsonc` → `vars`; omise ou vide, l’inbox par défaut est utilisée |
 | `GITHUB_APP_ID` | non sensible, serveur | `wrangler.jsonc` → `vars` |
 | `GITHUB_APP_INSTALLATION_ID` | non sensible, serveur | `wrangler.jsonc` → `vars` |
 | `GITHUB_APP_PRIVATE_KEY` (clé RSA de l’app TomOpenBot) | privée, serveur | secret Worker ; clé conservée hors Git |

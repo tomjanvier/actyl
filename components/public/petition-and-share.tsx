@@ -76,7 +76,7 @@ export function PetitionSignForm({
           <input name="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" required maxLength={200} className={fCls} />
         </label>
       </div>
-      <TurnstileWidget />
+      <TurnstileWidget action="petition-signature" />
       <Button type="submit" disabled={sending || !name.trim() || !email.trim()} className="w-full sm:w-auto">
         {sending ? "Signature en cours…" : "Je signe"}
       </Button>

@@ -229,7 +229,7 @@ export function CitizenForm({
         {personalized ? "Revenir au message type" : "Personnaliser le message"}
       </button>
 
-      <TurnstileWidget />
+      <TurnstileWidget action="citizen-email" />
 
       <Button
         type="submit"

@@ -150,7 +150,7 @@ export function SignUpForm({
             {state.error}
           </p>
         )}
-        {!disableTurnstile && <TurnstileWidget />}
+        {!disableTurnstile && <TurnstileWidget action="signup" />}
         <Button type="submit" disabled={pending} className="mt-1 w-full">
           {pending
             ? "Envoi…"
