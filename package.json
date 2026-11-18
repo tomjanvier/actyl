@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
+    "test": "NODE_PATH=./node_modules/next/dist/compiled node --conditions=react-server --import tsx --test tests/*.test.ts",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint .",

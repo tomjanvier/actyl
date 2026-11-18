@@ -58,7 +58,7 @@ export async function signUpAction(
   }
   const captcha = await verifyTurnstileToken(
     String(formData.get("cf-turnstile-response") ?? ""),
-    { allowPreviewSignupBypass: true },
+    { allowPreviewSignupBypass: true, expectedAction: "signup" },
   );
   if (!captcha.ok) return { error: captcha.error };
   const {
