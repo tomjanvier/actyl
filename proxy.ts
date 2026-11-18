@@ -25,6 +25,8 @@ const PROTECTED_PREFIXES = [
   "/tasks",
   "/events",
   "/supporters",
+  "/presidentielle",
+  "/campaign-teams",
 ];
 
 function noStore(response: NextResponse): NextResponse {

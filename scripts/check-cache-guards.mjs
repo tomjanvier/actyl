@@ -18,9 +18,14 @@ const params = { params: Promise.resolve({ id: 'list-a' }) };
 (async () => {
   let published = true;
   let reads = 0;
+  let rateLimitAllowed = true;
   const publicRoute = loadRoute('app/api/public/lists/[id]/route.ts', {
     'next/server': next,
     '@/lib/utils': { toCSV: () => '' },
+    '@/lib/rate-limit': {
+      clientIp: async () => 'test-ip',
+      rateLimit: () => ({ allowed: rateLimitAllowed, retryAfterSec: 30 }),
+    },
     '@/lib/public-directory': {
       getPublishedList: async () => published ? { id: 'list-a' } : null,
       getDirectoryPage: async () => { reads++; return { rows: [{ id: 'cached-public-contact' }], total: 1 }; },
@@ -36,6 +41,10 @@ const params = { params: Promise.resolve({ id: 'list-a' }) };
   assert.equal(reads, 1, 'Revocation must gate cached rows and exports');
   assert.equal((await publicRoute.GET(request('page=NaN'), params)).status, 400);
   assert.equal((await publicRoute.GET(request('q=' + 'a'.repeat(101)), params)).status, 400);
+  rateLimitAllowed = false;
+  const throttled = await publicRoute.GET(request('format=csv'), params);
+  assert.equal(throttled.status, 429);
+  assert.equal(throttled.headers.get('retry-after'), '30');
 
   let session = null;
   let list = null;

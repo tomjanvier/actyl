@@ -1,11 +1,17 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 const CODE_TTL = 60;
 const TOKEN_TTL = 3600;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+/** Compare deux secrets sans révéler leur préfixe commun par le temps de réponse. */
+const safeEqual = (a: string, b: string) =>
+  timingSafeEqual(
+    createHash("sha256").update(a).digest(),
+    createHash("sha256").update(b).digest(),
+  );
 const opaque = () => randomBytes(32).toString("base64url");
 const error = (message: string, status = 400) => Response.json({ error: message }, { status });
 
@@ -51,11 +57,12 @@ export async function token(request: Request) {
   if (form.get("grant_type") !== "authorization_code") return error("unsupported_grant_type");
   const client = await findClient(String(form.get("client_id") ?? "")); const rawCode = String(form.get("code") ?? "");
   if (!client || client.revokedAt || !rawCode) return error("invalid_grant");
-  if (client.clientSecretHash && hash(String(form.get("client_secret") ?? "")) !== client.clientSecretHash) return error("invalid_client", 401);
+  if (client.clientSecretHash && !safeEqual(hash(String(form.get("client_secret") ?? "")), client.clientSecretHash)) return error("invalid_client", 401);
   const stored = await db.oidcAuthorizationCode.findUnique({ where: { codeHash: hash(rawCode) } });
   if (!stored || stored.usedAt || stored.expiresAt < new Date() || stored.clientId !== client.id || stored.redirectUri !== String(form.get("redirect_uri") ?? "")) return error("invalid_grant");
   const verifier = String(form.get("code_verifier") ?? "");
-  if (createHash("sha256").update(verifier).digest("base64url") !== stored.codeChallenge) return error("invalid_grant");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  if (!safeEqual(challenge, stored.codeChallenge)) return error("invalid_grant");
   const claimed = await db.oidcAuthorizationCode.updateMany({ where: { id: stored.id, usedAt: null }, data: { usedAt: new Date() } });
   if (claimed.count !== 1) return error("invalid_grant");
   const accessToken = opaque();

@@ -1,12 +1,20 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { syncAllReferenceLists } from "@/lib/reference-sync";
 
 export const maxDuration = 300;
 
+function isAuthorized(header: string | null, secret: string): boolean {
+  if (!header) return false;
+  const provided = Buffer.from(header);
+  const expected = Buffer.from(`Bearer ${secret}`);
+  return provided.length === expected.length && timingSafeEqual(provided, expected);
+}
+
 export async function GET(request: Request) {
   const expected = process.env.CRON_SECRET;
   const provided = request.headers.get("authorization");
-  if (!expected || provided !== `Bearer ${expected}`) {
+  if (!expected || !isAuthorized(provided, expected)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
   try {

@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { withDbTransaction } from "@/lib/db-transaction";
 import { registerClient } from "@/lib/oidc";
 
 export const dynamic = "force-dynamic";
@@ -59,17 +60,17 @@ export async function PATCH(request: Request) {
   if (!client) return Response.json({ error: "Client introuvable." }, { status: 404 });
 
   const now = new Date();
-  await db.$transaction([
-    db.oidcClient.update({
+  await withDbTransaction(async (tx) => {
+    await tx.oidcClient.update({
       where: { id: client.id },
       data: { revokedAt: body.revoked ? now : null },
-    }),
-    ...(body.revoked
-      ? [db.oidcAccessToken.updateMany({
-          where: { clientId: client.id, revokedAt: null },
-          data: { revokedAt: now },
-        })]
-      : []),
-  ]);
+    });
+    if (body.revoked) {
+      await tx.oidcAccessToken.updateMany({
+        where: { clientId: client.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+    }
+  });
   return Response.json({ ok: true });
 }
